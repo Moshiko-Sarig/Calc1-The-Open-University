@@ -446,6 +446,16 @@ function copyStaticApp() {
   copyDirectory(webAppDir, docsDir, (rel) => rel === "assets/content.js" || rel.startsWith("assets/figures/"));
 }
 
+function writeRootIndex() {
+  const source = path.join(webAppDir, "index.html");
+  if (!fs.existsSync(source)) return;
+  const html = fs.readFileSync(source, "utf8");
+  const withBase = html.includes("<base ")
+    ? html
+    : html.replace("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />", "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n    <base href=\"./docs/\" />");
+  fs.writeFileSync(path.join(root, "index.html"), withBase, "utf8");
+}
+
 function writeGeneratedContent(payload) {
   for (const assetDir of generatedAssetDirs) {
     fs.mkdirSync(assetDir, { recursive: true });
@@ -475,6 +485,7 @@ function main() {
   }
 
   copyStaticApp();
+  writeRootIndex();
 
   const pages = collectPages();
   const aliases = buildAliases(pages);

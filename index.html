@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base href="./docs/" />
+    <meta name="color-scheme" content="light" />
+    <title>כספת אינפי 1</title>
+    <meta
+      name="description"
+      content="אתר לימודי לא רשמי לחשבון אינפיסימטלי 1: פתקים, חיפוש, מפת קורס וגרף תלות."
+    />
+    <link rel="stylesheet" href="./assets/site.css" />
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [["$", "$"], ["\\(", "\\)"]],
+          displayMath: [["$$", "$$"], ["\\[", "\\]"]],
+          processEscapes: true
+        },
+        options: {
+          skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"]
+        }
+      };
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <script defer src="./assets/content.js"></script>
+    <script defer src="./assets/app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#app">דלג לתוכן הראשי</a>
+    <div class="paper-shell">
+      <header class="masthead" aria-label="ראש האתר">
+        <a class="brand" href="#/home" aria-label="כספת אינפי 1, בית">
+          <span class="brand-mark" aria-hidden="true">∫</span>
+          <span class="brand-copy">
+            <strong>כספת אינפי 1</strong>
+            <small>מהדורת לימוד פתוחה</small>
+          </span>
+        </a>
+
+        <label class="search-box" for="siteSearch">
+          <span aria-hidden="true">⌕</span>
+          <input id="siteSearch" type="search" autocomplete="off" placeholder="חיפוש משפט, מושג, דוגמה נגד" />
+        </label>
+
+        <nav class="view-tabs" aria-label="תצוגות">
+          <button class="tab-button" type="button" data-view="home">ראשי</button>
+          <button class="tab-button" type="button" data-view="graph">גרף</button>
+          <button class="tab-button" type="button" data-view="index">אינדקס</button>
+          <button class="tab-button" type="button" data-view="credits">קרדיט</button>
+        </nav>
+      </header>
+
+      <div class="edition-rule" aria-hidden="true">
+        <span>20474</span>
+        <span>גבולות, רציפות, נגזרות</span>
+        <span>לא רשמי</span>
+      </div>
+
+      <div id="searchResults" class="search-results" hidden></div>
+
+      <div class="reading-room">
+        <aside class="unit-rail" aria-label="יחידות הקורס">
+          <div class="rail-title">מדורים</div>
+          <div id="unitNav" class="unit-list"></div>
+        </aside>
+
+        <main id="app" class="content-stage" tabindex="-1">
+          <section class="loading-state">
+            <h1>טוען כספת</h1>
+            <p>בודק תוכן, קשרים ונוסחאות.</p>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>
