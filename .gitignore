@@ -1,0 +1,22 @@
+node_modules/
+.DS_Store
+Thumbs.db
+.agents/
+tmp/
+output/
+guides/
+*.log
+*.pdf
+
+# Source books / full converted source material. Keep public site focused on vault notes.
+אינפי 1 - כרך א.md
+אינפי 1 כרך ב.md
+אינפי 1 כרך ג.md
+אינפי 1 הגדרות ומשפטים.md
+אינפי 1מ - סיכום צנזור.md
+תיקונים לספרים אינפי 1.md
+
+# Local Obsidian state, plugins, backups, and management scripts.
+חשבון אינפיסימטלי 1/.obsidian/
+חשבון אינפיסימטלי 1/00 - מרכז הכספת/ניהול/
+חשבון אינפיסימטלי 1/Templates/

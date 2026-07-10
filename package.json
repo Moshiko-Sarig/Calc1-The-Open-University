@@ -1,0 +1,10 @@
+{
+  "name": "infinitesimal-1-vault-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node tools/build-site.mjs",
+    "serve": "node tools/serve-site.mjs"
+  }
+}
