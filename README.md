@@ -23,13 +23,21 @@
 
 אפשר גם להשתמש ב-GitHub Actions, אבל `/docs` הכי פשוט כי כל האתר כבר בנוי ומחויב לריפו.
 
-## קבצי האתר
+## מבנה האתר
 
-- HTML: [`docs/index.html`](docs/index.html)
-- CSS: [`docs/assets/site.css`](docs/assets/site.css)
-- JavaScript: [`docs/assets/app.js`](docs/assets/app.js)
-- תוכן האתר: [`docs/assets/content.js`](docs/assets/content.js)
-- תמונות: [`docs/assets/figures`](docs/assets/figures)
+- מקור UI מחוץ ל-Obsidian: [`web-app`](web-app)
+- פרסום GitHub Pages: [`docs`](docs)
+- מחולל תוכן מהכספת: [`tools/build-site.mjs`](tools/build-site.mjs)
+
+קבצי ה-UI:
+
+- HTML מקור: [`web-app/index.html`](web-app/index.html)
+- CSS מקור: [`web-app/assets/site.css`](web-app/assets/site.css)
+- JavaScript מקור: [`web-app/assets/app.js`](web-app/assets/app.js)
+- HTML לפרסום: [`docs/index.html`](docs/index.html)
+- CSS לפרסום: [`docs/assets/site.css`](docs/assets/site.css)
+- JavaScript לפרסום: [`docs/assets/app.js`](docs/assets/app.js)
+- תוכן האתר שנוצר מהכספת: [`docs/assets/content.js`](docs/assets/content.js)
 
 ## בנייה מקומית
 

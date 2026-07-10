@@ -5,10 +5,12 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const vaultDir = path.join(root, "חשבון אינפיסימטלי 1");
+const webAppDir = path.join(root, "web-app");
 const docsDir = path.join(root, "docs");
-const assetsDir = path.join(docsDir, "assets");
+const webAssetsDir = path.join(webAppDir, "assets");
+const docsAssetsDir = path.join(docsDir, "assets");
 const figuresDir = path.join(root, "figures");
-const outputFiguresDir = path.join(assetsDir, "figures");
+const generatedAssetDirs = [webAssetsDir, docsAssetsDir];
 
 const collator = new Intl.Collator("he", { numeric: true, sensitivity: "base" });
 
@@ -421,12 +423,45 @@ function buildUnits(pages) {
   return Array.from(units.values()).sort((a, b) => a.order - b.order || collator.compare(a.name, b.name));
 }
 
+function copyDirectory(source, target, skip = () => false) {
+  if (!fs.existsSync(source)) return;
+  fs.mkdirSync(target, { recursive: true });
+  for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
+    const sourcePath = path.join(source, entry.name);
+    const targetPath = path.join(target, entry.name);
+    const rel = toPosix(path.relative(source, sourcePath));
+    if (skip(rel, entry)) continue;
+    if (entry.isDirectory()) {
+      copyDirectory(sourcePath, targetPath, (childRel, childEntry) => skip(toPosix(path.join(rel, childRel)), childEntry));
+    } else if (entry.isFile()) {
+      fs.copyFileSync(sourcePath, targetPath);
+    }
+  }
+}
+
+function copyStaticApp() {
+  if (!fs.existsSync(webAppDir)) {
+    throw new Error(`Web app source not found: ${webAppDir}`);
+  }
+  copyDirectory(webAppDir, docsDir, (rel) => rel === "assets/content.js" || rel.startsWith("assets/figures/"));
+}
+
+function writeGeneratedContent(payload) {
+  for (const assetDir of generatedAssetDirs) {
+    fs.mkdirSync(assetDir, { recursive: true });
+    fs.writeFileSync(path.join(assetDir, "content.js"), `window.COURSE_DATA = ${JSON.stringify(payload)};\n`, "utf8");
+  }
+}
+
 function copyFigures() {
   if (!fs.existsSync(figuresDir)) return;
-  fs.mkdirSync(outputFiguresDir, { recursive: true });
-  for (const entry of fs.readdirSync(figuresDir, { withFileTypes: true })) {
-    if (!entry.isFile()) continue;
-    fs.copyFileSync(path.join(figuresDir, entry.name), path.join(outputFiguresDir, entry.name));
+  for (const assetDir of generatedAssetDirs) {
+    const outputFiguresDir = path.join(assetDir, "figures");
+    fs.mkdirSync(outputFiguresDir, { recursive: true });
+    for (const entry of fs.readdirSync(figuresDir, { withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      fs.copyFileSync(path.join(figuresDir, entry.name), path.join(outputFiguresDir, entry.name));
+    }
   }
 }
 
@@ -438,6 +473,8 @@ function main() {
   if (!fs.existsSync(vaultDir)) {
     throw new Error(`Vault not found: ${vaultDir}`);
   }
+
+  copyStaticApp();
 
   const pages = collectPages();
   const aliases = buildAliases(pages);
@@ -489,8 +526,7 @@ function main() {
     pages
   };
 
-  fs.mkdirSync(assetsDir, { recursive: true });
-  fs.writeFileSync(path.join(assetsDir, "content.js"), `window.COURSE_DATA = ${JSON.stringify(payload)};\n`, "utf8");
+  writeGeneratedContent(payload);
   fs.writeFileSync(path.join(docsDir, ".nojekyll"), "", "utf8");
   copyFigures();
   console.log(`Built ${pages.length} pages, ${edges.length} graph edges -> ${path.relative(root, docsDir)}`);

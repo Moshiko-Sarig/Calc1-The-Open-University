@@ -7,6 +7,9 @@ output/
 guides/
 *.log
 *.pdf
+web-app/assets/content.js
+web-app/assets/figures/
+web-app/.nojekyll
 
 # Source books / full converted source material. Keep public site focused on vault notes.
 אינפי 1 - כרך א.md
