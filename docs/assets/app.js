@@ -43,6 +43,12 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
+// Vault paths mix Hebrew folder names with "/" and ".md"; isolating them
+// keeps the separators in place inside right-to-left text.
+function displayPath(path) {
+  return `<bdi>${escapeHtml(String(path || "").replace(/\.md$/i, "").replaceAll("/", " / "))}</bdi>`;
+}
+
 function routeTo(view, id = "") {
   const hash = id ? `#/${view}/${id}` : `#/${view}`;
   if (location.hash !== hash) location.hash = hash;
@@ -199,7 +205,7 @@ function renderNoteCard(page) {
   return `<a class="note-card" href="#/page/${page.id}">
     <small>${escapeHtml(page.unitName)}</small>
     <strong>${escapeHtml(page.title)}</strong>
-    <span class="path-line">${escapeHtml(page.path)}</span>
+    <span class="path-line">${displayPath(page.path)}</span>
   </a>`;
 }
 
@@ -252,7 +258,7 @@ function renderPage(page) {
       <header class="page-head">
         <div class="page-meta">
           <span>${escapeHtml(page.unitName)}</span>
-          <span>${escapeHtml(page.path)}</span>
+          <span>${displayPath(page.path)}</span>
           <span>${page.wordCount} מילים</span>
         </div>
         <h1>${escapeHtml(page.title)}</h1>
@@ -540,7 +546,7 @@ function runSearch(query) {
         .map(
           ({ page }) => `<button class="result-button" type="button" data-open="${page.id}">
             <strong>${escapeHtml(page.title)}</strong>
-            <small>${escapeHtml(page.path)}</small>
+            <small>${displayPath(page.path)}</small>
           </button>`
         )
         .join("")
@@ -548,16 +554,37 @@ function runSearch(query) {
 }
 
 function typesetMath() {
-  if (window.MathJax?.typesetPromise) {
-    window.MathJax.typesetPromise([app]).catch(() => {});
-  }
+  const mathJax = window.MathJax;
+  if (!mathJax) return;
+  const run = () => {
+    if (!mathJax.typesetPromise) return;
+    mathJax.typesetClear?.([app]);
+    mathJax.typesetPromise([app]).catch(() => {});
+  };
+  if (mathJax.startup?.promise) mathJax.startup.promise.then(run);
+  else run();
 }
 
 function renderMermaid() {
   if (!window.mermaid) return;
   try {
-    window.mermaid.initialize({ startOnLoad: false, securityLevel: "loose", theme: "neutral" });
-    window.mermaid.run({ nodes: app.querySelectorAll(".mermaid") });
+    window.mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: "strict",
+      theme: "neutral",
+      themeVariables: { fontFamily: "Heebo, system-ui, sans-serif", fontSize: "16px" },
+      flowchart: { htmlLabels: true, useMaxWidth: false, nodeSpacing: 36, rankSpacing: 44 }
+    });
+    const diagrams = app.querySelectorAll(".mermaid");
+    if (!diagrams.length) return;
+    Promise.resolve(window.mermaid.run({ nodes: diagrams }))
+      .then(() => {
+        // Flowcharts are drawn right to left; open wide ones at their first node.
+        app.querySelectorAll(".diagram-wrap").forEach((wrap) => {
+          wrap.scrollLeft = wrap.scrollWidth;
+        });
+      })
+      .catch(() => {});
   } catch {
     // Mermaid optional. Raw source stays visible.
   }

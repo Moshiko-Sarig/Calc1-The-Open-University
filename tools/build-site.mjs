@@ -151,14 +151,81 @@ function escapeAttribute(value) {
   return escapeHtml(value).replaceAll("'", "&#39;");
 }
 
+// Math is LTR content embedded in RTL Hebrew prose. It is wrapped in an
+// isolated LTR element so the bidi algorithm never reorders or mirrors it,
+// and it is tokenized before any Markdown processing so `*`, `_`, `[`, `|`
+// inside TeX are never mistaken for emphasis, links or table cells.
+function renderMathInline(tex) {
+  return `<span class="math math-inline" dir="ltr">\\(${escapeHtml(tex.trim())}\\)</span>`;
+}
+
+function renderMathDisplay(tex, tag = "div") {
+  return `<${tag} class="math math-display" dir="ltr">\\[${escapeHtml(tex.trim())}\\]</${tag}>`;
+}
+
+function findClosingDollar(text, from, delimiter) {
+  for (let index = from; index < text.length; index += 1) {
+    if (text[index] === "\\") {
+      index += 1;
+      continue;
+    }
+    if (text.startsWith(delimiter, index)) {
+      if (delimiter === "$" && text[index + 1] === "$") continue;
+      return index;
+    }
+  }
+  return -1;
+}
+
+function protectMath(value, tokens) {
+  const text = String(value);
+  let output = "";
+  let index = 0;
+
+  while (index < text.length) {
+    const char = text[index];
+    if (char === "\\" && text[index + 1] === "$") {
+      output += "$";
+      index += 2;
+      continue;
+    }
+    if (char !== "$") {
+      output += char;
+      index += 1;
+      continue;
+    }
+
+    const display = text[index + 1] === "$";
+    const delimiter = display ? "$$" : "$";
+    const start = index + delimiter.length;
+    const end = findClosingDollar(text, start, delimiter);
+    const tex = end >= 0 ? text.slice(start, end) : "";
+
+    if (end < 0 || !tex.trim()) {
+      output += delimiter;
+      index = start;
+      continue;
+    }
+
+    const token = `@@MATH${tokens.length}@@`;
+    tokens.push(display ? renderMathDisplay(tex, "span") : renderMathInline(tex));
+    output += token;
+    index = end + delimiter.length;
+  }
+
+  return output;
+}
+
 function renderInline(value, resolveLink) {
   const tokens = [];
+  const mathTokens = [];
   let text = String(value).replace(/`([^`]+)`/g, (_, code) => {
     const token = `@@CODE${tokens.length}@@`;
-    tokens.push(`<code>${escapeHtml(code)}</code>`);
+    tokens.push(`<code dir="auto">${escapeHtml(code)}</code>`);
     return token;
   });
 
+  text = protectMath(text, mathTokens);
   text = escapeHtml(text);
 
   text = text.replace(/!\[\[([^\]]+)\]\]/g, (_, rawTarget) => {
@@ -186,11 +253,93 @@ function renderInline(value, resolveLink) {
     .replace(/__([^_]+)__/g, "<strong>$1</strong>")
     .replace(/(^|[^\*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
 
+  mathTokens.forEach((html, index) => {
+    text = text.replaceAll(`@@MATH${index}@@`, html);
+  });
   tokens.forEach((html, index) => {
     text = text.replaceAll(`@@CODE${index}@@`, html);
   });
 
   return text;
+}
+
+function isDisplayMathStart(line) {
+  return /^\s*\$\$/.test(line);
+}
+
+// Reads a $$ ... $$ block that starts at lines[index]. Returns the TeX, any
+// text that follows the closing $$ on the same line, and the next line index.
+function readDisplayMath(lines, index) {
+  const first = lines[index].trim().slice(2);
+  const sameLineEnd = findClosingDollar(first, 0, "$$");
+  if (sameLineEnd >= 0) {
+    return { tex: first.slice(0, sameLineEnd), rest: first.slice(sameLineEnd + 2).trim(), next: index + 1 };
+  }
+
+  const buffer = [first];
+  let cursor = index + 1;
+  while (cursor < lines.length) {
+    const end = findClosingDollar(lines[cursor], 0, "$$");
+    if (end >= 0) {
+      buffer.push(lines[cursor].slice(0, end));
+      return { tex: buffer.join("\n"), rest: lines[cursor].slice(end + 2).trim(), next: cursor + 1 };
+    }
+    buffer.push(lines[cursor]);
+    cursor += 1;
+  }
+  return { tex: buffer.join("\n"), rest: "", next: cursor };
+}
+
+function indentOf(line) {
+  return line.match(/^\s*/)[0].replace(/\t/g, "    ").length;
+}
+
+// Lists keep one level of nesting and accept indented continuation lines,
+// so a long Hebrew bullet that wraps in the source stays one bullet.
+function renderList(lines, start, resolveLink) {
+  const itemPattern = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/;
+  const baseIndent = indentOf(lines[start]);
+  const ordered = /^\s*\d+[.)]\s+/.test(lines[start]);
+  const items = [];
+  let index = start;
+
+  while (index < lines.length) {
+    const line = lines[index];
+    if (!line.trim()) break;
+    const match = line.match(itemPattern);
+    const indent = indentOf(line);
+
+    if (match) {
+      if (indent < baseIndent - 1) break;
+      if (indent <= baseIndent + 1) {
+        const sameKind = /^\d/.test(match[2]) === ordered;
+        if (!sameKind) break;
+        items.push({ text: match[3], children: [] });
+        index += 1;
+        continue;
+      }
+      if (items.length) {
+        const nested = renderList(lines, index, resolveLink);
+        items.at(-1).children.push(nested.html);
+        index = nested.next;
+        continue;
+      }
+    }
+
+    if (indent > baseIndent && items.length && !isDisplayMathStart(line)) {
+      items.at(-1).text += ` ${line.trim()}`;
+      index += 1;
+      continue;
+    }
+
+    break;
+  }
+
+  const tag = ordered ? "ol" : "ul";
+  const body = items
+    .map((item) => `<li>${renderInline(item.text, resolveLink)}${item.children.join("")}</li>`)
+    .join("");
+  return { html: `<${tag}>${body}</${tag}>`, next: index };
 }
 
 function renderMarkdown(body, resolveLink) {
@@ -217,6 +366,14 @@ function renderMarkdown(body, resolveLink) {
       }
       i += 1;
       html.push(renderCodeBlock(lang, block.join("\n")));
+      continue;
+    }
+
+    if (isDisplayMathStart(line)) {
+      const block = readDisplayMath(lines, i);
+      if (block.tex.trim()) html.push(renderMathDisplay(block.tex));
+      if (block.rest) html.push(`<p>${renderInline(block.rest, resolveLink)}</p>`);
+      i = block.next;
       continue;
     }
 
@@ -256,15 +413,9 @@ function renderMarkdown(body, resolveLink) {
     }
 
     if (/^\s*[-*+]\s+/.test(line) || /^\s*\d+[.)]\s+/.test(line)) {
-      const ordered = /^\s*\d+[.)]\s+/.test(line);
-      const items = [];
-      const itemPattern = ordered ? /^\s*\d+[.)]\s+/ : /^\s*[-*+]\s+/;
-      while (i < lines.length && itemPattern.test(lines[i])) {
-        items.push(lines[i].replace(itemPattern, ""));
-        i += 1;
-      }
-      const tag = ordered ? "ol" : "ul";
-      html.push(`<${tag}>${items.map((item) => `<li>${renderInline(item, resolveLink)}</li>`).join("")}</${tag}>`);
+      const list = renderList(lines, i, resolveLink);
+      html.push(list.html);
+      i = list.next;
       continue;
     }
 
@@ -277,6 +428,7 @@ function renderMarkdown(body, resolveLink) {
       !/^(#{1,6})\s+/.test(lines[i]) &&
       !/^---+$/.test(lines[i].trim()) &&
       !isTableStart(lines, i) &&
+      !isDisplayMathStart(lines[i]) &&
       !/^\s*>\s?/.test(lines[i]) &&
       !/^\s*[-*+]\s+/.test(lines[i]) &&
       !/^\s*\d+[.)]\s+/.test(lines[i])
@@ -303,10 +455,10 @@ function renderTable(lines, resolveLink) {
 
   if (!rows.length) return "";
   const [head, ...body] = rows;
-  return `<table>
+  return `<div class="table-wrap"><table>
     <thead><tr>${head.map((cell) => `<th>${renderInline(cell, resolveLink)}</th>`).join("")}</tr></thead>
     <tbody>${body.map((row) => `<tr>${row.map((cell) => `<td>${renderInline(cell, resolveLink)}</td>`).join("")}</tr>`).join("")}</tbody>
-  </table>`;
+  </table></div>`;
 }
 
 function splitTableRow(line) {
@@ -346,9 +498,14 @@ function splitTableRow(line) {
   return cells;
 }
 
+// Hebrew readers scan right to left, so left-to-right flowcharts are mirrored.
+function rtlMermaid(code) {
+  return code.replace(/^(\s*(?:flowchart|graph)\s+)LR\b/m, "$1RL");
+}
+
 function renderCodeBlock(lang, code) {
+  if (lang === "mermaid") return `<div class="diagram-wrap"><pre class="mermaid">${escapeHtml(rtlMermaid(code))}</pre></div>`;
   const safe = escapeHtml(code);
-  if (lang === "mermaid") return `<div class="diagram-wrap"><pre class="mermaid">${safe}</pre></div>`;
   if (["dataview", "tikz", "desmos-live", "mathematica-plot"].includes(lang)) {
     return `<details class="plugin-block"><summary>בלוק ${escapeHtml(lang)} מהכספת</summary><pre><code>${safe}</code></pre></details>`;
   }

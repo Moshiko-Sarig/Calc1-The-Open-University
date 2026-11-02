@@ -634,9 +634,55 @@ a.link-chip:hover {
   border-inline-start: 4px solid var(--editor-red);
 }
 
+/* Bidi: the page is right-to-left Hebrew; every formula is an isolated
+   left-to-right island inside the same line, so neither side reorders,
+   mirrors brackets, or drags neighbouring punctuation across. */
+.math,
+mjx-container {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.math-inline {
+  display: inline;
+}
+
+.math-display {
+  display: block;
+  margin: 1rem 0;
+  padding-block: 0.15rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-align: center;
+  max-width: 100%;
+}
+
+.math-display mjx-container[display="true"] {
+  margin: 0 !important;
+}
+
+li > .math-display,
+td > .math-display,
+th > .math-display {
+  margin: 0.45rem 0;
+}
+
+mjx-container[jax="CHTML"] mjx-utext {
+  font-family: var(--body);
+}
+
+bdi {
+  unicode-bidi: isolate;
+}
+
+.table-wrap {
+  max-width: 100%;
+  margin: 1.1rem 0;
+  overflow-x: auto;
+}
+
 .article-body table {
   width: 100%;
-  margin: 1.1rem 0;
   border-collapse: collapse;
   background: var(--chalk);
   font-size: 0.96rem;
@@ -668,7 +714,6 @@ a.link-chip:hover {
 }
 
 .article-body :not(pre) > code {
-  direction: ltr;
   unicode-bidi: isolate;
   color: var(--editor-red);
   background: var(--paper-deep);
@@ -688,6 +733,24 @@ a.link-chip:hover {
   padding: 12px;
   background: var(--chalk);
   border: 1px solid var(--ink);
+}
+
+.article-body pre.mermaid {
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  color: var(--ink);
+  background: transparent;
+  text-align: center;
+}
+
+/* Diagram geometry stays LTR, but the Hebrew labels inside nodes are RTL. */
+.diagram-wrap .nodeLabel,
+.diagram-wrap .edgeLabel,
+.diagram-wrap .label foreignObject div,
+.diagram-wrap .mindmap-node .nodeLabel {
+  direction: rtl;
+  unicode-bidi: isolate;
 }
 
 .plugin-block {

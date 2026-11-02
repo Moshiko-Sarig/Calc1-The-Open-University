@@ -13,9 +13,15 @@
     <script>
       window.MathJax = {
         tex: {
-          inlineMath: [["$", "$"], ["\\(", "\\)"]],
-          displayMath: [["$$", "$$"], ["\\[", "\\]"]],
+          inlineMath: [["\\(", "\\)"]],
+          displayMath: [["\\[", "\\]"]],
           processEscapes: true
+        },
+        chtml: {
+          // Hebrew inside \text{...} is drawn as one text run, so the browser
+          // keeps it right-to-left instead of laying letters out one by one.
+          mtextInheritFont: true,
+          displayAlign: "center"
         },
         options: {
           skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"]
