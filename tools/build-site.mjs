@@ -103,11 +103,33 @@ function stripInline(value) {
     .replace(/<[^>]+>/g, "");
 }
 
+// Unit titles exactly as printed in the course books (20474, volumes A–C).
+// Vault folder names are kept for Obsidian links; the site shows these.
+const officialUnitTitles = {
+  1: "המספרים הממשיים",
+  2: "סדרות וגבולות",
+  3: "קבוצות וסדרות חסומות",
+  4: "גבולות של פונקציות",
+  5: "פונקציות רציפות",
+  6: "פונקציות מעריכיות",
+  7: "הנגזרת",
+  8: "תכונות של פונקציות גזירות"
+};
+
+const unitVolumes = { 1: "כרך א", 2: "כרך א", 3: "כרך א", 4: "כרך ב", 5: "כרך ב", 6: "כרך ב", 7: "כרך ג", 8: "כרך ג" };
+
 function unitInfo(relPath) {
   const first = relPath.split("/")[0];
   const unitMatch = first.match(/^יחידה\s+(\d+)/);
   if (unitMatch) {
-    return { unitId: `unit-${unitMatch[1]}`, unitName: first, unitOrder: Number(unitMatch[1]) + 10 };
+    const number = Number(unitMatch[1]);
+    const title = officialUnitTitles[number];
+    return {
+      unitId: `unit-${number}`,
+      unitName: title ? `יחידה ${number} - ${title}` : first,
+      unitVolume: unitVolumes[number] || "",
+      unitOrder: number + 10
+    };
   }
   if (first === "00 - מרכז הכספת") return { unitId: "center", unitName: "מרכז הכספת", unitOrder: 1 };
   if (first.startsWith("נושאים משלימים")) return { unitId: "supplement", unitName: first, unitOrder: 30 };
@@ -471,6 +493,14 @@ function splitTableRow(line) {
     const char = trimmed[index];
     const next = trimmed[index + 1];
 
+    // Obsidian escapes a literal pipe inside a table cell as "\|". Keep it as
+    // a plain "|" so MathJax draws |x| and not the norm symbol ‖x‖.
+    if (char === "\\" && next === "|") {
+      cell += "|";
+      index += 1;
+      continue;
+    }
+
     if (char === "\\" && next) {
       cell += char + next;
       index += 1;
@@ -503,11 +533,79 @@ function rtlMermaid(code) {
   return code.replace(/^(\s*(?:flowchart|graph)\s+)LR\b/m, "$1RL");
 }
 
+// The page being rendered and the full page list, so Dataview blocks can be
+// evaluated at build time instead of showing raw query code on the site.
+const renderContext = { pages: [], current: null };
+
+const pluginLabels = {
+  tikz: "קוד TikZ (מצויר באובסידיאן)",
+  "desmos-live": "גרף Desmos (חי באובסידיאן)",
+  "mathematica-plot": "גרף Mathematica (חי באובסידיאן)"
+};
+
+function pageFileName(page) {
+  return path.basename(page.path, ".md");
+}
+
+// Supports the query shapes used in this vault:
+//   LIST | TABLE ...  FROM "folder" [OR "folder" ...] | FROM #tag
+//   WHERE file.name != this.file.name | [!]contains(file.name, "text")
+function evaluateDataview(code) {
+  const fromMatch = code.match(/^\s*FROM\s+(.+)$/m);
+  if (!fromMatch) return null;
+  const sources = fromMatch[1].split(/\s+OR\s+/i).map((part) => part.trim());
+  const folders = sources.filter((part) => /^".*"$/.test(part)).map((part) => part.slice(1, -1));
+  const tags = sources.filter((part) => part.startsWith("#")).map((part) => part.slice(1));
+  if (!folders.length && !tags.length) return null;
+
+  const conditions = [];
+  const whereMatch = code.match(/^\s*WHERE\s+(.+)$/m);
+  if (whereMatch) {
+    for (const clause of whereMatch[1].split(/\s+AND\s+/i)) {
+      const text = clause.trim();
+      const contains = text.match(/^(!?)contains\(file\.name,\s*"([^"]*)"\)$/);
+      if (/^file\.name\s*!=\s*this\.file\.name$/.test(text)) {
+        conditions.push((page) => page !== renderContext.current);
+      } else if (contains) {
+        const negate = contains[1] === "!";
+        conditions.push((page) => pageFileName(page).includes(contains[2]) !== negate);
+      } else {
+        return null;
+      }
+    }
+  }
+
+  return renderContext.pages
+    .filter((page) => {
+      const inFolder = folders.some((folder) => page.path.startsWith(`${folder}/`));
+      const hasTag = tags.some((tag) => (page.tags || []).includes(tag));
+      return inFolder || hasTag;
+    })
+    .filter((page) => conditions.every((condition) => condition(page)))
+    .sort((a, b) => collator.compare(a.path, b.path));
+}
+
+function renderDataview(code) {
+  const results = evaluateDataview(code);
+  if (!results) {
+    return `<details class="plugin-block"><summary>שאילתת Dataview (פעילה באובסידיאן)</summary><pre><code>${escapeHtml(code)}</code></pre></details>`;
+  }
+  if (!results.length) return `<p class="dataview-empty">אין פתקים מתאימים.</p>`;
+  const items = results
+    .map(
+      (page) =>
+        `<li><a href="#/page/${page.id}" data-page-link="${page.id}">${escapeHtml(page.title)}</a><small>${escapeHtml(page.unitName)}</small></li>`
+    )
+    .join("");
+  return `<div class="dataview-result"><div class="dataview-caption">רשימה אוטומטית · ${results.length} פתקים</div><ul>${items}</ul></div>`;
+}
+
 function renderCodeBlock(lang, code) {
   if (lang === "mermaid") return `<div class="diagram-wrap"><pre class="mermaid">${escapeHtml(rtlMermaid(code))}</pre></div>`;
+  if (lang === "dataview") return renderDataview(code);
   const safe = escapeHtml(code);
-  if (["dataview", "tikz", "desmos-live", "mathematica-plot"].includes(lang)) {
-    return `<details class="plugin-block"><summary>בלוק ${escapeHtml(lang)} מהכספת</summary><pre><code>${safe}</code></pre></details>`;
+  if (pluginLabels[lang]) {
+    return `<details class="plugin-block"><summary>${escapeHtml(pluginLabels[lang])}</summary><pre><code>${safe}</code></pre></details>`;
   }
   return `<pre><code class="language-${escapeAttribute(lang)}">${safe}</code></pre>`;
 }
@@ -573,7 +671,13 @@ function buildUnits(pages) {
   const units = new Map();
   for (const page of pages) {
     if (!units.has(page.unitId)) {
-      units.set(page.unitId, { id: page.unitId, name: page.unitName, order: page.unitOrder, count: 0 });
+      units.set(page.unitId, {
+        id: page.unitId,
+        name: page.unitName,
+        volume: page.unitVolume || "",
+        order: page.unitOrder,
+        count: 0
+      });
     }
     units.get(page.unitId).count += 1;
   }
@@ -658,8 +762,10 @@ function main() {
     for (const target of page.links) backlinks.get(target)?.push(page.id);
   }
 
+  renderContext.pages = pages;
   for (const page of pages) {
     page.backlinks = Array.from(new Set(backlinks.get(page.id) || []));
+    renderContext.current = page;
     page.html = renderMarkdown(page.body, resolver);
     delete page.body;
     delete page.rawLinks;
@@ -685,6 +791,7 @@ function main() {
     mapPageId: findByTitle(pages, ["מפת הקורס"]),
     dependencyPageId: findByTitle(pages, ["מפת תלות"]),
     proofPageId: findByTitle(pages, ["תבניות הוכחה"]),
+    examListPageId: findByTitle(pages, ["רשימת המשפטים לבחינה"]),
     counterPageId: findByTitle(pages, ["דוגמאות נגד"]),
     units,
     stats: {

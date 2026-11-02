@@ -121,6 +121,7 @@ function renderUnitNav() {
 function renderHome() {
   const keyPages = [
     data.homePageId,
+    data.examListPageId,
     data.mapPageId,
     data.dependencyPageId,
     data.proofPageId,
@@ -157,6 +158,7 @@ function renderHome() {
           <div class="metric"><strong>${data.stats.formulaCount}</strong><span>סימני TeX</span></div>
         </div>
         <div class="front-actions">
+          <button type="button" data-open="${data.examListPageId}">35 המשפטים לבחינה</button>
           <button type="button" data-open="${data.mapPageId}">מפת הקורס</button>
           <button type="button" data-open="${data.dependencyPageId}">מפת תלות</button>
           <button type="button" data-go="graph">גרף קשרים</button>
@@ -258,6 +260,7 @@ function renderPage(page) {
       <header class="page-head">
         <div class="page-meta">
           <span>${escapeHtml(page.unitName)}</span>
+          ${page.unitVolume ? `<span>${escapeHtml(page.unitVolume)}</span>` : ""}
           <span>${displayPath(page.path)}</span>
           <span>${page.wordCount} מילים</span>
         </div>
@@ -443,7 +446,7 @@ function mountGraph() {
 
     nodes.forEach((node) => {
       const active = node === hover;
-      const important = [data.homePageId, data.mapPageId, data.dependencyPageId, data.proofPageId, data.counterPageId].includes(node.id);
+      const important = [data.homePageId, data.examListPageId, data.mapPageId, data.dependencyPageId, data.proofPageId, data.counterPageId].includes(node.id);
       ctx.beginPath();
       ctx.rect(node.x - node.r, node.y - node.r, node.r * 2, node.r * 2);
       ctx.fillStyle = unitColors[node.unitId] || unitColors.other;
