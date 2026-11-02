@@ -671,6 +671,28 @@ mjx-container[jax="CHTML"] mjx-utext {
   font-family: var(--body);
 }
 
+/* MathJax keeps an invisible MathML copy for screen readers; pin it inside
+   the formula so it never widens the page on narrow screens. */
+mjx-container {
+  position: relative;
+}
+
+mjx-container mjx-assistive-mml {
+  inset-inline: 0 auto !important;
+  max-width: 100% !important;
+}
+
+/* A formula wider than the column (set by app.js after typesetting)
+   becomes its own scrollable line instead of pushing the page sideways. */
+.math-inline.math-overflow {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 2px;
+  text-align: start;
+}
+
 bdi {
   unicode-bidi: isolate;
 }
@@ -715,6 +737,7 @@ bdi {
 
 .article-body :not(pre) > code {
   unicode-bidi: isolate;
+  overflow-wrap: anywhere;
   color: var(--editor-red);
   background: var(--paper-deep);
   padding: 0.08em 0.3em;

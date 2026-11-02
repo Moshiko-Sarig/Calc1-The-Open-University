@@ -562,11 +562,34 @@ function typesetMath() {
   const run = () => {
     if (!mathJax.typesetPromise) return;
     mathJax.typesetClear?.([app]);
-    mathJax.typesetPromise([app]).catch(() => {});
+    mathJax.typesetPromise([app]).then(markWideFormulas).catch(() => {});
   };
   if (mathJax.startup?.promise) mathJax.startup.promise.then(run);
   else run();
 }
+
+// Inline formulas cannot wrap. On narrow screens the few that are wider than
+// the text column are switched to a scrollable block of their own.
+function markWideFormulas() {
+  app.querySelectorAll(".math-inline").forEach((el) => {
+    el.classList.remove("math-overflow");
+    const column = el.closest("p, li, td, th, blockquote, .article-body") || app;
+    const formula = el.querySelector("mjx-container") || el;
+    if (formula.getBoundingClientRect().width > column.clientWidth + 1) el.classList.add("math-overflow");
+  });
+}
+
+let resizeTimer = 0;
+window.addEventListener(
+  "resize",
+  () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (currentView === "page") markWideFormulas();
+    }, 150);
+  },
+  { passive: true }
+);
 
 function renderMermaid() {
   if (!window.mermaid) return;
