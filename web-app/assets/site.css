@@ -4336,6 +4336,12 @@ bdi {
   font-size: 0.82rem;
 }
 
+.freq-discrepancy {
+  grid-column: 2 / -1;
+  color: var(--ink-2);
+  font-size: 0.82rem;
+}
+
 .heatmap {
   border-collapse: collapse;
   font-size: 0.88rem;

@@ -65,6 +65,7 @@
     const items = rows
       .map((row) => {
         const href = proofHref(row);
+        const scannedCount = new Set(row.exams.map(({ exam }) => exam)).size;
         const asked = row.exams
           .map(({ exam, q }) => {
             const e = exams().find((x) => x.n === exam);
@@ -76,13 +77,14 @@
           <span class="freq-name">${row.statementHtml}</span>
           <span class="freq-bar" style="--w:${(row.count / max) * 100}%" aria-hidden="true"></span>
           <span class="freq-count">${row.count}<span class="visually-hidden"> הופעות</span></span>
+          ${scannedCount !== row.count ? `<span class="freq-discrepancy">בטבלה המקורית: ${row.count} · בסריקות המתויגות: ${scannedCount}</span>` : ""}
           ${asked ? `<span class="freq-exams">${asked}</span>` : ""}
         </li>`;
       })
       .join("");
     return `<section class="exam-section" aria-labelledby="freqTitle">
       <h2 id="freqTitle">כמה פעמים כל משפט נשאל</h2>
-      <p>33 המשפטים של הרשימה הרשמית (2026ג), מהנפוץ לנדיר. המספר הוא כמות המבחנים שבהם ביקשו להוכיח את המשפט. לחיצה על המספר פותחת את ההוכחה, ולחיצה על סמסטר פותחת את השאלה.</p>
+      <p>33 המשפטים של הרשימה הרשמית (2026ג), לפי השכיחות בטבלה המקורית. במקום שבו מספר המבחנים בסריקות המתויגות שונה, שני המספרים מוצגים. לחיצה על מספר המשפט פותחת את ההוכחה, ולחיצה על סמסטר פותחת את השאלה.</p>
       <ol class="freq-list">${items}</ol>
     </section>`;
   }
