@@ -159,6 +159,7 @@ function saveExpanded() {
 
 function renderTree() {
   tree.innerHTML =
+    `<a class="tree-practice" href="#/practice" data-nav="practice">${icon("star")}<span><strong>תרגול</strong><small>כרטיסי חזרה ופאזלי הוכחה</small></span></a>` +
     groups
       .map((group) => {
         const listId = `tree-${group.id}`;
@@ -589,12 +590,13 @@ function route({ initial = false } = {}) {
   else if (next.view === "index") renderIndex();
   else if (next.view === "graph") renderGraph();
   else if (next.view === "about" || next.view === "credits") renderAbout();
+  else if (next.view === "practice" && window.InfiStudy) window.InfiStudy.render(app, next);
   else if (next.view === "home") renderHome();
   else renderNotFound();
 
   updatePrimaryNav(next.view === "page" ? "" : next.view);
   syncTree(next.view === "page" ? next.id : "");
-  if (!next.section) window.scrollTo(0, 0);
+  if (!next.section || next.view !== "page") window.scrollTo(0, 0);
   if (!initial) {
     const heading = app.querySelector("h1");
     if (heading) {
@@ -815,6 +817,8 @@ function renderHome() {
         <div class="unit-grid">${unitCards}</div>
       </section>
 
+      ${window.InfiStudy ? window.InfiStudy.homeSection() : ""}
+
       ${
         exam
           ? `<section class="exam-band" aria-labelledby="examTitle">
@@ -922,6 +926,7 @@ function renderPage(page, section) {
   decorateHeadings(page);
   buildToc(page);
   window.InfiDemos?.mount(app);
+  window.InfiStudy?.decorate(app);
   alignSheetGrid();
   app.querySelector("[data-toc-inline]")?.addEventListener("toggle", alignSheetGrid);
   typesetMath(() => scrollToSection(section, false));
@@ -940,11 +945,11 @@ function mod(value, size) {
 // Boxes on the page (cards, callouts, tables, diagrams) are ruled along the
 // grid lines, like a frame a student draws around a theorem.
 const SHEET_BOX =
-  ".toc-inline, .callout, .table-wrap, .diagram-wrap, .section-card, .section-review, .dataview-result, pre, .section-related > ul";
+  ".toc-inline, .callout, .table-wrap, .diagram-wrap, .section-card, .section-review, .dataview-result, pre, .section-related > ul, .proof-bar, .qa-list, .qa-practice";
 // Boxes that get extra padding so they also end on a line. The related-notes
 // cards already have a height in whole cells (see site.css).
 const SHEET_BOX_ROUNDED =
-  ".toc-inline, .callout, .table-wrap, .diagram-wrap, .section-card, .section-review, .dataview-result, pre";
+  ".toc-inline, .callout, .table-wrap, .diagram-wrap, .section-card, .section-review, .dataview-result, pre, .proof-bar, .qa-list, .qa-practice";
 
 // 1. The grid is shifted so its horizontal lines pass through the baselines
 //    of body text; a line of text is exactly two cells tall.
@@ -1012,7 +1017,7 @@ function alignSheetGrid() {
   const collect = (container) => {
     for (const child of container.children) {
       if (child.classList.contains("grid-probe")) continue;
-      if (child.classList.contains("note-section") && !child.matches(".section-card, .section-review")) collect(child);
+      if ((child.classList.contains("note-section") && !child.matches(".section-card, .section-review")) || child.classList.contains("proof")) collect(child);
       else if (child.getClientRects().length) blocks.push(child);
     }
   };
@@ -1043,6 +1048,11 @@ function alignSheetGrid() {
   // so the text after it stays on the lines.
   prose.querySelectorAll(".math-display, .math-inline.math-overflow").forEach((el) => {
     if (!el.closest(`${SHEET_BOX}, .grid-probe`) && el.getClientRects().length) roundHeight(el, 0, true);
+  });
+  // A "why?" note inside a proof is whole cells tall, so the lines after it
+  // stay on the grid.
+  prose.querySelectorAll(".why-note").forEach((el) => {
+    if (el.getClientRects().length) roundHeight(el, 0, true);
   });
   // A demo's controls card is ruled along the grid like the other boxes.
   prose.querySelectorAll(".demo-panel").forEach((el) => {
@@ -1098,7 +1108,7 @@ function fitTallFormulas(prose, cell, bodyBaseline) {
   const lineHeight = cell * 2;
   const reach = cell * 0.45;
   const formulas = Array.from(prose.querySelectorAll(".math-inline:not(.math-overflow) mjx-math")).filter(
-    (math) => !math.closest(`${SHEET_BOX}, h1, h2, h3, h4, .grid-probe`) && math.getClientRects().length
+    (math) => !math.closest(`${SHEET_BOX}, h1, h2, h3, h4, .grid-probe, .why-note, .is-hidden`) && math.getClientRects().length
   );
   if (!formulas.length) return;
   // The baseline mark goes inside the formula's box, which never wraps, so it
@@ -1691,17 +1701,29 @@ function parsedPage(page) {
 // The heading of the linked section and the block or two after it: for a
 // theorem that is its statement.
 function sectionPreview(page, slug) {
-  const heading = parsedPage(page).querySelector(`[id="${CSS.escape(slug)}"]`);
-  if (!heading || !/^H[2-4]$/.test(heading.tagName)) return null;
+  const target = parsedPage(page).querySelector(`[id="${CSS.escape(slug)}"]`);
+  if (!target) return null;
+  // a paragraph or list item that states "**משפט 4.42**: ..." (and the
+  // display formula right after it)
+  if (/^(P|LI)$/.test(target.tagName)) {
+    const statement = document.createElement("p");
+    statement.innerHTML = target.innerHTML;
+    const parts = [statement];
+    for (let node = target.nextElementSibling; node?.matches(".math-display") && parts.length < 3; node = node.nextElementSibling) parts.push(node.cloneNode(true));
+    const number = slug.replace(/^stmt-/, "").replace("-", ".");
+    return { title: `${escapeHtml(target.dataset.kind || "")} ${number}`.trim(), parts };
+  }
+  if (!/^H[2-4]$/.test(target.tagName)) return null;
   const parts = [];
   let length = 0;
-  for (let node = heading.nextElementSibling; node && parts.length < 3 && length < 280; node = node.nextElementSibling) {
-    if (/^H[1-6]$/.test(node.tagName)) break;
-    if (node.matches("figure, .diagram-wrap, .dataview-result, .table-wrap")) continue;
+  for (let node = target.nextElementSibling; node && parts.length < 3 && length < 280; node = node.nextElementSibling) {
+    // the statement ends where its proof begins
+    if (/^H[1-6]$/.test(node.tagName) || node.matches(".proof") || (node.matches("p") && /^\s*הוכח/.test(node.textContent))) break;
+    if (node.matches("figure, .diagram-wrap, .dataview-result, .table-wrap, .proof-bar")) continue;
     parts.push(node.cloneNode(true));
     length += node.textContent.length;
   }
-  return { title: heading.innerHTML, parts };
+  return { title: target.innerHTML, parts };
 }
 
 function placePreview(link) {
@@ -1776,6 +1798,22 @@ document.addEventListener("keydown", (event) => {
 });
 window.addEventListener("scroll", hidePreview, { passive: true });
 window.addEventListener("hashchange", hidePreview);
+
+// The study tools (assets/study.js) reuse these helpers.
+window.InfiApp = {
+  data,
+  pages,
+  groups,
+  groupById,
+  pageHref,
+  escapeHtml,
+  groupHeading,
+  groupColor,
+  queueTypeset,
+  alignSheetGrid,
+  setTitle,
+  sectionPreview
+};
 
 // A demo re-draws itself when the column or the grid cell changes size.
 let demoAlignFrame = 0;

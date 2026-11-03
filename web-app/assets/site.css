@@ -3288,6 +3288,702 @@ bdi {
   }
 }
 
+/* ---------- Proofs: toolbar, step by step, "why?" -------------------------- */
+
+.proof-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  margin: 0 0 var(--cell, 17px);
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.proof-bar-label {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.proof-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.proof-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 3px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.proof-btn:hover {
+  background: var(--accent-hover);
+  color: var(--on-accent);
+}
+
+.proof-btn.is-quiet {
+  background: transparent;
+  color: var(--accent);
+}
+
+.proof-btn.is-quiet:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.proof-btn:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.proof-count {
+  min-width: 7.5em;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: center;
+}
+
+.proof {
+  position: relative;
+}
+
+/* while stepping, a pencil line in the margin marks the proof */
+.proof.is-stepping::before {
+  content: "";
+  position: absolute;
+  inset-block: 2px;
+  inset-inline-start: calc(var(--cell, 17px) * -0.7);
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent-line);
+}
+
+.proof .is-hidden {
+  display: none !important;
+}
+
+.proof .is-new {
+  animation: step-in 1.8s ease-out;
+}
+
+@keyframes step-in {
+  from {
+    background-color: var(--mark);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.why-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin-inline-start: 6px;
+  padding: 0 9px;
+  border: 1px dashed currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pencil-red);
+  font: inherit;
+  font-size: 0.78em;
+  font-weight: 700;
+  line-height: 1.4;
+  vertical-align: 0.08em;
+  cursor: pointer;
+}
+
+.why-btn[aria-expanded="true"] {
+  border-style: solid;
+  background: color-mix(in srgb, var(--pencil-red) 10%, transparent);
+}
+
+.why-btn[hidden] {
+  display: none;
+}
+
+.why-note {
+  display: block;
+  margin: 6px 0;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--pencil-red) 30%, transparent);
+  border-inline-start: 3px solid var(--pencil-red);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--pencil-red) 5%, var(--paper));
+  font-size: 0.92em;
+  line-height: 1.75;
+}
+
+.why-item {
+  display: block;
+}
+
+.why-item + .why-item {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed color-mix(in srgb, var(--pencil-red) 30%, transparent);
+}
+
+.why-title {
+  display: block;
+  font-weight: 700;
+}
+
+.why-title a {
+  color: var(--pencil-red);
+}
+
+.why-block {
+  display: block;
+}
+
+.why-block .math-display {
+  margin: 4px 0;
+  padding: 0;
+}
+
+/* Question cards in the flashcards note */
+.qa-list {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 var(--cell, 17px);
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.qa-card {
+  padding: 8px 12px;
+  border-inline-start: 3px solid var(--margin-line);
+  background: var(--surface-2);
+  border-radius: 4px;
+}
+
+.qa-card p {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.qa-q {
+  font-weight: 700;
+}
+
+.qa-a {
+  color: var(--ink-2);
+}
+
+/* ---------- Practice: hub, puzzle, flashcards -------------------------------- */
+
+.qa-practice {
+  margin: 0 0 var(--cell, 17px);
+}
+
+.home-practice .hub-cards {
+  margin-bottom: 0;
+}
+
+.hub-card-link {
+  display: block;
+  color: var(--ink);
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.hub-card-link:hover {
+  border-color: var(--accent-line);
+  box-shadow: var(--shadow-2);
+  color: var(--ink);
+  transform: translateY(-2px);
+}
+
+.hub-card h3 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+}
+
+.tree-practice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--gold-line);
+  border-radius: var(--radius);
+  background: var(--gold-soft);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.tree-practice .icon {
+  flex: none;
+  color: var(--gold);
+}
+
+.tree-practice span {
+  display: grid;
+}
+
+.tree-practice small {
+  color: var(--ink-2);
+  font-size: 0.78rem;
+}
+
+.tree-practice:hover,
+.tree-practice[aria-current="page"] {
+  border-color: var(--gold);
+  color: var(--ink);
+}
+
+.practice {
+  max-width: 880px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+.practice-head {
+  margin: 8px 0 24px;
+}
+
+.practice-kicker {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.practice-head h1 {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 1.4rem + 1.8vw, 2.6rem);
+  line-height: 1.2;
+}
+
+.practice-lead {
+  max-width: 44rem;
+  margin: 0;
+  color: var(--ink-2);
+  line-height: 1.8;
+}
+
+.practice-statement {
+  max-width: 46rem;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-inline-start: 4px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.practice-statement > * {
+  margin-block: 0 8px;
+}
+
+.practice-statement > :last-child {
+  margin-block-end: 0;
+}
+
+.practice-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.hub-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 36px;
+}
+
+.hub-card {
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+}
+
+.hub-card h2 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+}
+
+.hub-card p {
+  margin: 0 0 12px;
+  color: var(--ink-2);
+  line-height: 1.6;
+}
+
+.hub-big {
+  color: var(--ink) !important;
+}
+
+.hub-big strong {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  line-height: 1.1;
+}
+
+.hub-list-title {
+  margin: 0 0 12px;
+  font-size: 1.3rem;
+}
+
+.hub-unit h3 {
+  margin: 22px 0 8px;
+  color: var(--ink-2);
+  font-size: 0.95rem;
+}
+
+.hub-theorems {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hub-theorems li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.hub-number {
+  min-width: 3.4em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: center;
+}
+
+.hub-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hub-statement {
+  color: var(--ink-2);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.hub-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.hub-done {
+  color: var(--pencil-green);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+/* the puzzle: strips of paper to put in order */
+.puzzle-proof {
+  display: grid;
+  gap: 8px;
+  min-height: 60px;
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--paper-edge);
+  border-radius: var(--radius);
+  background-color: var(--paper);
+  background-image: linear-gradient(to bottom, transparent calc(1.9em - 1px), var(--grid-line) calc(1.9em - 1px));
+  background-size: 100% 1.9em;
+  list-style: none;
+  counter-reset: strip;
+}
+
+.puzzle-proof:empty::before {
+  content: "כאן תיבנה ההוכחה";
+  color: var(--ink-3);
+}
+
+.strip-placed {
+  position: relative;
+  padding: 8px 12px;
+  padding-inline-start: 40px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--pencil-green) 8%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--pencil-green);
+  counter-increment: strip;
+  line-height: 1.75;
+}
+
+.strip-placed::before {
+  content: counter(strip);
+  position: absolute;
+  inset-inline-start: 12px;
+  top: 8px;
+  color: var(--pencil-green);
+  font-weight: 700;
+}
+
+.strip-placed > *,
+.strip > * {
+  margin: 0;
+}
+
+.puzzle-status {
+  min-height: 1.7em;
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+.puzzle-pool {
+  display: grid;
+  gap: 12px;
+}
+
+.strip {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 3px;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(20, 22, 28, 0.08), 0 6px 14px rgba(20, 22, 28, 0.06);
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.75;
+  text-align: start;
+  transform: rotate(var(--tilt, 0deg));
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.strip:hover {
+  border-color: var(--accent-line);
+  box-shadow: 0 2px 4px rgba(20, 22, 28, 0.1), 0 10px 22px rgba(20, 22, 28, 0.1);
+  transform: rotate(0deg) translateY(-1px);
+}
+
+.strip.is-wrong {
+  border-color: var(--pencil-red);
+  animation: strip-shake 0.36s ease;
+}
+
+.strip.is-hint {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+@keyframes strip-shake {
+  25% {
+    transform: translateX(-6px);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+  75% {
+    transform: translateX(-3px);
+  }
+}
+
+.puzzle-actions,
+.review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.puzzle-actions a.demo-btn,
+.review-actions a.demo-btn {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+/* flashcards: a ruled index card */
+.review-progress {
+  min-height: 1.6em;
+  margin: 0 0 10px;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.index-card {
+  --rule: 2em;
+  min-height: 240px;
+  padding: 14px 22px 18px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 6px;
+  background-color: var(--paper);
+  background-image: linear-gradient(to bottom, transparent calc(var(--rule) - 1px), var(--grid-line) calc(var(--rule) - 1px));
+  background-size: 100% var(--rule);
+  background-position: 0 calc(var(--rule) * 1.25);
+  box-shadow: 0 2px 4px rgba(20, 22, 28, 0.08), 0 16px 34px rgba(20, 22, 28, 0.1);
+  font-size: 1.08rem;
+  line-height: var(--rule);
+}
+
+.index-card-kind {
+  margin: 0 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 2px solid var(--margin-line);
+  color: var(--ink-2);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.card-new {
+  color: var(--accent);
+}
+
+.index-card-front > *,
+.index-card-back > * {
+  margin: 0 0 6px;
+}
+
+.card-number {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.card-name {
+  display: block;
+  font-weight: 700;
+}
+
+.card-prompt {
+  display: block;
+  color: var(--ink-3);
+  font-size: 0.9rem;
+}
+
+.index-card-back {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line-2);
+}
+
+.index-card-source {
+  font-size: 0.85rem;
+}
+
+.review-ask {
+  width: 100%;
+  margin: 0;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.review-grades {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.grade {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  min-height: 64px;
+  padding: 8px 6px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.grade small {
+  color: var(--ink-2);
+  font-size: 0.78rem;
+}
+
+.grade kbd,
+.review-actions kbd {
+  font-size: 0.72rem;
+  opacity: 0.7;
+}
+
+.grade-1 { border-color: color-mix(in srgb, var(--pencil-red) 50%, var(--line)); }
+.grade-2 { border-color: color-mix(in srgb, var(--pencil-orange) 50%, var(--line)); }
+.grade-3 { border-color: color-mix(in srgb, var(--pencil-green) 50%, var(--line)); }
+.grade-4 { border-color: color-mix(in srgb, var(--pencil-blue) 50%, var(--line)); }
+
+.grade:hover {
+  background: var(--surface-2);
+}
+
+@media (max-width: 760px), (pointer: coarse) {
+  .proof-btn {
+    min-height: 44px;
+  }
+
+  .hub-theorems li {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .hub-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .review-grades {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .proof .is-new,
+  .strip.is-wrong {
+    animation: none;
+  }
+
+  .strip,
+  .strip:hover {
+    transform: none;
+  }
+}
+
+@media print {
+  .proof-bar,
+  .why-btn {
+    display: none !important;
+  }
+}
+
 /* ---------- Responsive ------------------------------------------------------ */
 
 @media (max-width: 1240px) {

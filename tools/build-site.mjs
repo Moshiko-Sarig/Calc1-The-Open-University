@@ -414,10 +414,14 @@ function renderList(lines, start, resolveLink) {
   }
 
   const tag = ordered ? "ol" : "ul";
+  // A numbered list that resumes after a display formula ("2. ..." after
+  // "$$...$$") keeps its numbering.
+  const first = ordered ? Number(lines[start].match(/^\s*(\d+)/)[1]) : 1;
+  const startAttr = ordered && first > 1 ? ` start="${first}"` : "";
   const body = items
-    .map((item) => `<li>${renderInline(item.text, resolveLink)}${item.children.join("")}</li>`)
+    .map((item) => `<li${statementAttrs(item.text)}>${renderInline(item.text, resolveLink)}${item.children.join("")}</li>`)
     .join("");
-  return { html: `<${tag}>${body}</${tag}>`, next: index };
+  return { html: `<${tag}${startAttr}>${body}</${tag}>`, next: index };
 }
 
 function renderMarkdown(body, resolveLink) {
@@ -425,6 +429,7 @@ function renderMarkdown(body, resolveLink) {
   const lines = cleaned.split(/\r?\n/);
   const html = [];
   let i = 0;
+  let openProofs = 0;
 
   while (i < lines.length) {
     const line = lines[i];
@@ -435,11 +440,34 @@ function renderMarkdown(body, resolveLink) {
 
     // <!-- infi-demo: name --> places an interactive demo (assets/demos.js).
     // It is invisible in Obsidian; other one-line HTML comments are dropped.
+    // <!-- infi-proof: 2.12 --> ... <!-- /infi-proof --> marks the proof of a
+    // theorem from the exam list for the study tools (step by step, puzzle).
     const comment = line.trim().match(/^<!--([\s\S]*?)-->$/);
     if (comment) {
-      const demo = comment[1].trim().match(/^infi-demo:\s*([\w-]+)\s*$/);
+      const directive = comment[1].trim();
+      const demo = directive.match(/^infi-demo:\s*([\w-]+)\s*$/);
+      const proof = directive.match(/^infi-proof:\s*(\d+\.\d+)\s*$/);
       if (demo) html.push(renderDemo(demo[1]));
+      else if (proof) {
+        html.push(`<div class="proof" id="${proofAnchor(proof[1])}" data-proof="${proof[1]}">`);
+        openProofs += 1;
+      } else if (directive === "/infi-proof" && openProofs) {
+        html.push("</div>");
+        openProofs -= 1;
+      }
       i += 1;
+      continue;
+    }
+
+    // "question::answer" lines of a flashcards note become question cards.
+    if (renderContext.current?.tags?.includes("flashcards") && FLASHCARD_LINE.test(line)) {
+      const cards = [];
+      while (i < lines.length && FLASHCARD_LINE.test(lines[i])) {
+        const [, question, answer] = lines[i].match(FLASHCARD_LINE);
+        cards.push(`<div class="qa-card"><p class="qa-q">${renderInline(question, resolveLink)}</p><p class="qa-a">${renderInline(answer, resolveLink)}</p></div>`);
+        i += 1;
+      }
+      html.push(`<div class="qa-list">${cards.join("")}</div>`);
       continue;
     }
 
@@ -468,7 +496,7 @@ function renderMarkdown(body, resolveLink) {
     const heading = line.match(/^(#{1,6})\s+(.+)$/);
     if (heading) {
       const level = heading[1].length;
-      const raw = heading[2].trim() === "Dataview" ? "כל הפתקים כאן" : heading[2];
+      const raw = heading[2].trim() === "Dataview" ? "כל הפתקים כאן" : heading[2].replace(/\s+#flashcards\S*/g, "");
       const content = markExamBadge(renderInline(raw, resolveLink));
       const id = level >= 2 && level <= 4 ? ` id="${escapeAttribute(uniqueSlug(heading[2]))}"` : "";
       html.push(`<h${level}${id}>${content}</h${level}>`);
@@ -523,12 +551,17 @@ function renderMarkdown(body, resolveLink) {
       !isDisplayMathStart(lines[i]) &&
       !/^\s*>\s?/.test(lines[i]) &&
       !/^\s*[-*+]\s+/.test(lines[i]) &&
-      !/^\s*\d+[.)]\s+/.test(lines[i])
+      !/^\s*\d+[.)]\s+/.test(lines[i]) &&
+      !/^\s*<!--[\s\S]*-->\s*$/.test(lines[i])
     ) {
       paragraph.push(lines[i].trim());
       i += 1;
     }
-    html.push(`<p>${renderInline(paragraph.join(" "), resolveLink)}</p>`);
+    html.push(`<p${statementAttrs(paragraph.join(" "))}>${renderInline(paragraph.join(" "), resolveLink)}</p>`);
+  }
+  while (openProofs > 0) {
+    html.push("</div>");
+    openProofs -= 1;
   }
 
   return html.join("\n");
@@ -701,6 +734,122 @@ function renderDataview(code) {
     )
     .join("");
   return `<div class="dataview-result"><div class="dataview-caption">רשימה אוטומטית · ${results.length} פתקים</div><ul>${items}</ul></div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Study tools: proofs, statements and flashcards
+// ---------------------------------------------------------------------------
+
+const STATEMENT_KINDS = ["משפט", "טענה", "למה", "הגדרה", "מסקנה", "אקסיומה"];
+const STATEMENT_LEAD = new RegExp(`^\\*\\*(${STATEMENT_KINDS.join("|")})\\s+(\\d+\\.\\d+)`);
+const FLASHCARD_LINE = /^\s*(?:[-*]\s+)?([^:\n][^\n]*?)::([^\n]+)$/;
+
+const numberKey = (number) => number.replace(/\./g, "-");
+const proofAnchor = (number) => `proof-${numberKey(number)}`;
+
+// A paragraph or list item that opens with "**משפט 4.42**" gets an anchor,
+// so the study tools can quote that statement.
+function statementAttrs(text) {
+  const lead = String(text).trim().match(STATEMENT_LEAD);
+  if (!lead) return "";
+  const id = `stmt-${numberKey(lead[2])}`;
+  if (renderContext.slugs.has(id)) return "";
+  renderContext.slugs.add(id);
+  return ` id="${id}" data-kind="${lead[1]}"`;
+}
+
+const stripTags = (html) => html.replace(/<[^>]+>/g, "").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+
+// Where each numbered theorem, definition or claim is stated: a heading that
+// names it ("## יחידות הגבול (משפט 2.12)", "## ההגדרה (2.9)") or a paragraph
+// that opens with it. Proof headings are skipped; unit notes only.
+function buildStatements(pages) {
+  const index = {};
+  const kindWord = new RegExp(`(?:^|[\\s(])ה?(${STATEMENT_KINDS.join("|")})(?=[\\s(:,]|$)`);
+  const named = new RegExp(`(${STATEMENT_KINDS.join("|")})\\s+(\\d+\\.\\d+)(?![\\d.–-])`, "g");
+  const bare = /\((\d+\.\d+)\)/g;
+  for (const page of pages) {
+    if (!/^unit-/.test(page.groupId || "")) continue;
+    const headings = page.html.matchAll(/<h([2-4]) id="([^"]+)">([\s\S]*?)<\/h\1>/g);
+    for (const [, , anchor, inner] of headings) {
+      const text = stripTags(inner);
+      if (/הוכח/.test(text) || /\d\s*[–-]\s*\d/.test(text)) continue;
+      const found = [...text.matchAll(named)].map((m) => [m[1], m[2]]);
+      const kind = text.match(kindWord)?.[1];
+      if (!found.length && kind) for (const m of text.matchAll(bare)) found.push([kind, m[1]]);
+      for (const [k, number] of found) {
+        if (!index[number]) index[number] = { number, kind: k, pageId: page.id, anchor, titleHtml: inner.replace(/<span class="badge[^>]*>[\s\S]*?<\/span>/g, "").trim() };
+      }
+    }
+  }
+  for (const page of pages) {
+    if (!/^unit-/.test(page.groupId || "")) continue;
+    for (const [, number, kind] of page.html.matchAll(/ id="stmt-(\d+-\d+)" data-kind="([^"]+)"/g)) {
+      const key = number.replace("-", ".");
+      if (!index[key]) index[key] = { number: key, kind, pageId: page.id, anchor: `stmt-${number}`, titleHtml: "" };
+    }
+  }
+  return index;
+}
+
+// The 35 theorems of the official exam list, from the table rows of the
+// exam list note: number, kind, the statement in short, and the proof.
+function buildExamTheorems(examPage, resolver, pages) {
+  if (!examPage?.body) return [];
+  const proofPage = new Map();
+  for (const page of pages) for (const [, number] of page.html.matchAll(/data-proof="(\d+\.\d+)"/g)) proofPage.set(number, page.id);
+  const rows = [];
+  for (const line of examPage.body.split("\n")) {
+    const cells = splitTableRow(line);
+    if (cells.length < 4 || !/^\d+\.\d+/.test(cells[0])) continue;
+    const [, number, part = ""] = cells[0].match(/^(\d+\.\d+)\s*(\([^)]*\))?/);
+    const target = cells[3].match(/\[\[([^\]|#]+)/)?.[1];
+    const note = target ? resolver(target.trim()) : null;
+    rows.push({
+      number,
+      part: part.trim(),
+      kind: cells[1].trim(),
+      statementHtml: renderInline(cells[2].trim(), resolver),
+      noteId: note?.id || "",
+      proofPageId: proofPage.get(number) || "",
+      proofAnchor: proofPage.has(number) ? proofAnchor(number) : ""
+    });
+  }
+  return rows;
+}
+
+// Flashcards: the vault's "question::answer" lines, with the unit of the
+// heading they are under.
+function hashText(text) {
+  let hash = 0x811c9dc5;
+  for (const char of text) {
+    hash ^= char.codePointAt(0);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(36);
+}
+
+function collectFlashcards(page, body, resolver) {
+  if (!page.tags?.includes("flashcards")) return [];
+  const cards = [];
+  let unit = "";
+  let fence = false;
+  for (const line of body.split("\n")) {
+    if (/^```/.test(line)) fence = !fence;
+    if (fence) continue;
+    const heading = line.match(/^#{1,6}\s+(.+)$/);
+    if (heading) unit = heading[1].match(/יחידה\s*(\d+)/)?.[1] || "";
+    const card = line.match(FLASHCARD_LINE);
+    if (!card) continue;
+    cards.push({
+      id: `fc-${hashText(card[1].trim())}`,
+      unit: unit ? `unit-${unit}` : "",
+      frontHtml: renderInline(card[1].trim(), resolver),
+      backHtml: renderInline(card[2].trim(), resolver),
+      pageId: page.id
+    });
+  }
+  return cards;
 }
 
 const DEMO_NAMES = new Set(["sup", "epsilon-n", "nested-intervals", "epsilon-delta", "bisection", "uniform", "secant", "mvt"]);
@@ -1030,6 +1179,8 @@ function main() {
   );
 
   renderContext.pages = pages;
+  const examBody = examList?.body || "";
+  const flashcards = [];
   for (const page of pages) {
     page.backlinks = Array.from(new Set(backlinks.get(page.id) || []));
     renderContext.current = page;
@@ -1042,6 +1193,7 @@ function main() {
     page.titleHtml = renderInline((h1 ? h1[1] : page.title).replace(leadingSymbols, ""), resolver);
     page.navTitle = navTitleFor(page);
     page.html = sectionize(renderMarkdown(body, resolver));
+    flashcards.push(...collectFlashcards(page, body, resolver));
     page.summaryHtml = firstParagraph(page.html);
     page.readMinutes = Math.max(1, Math.round(page.wordCount / 170));
     page.hasExamTheorem = examLinked.has(page.id);
@@ -1051,6 +1203,11 @@ function main() {
     delete page.unitOrder;
     delete page.headings;
   }
+
+  const statements = buildStatements(pages);
+  const examTheorems = buildExamTheorems({ body: examBody }, resolver, pages);
+  const missingProofs = examTheorems.filter((row) => !row.proofPageId).map((row) => row.number);
+  if (missingProofs.length) console.warn(`Exam theorems without a marked proof: ${missingProofs.join(", ")}`);
 
   const edges = pages.flatMap((page) => page.links.map((target) => ({ source: page.id, target })));
   const graph = {
@@ -1079,6 +1236,9 @@ function main() {
       formulaCount: pages.reduce((sum, page) => sum + (page.searchText.match(/\$/g)?.length || 0), 0)
     },
     graph,
+    statements,
+    examTheorems,
+    flashcards,
     pages
   };
 
