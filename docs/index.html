@@ -50,13 +50,17 @@
           displayAlign: "center"
         },
         options: {
-          skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"]
+          skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+          // Formulas are not controls: keep them out of the Tab order (screen
+          // readers still read the hidden MathML; right-click opens the menu).
+          menuOptions: { settings: { inTabOrder: false } }
         }
       };
     </script>
     <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
     <script defer src="./assets/content.js"></script>
+    <script defer src="./assets/demos.js"></script>
     <script defer src="./assets/app.js"></script>
   </head>
   <body>

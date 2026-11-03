@@ -632,9 +632,79 @@ document.querySelector("[data-skip]").addEventListener("click", (event) => {
 // Views
 // ---------------------------------------------------------------------------
 
+// The interactive demos (assets/demos.js), each linked to the note it lives in.
+const DEMO_GALLERY = [
+  {
+    name: "epsilon-delta",
+    title: "משחק ε‑δ",
+    text: "האתגר בוחר ε, אתם בוחרים δ. שישה סיבובים עד ההגדרה.",
+    sketch: `<rect class="sk-band-red" x="0" y="30" width="160" height="22"/><rect class="sk-band-blue" x="62" y="0" width="28" height="90"/><path class="sk sk-gray" d="M8 84 Q55 56 76 41 T154 4"/><path class="sk sk-green sk-bold" d="M62 49 Q70 45 76 41 T90 33"/><circle class="sk-hole" cx="76" cy="41" r="4"/>`
+  },
+  {
+    name: "epsilon-n",
+    title: "הגבול של סדרה",
+    text: "מזיזים את ε ורואים מאיזה N כל האיברים ברצועה.",
+    sketch: `<rect class="sk-band-red" x="0" y="33" width="160" height="16"/><path class="sk sk-red sk-thin" stroke-dasharray="5 5" d="M0 41 H160"/><path class="sk sk-green sk-thin" stroke-dasharray="3 4" d="M57 4 V86"/>${[[12, 72], [22, 14], [32, 60], [42, 26], [52, 52], [62, 34], [72, 46], [82, 37], [92, 44], [102, 39], [112, 42], [122, 40], [132, 41], [142, 40.5], [152, 41]]
+      .map(([x, y], i) => `<circle class="${i < 5 ? "sk-dot-red" : "sk-dot-green"}" cx="${x}" cy="${y}" r="3.2"/>`)
+      .join("")}`
+  },
+  {
+    name: "bisection",
+    title: "ערך הביניים בחצייה",
+    text: "שלב אחר שלב, הקטע מצטמצם עד השורש.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M4 48 H156"/><path class="sk sk-blue" d="M8 82 C50 72 80 56 100 47 S140 20 154 6"/><path class="sk sk-gray" d="M60 64 H140"/><path class="sk sk-gray" d="M60 71 H100"/><path class="sk sk-green sk-bold" d="M80 78 H100"/><circle class="sk-dot-red" cx="80" cy="54" r="3.4"/><circle class="sk-dot-blue" cx="100" cy="47" r="3.4"/>`
+  },
+  {
+    name: "nested-intervals",
+    title: "הלמה של קנטור",
+    text: "קטעים מקוננים לבחירתכם, ודוגמה נגדית עם קטעים פתוחים.",
+    sketch: `<path class="sk sk-blue sk-bold" d="M10 18 H150"/><path class="sk sk-green sk-bold" d="M50 32 H150"/><path class="sk sk-red sk-bold" d="M50 46 H110"/><path class="sk sk-purple sk-bold" d="M72 60 H110"/><path class="sk sk-orange sk-bold" d="M72 74 H92"/><path class="sk sk-gray sk-thin" stroke-dasharray="3 4" d="M82 6 V86"/>`
+  },
+  {
+    name: "sup",
+    title: "החסם העליון",
+    text: "למה החסם העליון של [a,b) הוא b, ולמה אין לקבוצה מקסימום.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M4 60 H156"/><rect class="sk-band-red" x="112" y="50" width="16" height="20"/><path class="sk sk-blue sk-bold" d="M22 40 H110"/><circle class="sk-dot-blue" cx="22" cy="40" r="4"/><circle class="sk-hole sk-hole-blue" cx="110" cy="40" r="4"/><path class="sk sk-red" d="M128 26 V74"/>`
+  },
+  {
+    name: "uniform",
+    title: "רציפות במידה שווה",
+    text: "איך δ מתכווץ כש־x₀ גדל, ומה משפט קנטור מבטיח.",
+    sketch: `<rect class="sk-band-red" x="0" y="28" width="160" height="14"/><rect class="sk-band-blue" x="116" y="0" width="10" height="90"/><path class="sk sk-graphite sk-thin" d="M4 84 H156"/><path class="sk sk-blue" d="M10 82 C70 82 112 58 152 4"/><path class="sk sk-green sk-bold" d="M116 39 L126 31"/>`
+  },
+  {
+    name: "secant",
+    title: "מהמיתר למשיק",
+    text: "מקטינים את h עד שהמיתר הופך למשיק.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M4 84 H156"/><path class="sk sk-blue" d="M14 8 Q80 150 146 8"/><path class="sk sk-red" d="M30 86 L150 10"/><path class="sk sk-green sk-thin" stroke-dasharray="5 5" d="M24 84 L150 30"/><circle class="sk-dot-blue" cx="62" cy="65" r="3.6"/><circle class="sk-dot-red" cx="112" cy="40" r="3.6"/>`
+  },
+  {
+    name: "mvt",
+    title: "משפט לגראנז'",
+    text: "מזיזים את c עד שהמשיק מקביל למיתר.",
+    sketch: `<path class="sk sk-blue" d="M12 62 C38 8 70 8 90 46 S134 82 150 40"/><path class="sk sk-red" d="M12 62 L150 40"/><path class="sk sk-green sk-bold" d="M26 29 L82 20"/><circle class="sk-dot-red" cx="12" cy="62" r="3.6"/><circle class="sk-dot-red" cx="150" cy="40" r="3.6"/><circle class="sk-dot-green" cx="54" cy="24.5" r="3.6"/>`
+  }
+];
+
+function demoGallery() {
+  return DEMO_GALLERY.map((item) => {
+    const home = data.pages.find(
+      (page) => page.html.includes(`data-demo="${item.name}"`) && !/^שער /.test(page.title) && /^unit-/.test(page.groupId || "")
+    );
+    if (!home) return null;
+    return {
+      ...item,
+      href: pageHref(home, `demo-${item.name}`),
+      unit: groupHeading(groupById.get(home.groupId)),
+      sketch: `<svg viewBox="0 0 160 90" focusable="false">${item.sketch}</svg>`
+    };
+  }).filter(Boolean);
+}
+
 function renderHome() {
   setTitle("");
   const unitGroups = groups.filter((group) => group.number || group.id === "supplement");
+  const units = unitGroups.filter((group) => group.number);
   const start = groupById.get("start");
   const exam = pages.get(data.examListPageId);
   const map = pages.get(data.mapPageId);
@@ -689,21 +759,53 @@ function renderHome() {
          <li>מחפשים מושג או מספר משפט, למשל 5.29, בשורת החיפוש. במחשב המקש <kbd>/</kbd> פותח אותה.</li>
        </ol>`;
 
+  const demos = demoGallery();
+  const game = demos.find((item) => item.name === "epsilon-delta");
+
   app.innerHTML = `
     <div class="home">
-      <section class="hero" aria-labelledby="homeTitle">
-        <div>
-          <p class="kicker">${icon("book")} קורס 20474 · האוניברסיטה הפתוחה</p>
-          <h1 id="homeTitle">חשבון אינפיניטסימלי 1</h1>
-          <p class="hero-lead">סיכומים מסודרים לפי שמונה יחידות הקורס: הגדרות ומשפטים לפי חוברת הקורס, הוכחות מלאות ל־35 המשפטים שברשימה לבחינה, דוגמאות נגד ומפות לחזרה.</p>
-          <div class="hero-actions">
-            ${firstUnit ? `<a class="button button-primary" href="${pageHref(firstUnit)}">להתחיל ביחידה 1</a>` : ""}
+      <section class="cover" aria-labelledby="homeTitle">
+        <div class="cover-book">
+          <span class="cover-strap" aria-hidden="true"></span>
+          <div class="cover-stickers" aria-hidden="true"><span class="sticker">∫</span><span class="sticker">ε‑δ</span><span class="sticker">sup</span></div>
+          <div class="cover-label">
+            <p class="cover-label-kicker">קורס 20474 · האוניברסיטה הפתוחה</p>
+            <h1 id="homeTitle">חשבון אינפיניטסימלי&nbsp;1</h1>
+            <p class="cover-label-line"><span>מחברת</span>כספת אינפי&nbsp;1</p>
+            <p class="cover-label-line"><span>בפנים</span><b>${units.length} יחידות ·</b> <b>35 משפטים לבחינה ·</b> <b>${demos.length} המחשות</b></p>
+          </div>
+          <p class="cover-lead">כל הקורס כתוב על דפי משבצות: הגדרות ומשפטים לפי חוברת הקורס, הוכחות מלאות ל־35 המשפטים שברשימה לבחינה, והמחשות שמציירים בהן בעיפרון על המשבצות.</p>
+          <div class="cover-actions">
+            ${firstUnit ? `<a class="button button-primary" href="${pageHref(firstUnit)}">לפתוח את המחברת</a>` : ""}
             ${exam ? `<a class="button" href="${pageHref(exam)}">${icon("star")} 35 המשפטים לבחינה</a>` : ""}
-            ${map ? `<a class="button" href="${pageHref(map)}">מפת הקורס</a>` : ""}
+            ${game ? `<a class="button" href="${game.href}">לשחק במשחק ε‑δ</a>` : ""}
           </div>
         </div>
-        <aside class="hero-panel" aria-label="${last ? "המשך קריאה" : "הסבר קצר"}">${panel}</aside>
+        <aside class="sticky-note" aria-label="${last ? "המשך קריאה" : "הסבר קצר"}">${panel}</aside>
       </section>
+
+      ${
+        demos.length
+          ? `<section aria-labelledby="demosTitle">
+              <div class="section-head">
+                <h2 id="demosTitle">המחשות על המשבצות</h2>
+                <p>גוררים, משנים את ε ורואים את ההגדרה עובדת</p>
+              </div>
+              <div class="demo-gallery">${demos
+                .map(
+                  (item) => `<a class="demo-card" href="${item.href}">
+                    <span class="demo-card-art" aria-hidden="true">${item.sketch}</span>
+                    <span class="demo-card-body">
+                      <small>${escapeHtml(item.unit)}</small>
+                      <strong>${escapeHtml(item.title)}</strong>
+                      <span>${escapeHtml(item.text)}</span>
+                    </span>
+                  </a>`
+                )
+                .join("")}</div>
+            </section>`
+          : ""
+      }
 
       <section aria-labelledby="unitsTitle">
         <div class="section-head">
@@ -737,6 +839,18 @@ function renderHome() {
   typesetMath();
 }
 
+// Divider tabs along the sheet's free edge, one per unit, as in a binder.
+function unitTabs(page) {
+  const tabs = groups
+    .filter((group) => group.number && group.gatewayId && pages.get(group.gatewayId))
+    .map((group) => {
+      const current = group.id === page.groupId;
+      return `<a class="unit-tab${current ? " is-current" : ""}" href="${pageHref(pages.get(group.gatewayId))}" style="--c:${groupColor(group.id)}"${current ? ' aria-current="true"' : ""} title="${escapeHtml(group.subtitle || "")}"><span class="visually-hidden">יחידה </span>${group.number}<span class="visually-hidden">: ${escapeHtml(group.subtitle || "")}</span></a>`;
+    })
+    .join("");
+  return tabs ? `<nav class="unit-tabs" aria-label="חוצצי היחידות"><div class="unit-tabs-rail">${tabs}</div></nav>` : "";
+}
+
 function renderPage(page, section) {
   setTitle(page.navTitle);
   rememberPage(page.id);
@@ -767,6 +881,7 @@ function renderPage(page, section) {
       <article class="note" aria-labelledby="pageTitle">
         <nav class="breadcrumbs" aria-label="מיקום בקורס"><ol>${crumbs.join("")}</ol></nav>
         <div class="sheet" data-sheet>
+          ${unitTabs(page)}
           <header class="note-head">
             <h1 id="pageTitle" class="note-title">${page.titleHtml || escapeHtml(page.title)}</h1>
             <div class="note-meta">${meta}</div>
@@ -806,6 +921,7 @@ function renderPage(page, section) {
 
   decorateHeadings(page);
   buildToc(page);
+  window.InfiDemos?.mount(app);
   alignSheetGrid();
   app.querySelector("[data-toc-inline]")?.addEventListener("toggle", alignSheetGrid);
   typesetMath(() => scrollToSection(section, false));
@@ -927,6 +1043,10 @@ function alignSheetGrid() {
   // so the text after it stays on the lines.
   prose.querySelectorAll(".math-display, .math-inline.math-overflow").forEach((el) => {
     if (!el.closest(`${SHEET_BOX}, .grid-probe`) && el.getClientRects().length) roundHeight(el, 0, true);
+  });
+  // A demo's controls card is ruled along the grid like the other boxes.
+  prose.querySelectorAll(".demo-panel").forEach((el) => {
+    if (el.getClientRects().length) roundHeight(el, 1, true);
   });
   for (const [el, top, bottom] of padWrites) {
     el.style.paddingBlockStart = `${top}px`;
@@ -1395,22 +1515,26 @@ function mountGraph(canvas, info) {
 // Math and diagrams
 // ---------------------------------------------------------------------------
 
-function typesetMath(after) {
+// MathJax must not typeset two things at once, so every request (the page,
+// a link preview) is chained onto MathJax's own startup promise.
+function queueTypeset(nodes) {
   const mathJax = window.MathJax;
-  if (!mathJax) return;
-  const run = () => {
-    if (!mathJax.typesetPromise) return;
-    mathJax
-      .typesetPromise([app])
-      .then(() => {
-        markWideFormulas();
-        alignSheetGrid();
-        if (typeof after === "function") after();
-      })
-      .catch(() => {});
-  };
-  if (mathJax.startup?.promise) mathJax.startup.promise.then(run);
-  else run();
+  if (!mathJax?.startup?.promise) return Promise.resolve(false);
+  const next = mathJax.startup.promise
+    .then(() => (mathJax.typesetPromise ? mathJax.typesetPromise(nodes) : null))
+    .then(() => true)
+    .catch(() => false);
+  mathJax.startup.promise = next;
+  return next;
+}
+
+function typesetMath(after) {
+  queueTypeset([app]).then((done) => {
+    if (!done) return;
+    markWideFormulas();
+    alignSheetGrid();
+    if (typeof after === "function") after();
+  });
 }
 
 // Inline formulas cannot wrap; the few that are wider than the text column
@@ -1533,6 +1657,132 @@ window.addEventListener(
 // ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Link previews: hovering (or tabbing to) a link to a note shows an index
+// card with the linked theorem, or the note's summary, without leaving the
+// page. The card repeats what the link leads to, so it is hidden from
+// assistive technology; touch screens just follow the link.
+// ---------------------------------------------------------------------------
+
+const PREVIEW_LINKS = '.prose a[href^="#/page/"], .backlinks a[href^="#/page/"]';
+const canHover = window.matchMedia?.("(hover: hover) and (pointer: fine)");
+const preview = document.createElement("div");
+preview.className = "link-preview";
+preview.setAttribute("aria-hidden", "true");
+preview.hidden = true;
+document.body.append(preview);
+const parsedPages = new Map();
+let previewTimer = 0;
+let previewFor = null;
+
+function parsedPage(page) {
+  let fragment = parsedPages.get(page.id);
+  if (!fragment) {
+    const template = document.createElement("template");
+    template.innerHTML = page.html;
+    fragment = template.content;
+    parsedPages.set(page.id, fragment);
+    if (parsedPages.size > 40) parsedPages.delete(parsedPages.keys().next().value);
+  }
+  return fragment;
+}
+
+// The heading of the linked section and the block or two after it: for a
+// theorem that is its statement.
+function sectionPreview(page, slug) {
+  const heading = parsedPage(page).querySelector(`[id="${CSS.escape(slug)}"]`);
+  if (!heading || !/^H[2-4]$/.test(heading.tagName)) return null;
+  const parts = [];
+  let length = 0;
+  for (let node = heading.nextElementSibling; node && parts.length < 3 && length < 280; node = node.nextElementSibling) {
+    if (/^H[1-6]$/.test(node.tagName)) break;
+    if (node.matches("figure, .diagram-wrap, .dataview-result, .table-wrap")) continue;
+    parts.push(node.cloneNode(true));
+    length += node.textContent.length;
+  }
+  return { title: heading.innerHTML, parts };
+}
+
+function placePreview(link) {
+  const box = link.getBoundingClientRect();
+  const width = preview.offsetWidth;
+  const height = preview.offsetHeight;
+  const viewWidth = document.documentElement.clientWidth;
+  const left = Math.max(8, Math.min(box.right - width, viewWidth - width - 8));
+  let top = box.bottom + 8;
+  if (top + height > window.innerHeight - 8 && box.top - height - 8 > 8) top = box.top - height - 8;
+  preview.style.left = `${left}px`;
+  preview.style.top = `${top}px`;
+}
+
+function showPreview(link) {
+  const match = /^#\/page\/([^/]+)(?:\/(.+))?$/.exec(link.getAttribute("href") || "");
+  const page = match && pages.get(match[1]);
+  if (!page) return;
+  const slug = match[2] ? decodeURIComponent(match[2]) : "";
+  if (!slug && page.id === currentRoute.id) return;
+  const section = slug ? sectionPreview(page, slug) : null;
+  const group = groups.find((item) => item.id === page.groupId);
+  const meta = [groupHeading(group), section ? page.navTitle : page.readMinutes ? `כ־${page.readMinutes} דקות קריאה` : ""]
+    .filter(Boolean)
+    .map(escapeHtml)
+    .join(" · ");
+  preview.style.setProperty("--preview-tone", groupColor(page.groupId));
+  preview.innerHTML = `
+    <p class="link-preview-meta"><span class="link-preview-dot"></span>${meta}</p>
+    <p class="link-preview-title">${section ? section.title : page.titleHtml || escapeHtml(page.title)}</p>
+    <div class="link-preview-body prose"></div>`;
+  const body = preview.querySelector(".link-preview-body");
+  if (section?.parts.length) body.append(...section.parts);
+  else body.innerHTML = page.summaryHtml ? `<p>${page.summaryHtml}</p>` : "";
+  preview.querySelectorAll("[id]").forEach((node) => node.removeAttribute("id"));
+  previewFor = link;
+  preview.hidden = false;
+  placePreview(link);
+  queueTypeset([preview]).then(() => {
+    if (previewFor === link && !preview.hidden) placePreview(link);
+  });
+}
+
+function hidePreview() {
+  clearTimeout(previewTimer);
+  previewFor = null;
+  preview.hidden = true;
+}
+
+function schedulePreview(link, delay) {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(() => showPreview(link), delay);
+}
+
+app.addEventListener("pointerover", (event) => {
+  if (!canHover?.matches) return;
+  const link = event.target.closest?.(PREVIEW_LINKS);
+  if (link && link !== previewFor) schedulePreview(link, 380);
+});
+app.addEventListener("pointerout", (event) => {
+  const link = event.target.closest?.(PREVIEW_LINKS);
+  if (link && !link.contains(event.relatedTarget)) hidePreview();
+});
+app.addEventListener("focusin", (event) => {
+  const link = event.target.closest?.(PREVIEW_LINKS);
+  if (link?.matches(":focus-visible")) schedulePreview(link, 450);
+  else hidePreview();
+});
+app.addEventListener("focusout", hidePreview);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !preview.hidden) hidePreview();
+});
+window.addEventListener("scroll", hidePreview, { passive: true });
+window.addEventListener("hashchange", hidePreview);
+
+// A demo re-draws itself when the column or the grid cell changes size.
+let demoAlignFrame = 0;
+window.addEventListener("infi:demo-resized", () => {
+  cancelAnimationFrame(demoAlignFrame);
+  demoAlignFrame = requestAnimationFrame(alignSheetGrid);
+});
 
 renderTree();
 route({ initial: true });

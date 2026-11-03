@@ -433,6 +433,16 @@ function renderMarkdown(body, resolveLink) {
       continue;
     }
 
+    // <!-- infi-demo: name --> places an interactive demo (assets/demos.js).
+    // It is invisible in Obsidian; other one-line HTML comments are dropped.
+    const comment = line.trim().match(/^<!--([\s\S]*?)-->$/);
+    if (comment) {
+      const demo = comment[1].trim().match(/^infi-demo:\s*([\w-]+)\s*$/);
+      if (demo) html.push(renderDemo(demo[1]));
+      i += 1;
+      continue;
+    }
+
     const fence = line.match(/^```([\w-]*)\s*$/);
     if (fence) {
       const lang = fence[1] || "text";
@@ -693,9 +703,32 @@ function renderDataview(code) {
   return `<div class="dataview-result"><div class="dataview-caption">רשימה אוטומטית · ${results.length} פתקים</div><ul>${items}</ul></div>`;
 }
 
+const DEMO_NAMES = new Set(["sup", "epsilon-n", "nested-intervals", "epsilon-delta", "bisection", "uniform", "secant", "mvt"]);
+
+function renderDemo(name) {
+  if (!DEMO_NAMES.has(name)) throw new Error(`Unknown infi-demo "${name}"`);
+  return `<figure class="demo" id="demo-${name}" data-demo="${name}"><noscript><p>ההמחשה האינטראקטיבית דורשת JavaScript.</p></noscript></figure>`;
+}
+
+// A Desmos block from the vault is drawn natively on the notebook grid by
+// assets/demos.js; the JSON travels in a data attribute.
+function renderDesmos(code) {
+  let spec;
+  try {
+    spec = JSON.parse(code);
+  } catch {
+    return PLUGIN_MARKER;
+  }
+  const list = spec?.expressions?.list;
+  if (!Array.isArray(list) || !list.length) return PLUGIN_MARKER;
+  const keep = { graph: { viewport: spec.graph?.viewport }, expressions: { list } };
+  return `<figure class="demo" data-desmos="${escapeAttribute(JSON.stringify(keep))}"><noscript><p>הגרף דורש JavaScript.</p></noscript></figure>`;
+}
+
 function renderCodeBlock(lang, code) {
   if (lang === "mermaid") return `<div class="diagram-wrap"><pre class="mermaid">${escapeHtml(rtlMermaid(code))}</pre></div>`;
   if (lang === "dataview") return renderDataview(code);
+  if (lang === "desmos-live") return renderDesmos(code);
   const safe = escapeHtml(code);
   if (pluginLabels[lang]) {
     // TikZ / Desmos / Mathematica only render inside Obsidian. On the site the
@@ -954,7 +987,8 @@ function linkSequence(groups, pagesById) {
 }
 
 function firstParagraph(html) {
-  const withoutCallouts = html.replace(/<blockquote[\s\S]*?<\/blockquote>/g, "");
+  // Callouts and figures (demos, graphs and their <noscript> text) are not the summary.
+  const withoutCallouts = html.replace(/<blockquote[\s\S]*?<\/blockquote>/g, "").replace(/<figure[\s\S]*?<\/figure>/g, "");
   const match = withoutCallouts.match(/<p>([\s\S]*?)<\/p>/);
   return match ? match[1].replace(/<a [^>]*>([\s\S]*?)<\/a>/g, "$1") : "";
 }

@@ -163,6 +163,8 @@ aliases: [TikZ ו-Desmos לאינפי 1, גרפים חיים, דיאגרמות �
 
 ## סביבת $\varepsilon$-$\delta$
 
+<!-- infi-demo: epsilon-delta -->
+
 ```tikz
 \begin{document}
 \begin{tikzpicture}[x=1.05cm,y=1.05cm]
@@ -192,6 +194,8 @@ aliases: [TikZ ו-Desmos לאינפי 1, גרפים חיים, דיאגרמות �
 כיוון קריאה: ה-$\delta$ הוא בחירה על ציר $x$ שמבטיחה להישאר בתוך פס ה-$\varepsilon$ סביב $L$.
 
 ## קטעים מקוננים
+
+<!-- infi-demo: nested-intervals -->
 
 ```tikz
 \begin{document}
@@ -227,6 +231,8 @@ aliases: [TikZ ו-Desmos לאינפי 1, גרפים חיים, דיאגרמות �
 כיוון קריאה: כשיש שרשרת קטעים סגורים מקוננים ואורכים ששואפים לאפס, הנקודה המשותפת יחידה.
 
 ## משפט לגראנז'
+
+<!-- infi-demo: mvt -->
 
 ```tikz
 \begin{document}
