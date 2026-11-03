@@ -780,42 +780,31 @@ function renderHome() {
     .join("");
 
   const panel = last
-    ? `<h2>המשך מאיפה שעצרת</h2>
-       <a class="continue-link" href="${pageHref(last)}"><small>${escapeHtml(groupHeading(groupById.get(last.groupId)))}</small><strong>${escapeHtml(last.navTitle)}</strong></a>
-       ${recent.length > 1 ? `<ul class="recent-list">${recent.slice(1, 5).map((page) => `<li><a href="${pageHref(page)}">${escapeHtml(page.navTitle)}</a></li>`).join("")}</ul>` : ""}`
-    : `<h2>איך להשתמש באתר</h2>
-       <ol class="steps">
-         <li>בוחרים יחידה מהתפריט או מהכרטיסים למטה. כל יחידה נפתחת בסקירה ובציר לימוד.</li>
-         <li>בכל פתק יש מקור בספר, הגדרות ומשפטים לפי החוברת, הוכחות ודוגמאות.</li>
-         <li>מחפשים מושג או מספר משפט, למשל 5.29, בשורת החיפוש. במחשב המקש <kbd>/</kbd> פותח אותה.</li>
-       </ol>`;
+    ? `<p class="home-resume-label">המשך הלמידה</p>
+       <a class="home-resume-link" href="${pageHref(last)}"><small>${escapeHtml(groupHeading(groupById.get(last.groupId)))}</small><strong>${escapeHtml(last.navTitle)}</strong><span aria-hidden="true">←</span></a>
+       ${recent.length > 1 ? `<p class="home-recent-label">ביקרתם לאחרונה</p><ul class="home-recent-list">${recent.slice(1, 4).map((page) => `<li><a href="${pageHref(page)}">${escapeHtml(page.navTitle)}</a></li>`).join("")}</ul>` : ""}`
+    : `<p class="home-resume-label">מאיפה מתחילים?</p>
+       <p class="home-start-text">בחרו יחידה, חפשו מושג או עברו ישירות לתרגול.</p>
+       <a class="home-start-link" href="#/practice">לתרגול ולכרטיסי חזרה <span aria-hidden="true">←</span></a>`;
 
   const demos = demoGallery();
   const game = demos.find((item) => item.name === "epsilon-delta");
 
   app.innerHTML = `
     <div class="home">
-      <section class="cover" aria-labelledby="homeTitle">
-        <div class="cover-book">
-          <div class="cover-label">
-            <p class="cover-label-kicker">האוניברסיטה הפתוחה <span aria-hidden="true">/</span> קורס 20474</p>
-            <p class="cover-eyebrow">מחברת לימוד</p>
-            <h1 id="homeTitle">חשבון<br>אינפיניטסימלי 1</h1>
-            <p class="cover-subtitle">הגדרות, הוכחות ותרגול — מקום אחד ללמוד בו, בקצב שלכם.</p>
-            <div class="cover-meta" aria-label="תכולת המחברת">
-              <span><strong>${units.length}</strong> יחידות לימוד</span>
-              <span><strong>33</strong> משפטים לבחינה</span>
-              <span><strong>${(data.exams || []).length}</strong> מבחני עבר</span>
-            </div>
+      <section class="home-intro" aria-labelledby="homeTitle">
+        <div class="home-intro-main">
+          <p class="home-intro-kicker">האוניברסיטה הפתוחה <span aria-hidden="true"> / </span> קורס 20474</p>
+          <h1 id="homeTitle">חשבון אינפיניטסימלי 1</h1>
+          <p class="home-intro-subtitle">הסברים, הוכחות ותרגול לקראת הבחינה.</p>
+          <div class="home-intro-actions">
+            ${firstUnit ? `<a class="button button-primary" href="${pageHref(firstUnit)}">להתחלת הלימוד <span aria-hidden="true">←</span></a>` : ""}
+            ${exam ? `<a class="home-quick-link" href="${pageHref(exam)}">המשפטים לבחינה</a><a class="home-quick-link" href="#/exams">מבחני עבר</a>` : ""}
+            ${game ? `<a class="home-quick-link" href="${game.href}">משחק ε‑δ</a>` : ""}
           </div>
-          <div class="cover-actions">
-            ${firstUnit ? `<a class="button button-primary" href="${pageHref(firstUnit)}">לפתיחת המחברת <span aria-hidden="true">←</span></a>` : ""}
-            ${exam ? `<a class="cover-link" href="${pageHref(exam)}">המשפטים לבחינה</a> <a class="cover-link" href="#/exams">מבחני עבר</a>` : ""}
-            ${game ? `<a class="cover-link" href="${game.href}">משחק ε‑δ</a>` : ""}
-          </div>
-          <p class="cover-footnote">הסברים בגובה העיניים · דוגמאות פתורות · כלים לחזרה</p>
+          <p class="home-intro-meta">${units.length} יחידות לימוד <span aria-hidden="true">·</span> 33 משפטים לבחינה <span aria-hidden="true">·</span> ${(data.exams || []).length} מבחני עבר</p>
         </div>
-        <aside class="sticky-note" aria-label="${last ? "המשך קריאה" : "הסבר קצר"}">${panel}</aside>
+        <aside class="home-resume" aria-label="${last ? "המשך קריאה" : "תחילת הלימוד"}">${panel}</aside>
       </section>
 
       <section aria-labelledby="unitsTitle">
