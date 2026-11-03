@@ -758,10 +758,14 @@
     const list = (spec.expressions?.list || []).filter((e) => e.type === "expression" && typeof e.latex === "string" && !e.hidden);
     const funcNames = new Set();
     const params = {};
+    const paramBounds = {};
     for (const e of list) {
       let match = /^\s*([a-wzA-Z])\s*\(\s*x\s*\)\s*=/.exec(e.latex);
       if (match) funcNames.add(match[1]);
-      else if ((match = /^\s*([a-wzA-Z])\s*=\s*(-?\d+(?:\.\d+)?)\s*$/.exec(e.latex))) params[match[1]] = parseFloat(match[2]);
+      else if ((match = /^\s*([a-wzA-Z])\s*=\s*(-?\d+(?:\.\d+)?)\s*$/.exec(e.latex))) {
+        params[match[1]] = parseFloat(match[2]);
+        paramBounds[match[1]] = e.sliderBounds || {};
+      }
     }
     const ctx = { funcNames, params };
     const env = { params: { ...params }, funcs: {} };
@@ -813,11 +817,17 @@
     ui.controls.append(legend);
     for (const [name, initial] of Object.entries(params)) {
       const span = view.xmax - view.xmin;
+      const bounds = paramBounds[name];
+      const number = (value) => value === undefined || value === null || value === "" ? NaN : Number(value);
+      const requestedMin = number(bounds.min);
+      const requestedMax = number(bounds.max);
+      const requestedStep = number(bounds.step);
+      const validBounds = Number.isFinite(requestedMin) && Number.isFinite(requestedMax) && requestedMin < requestedMax && initial >= requestedMin && initial <= requestedMax;
       const control = slider({
         label: `\\(${name}\\)`,
-        min: view.xmin,
-        max: view.xmax,
-        step: span / 400,
+        min: validBounds ? requestedMin : view.xmin,
+        max: validBounds ? requestedMax : view.xmax,
+        step: Number.isFinite(requestedStep) && requestedStep > 0 ? requestedStep : span / 400,
         value: initial,
         onInput: (v) => {
           env.params[name] = v;
