@@ -235,6 +235,20 @@ function syncTree(activeId) {
 
 const drawerQuery = window.matchMedia("(max-width: 1060px)");
 let lastFocusBeforeDrawer = null;
+let desktopNavCollapsed = store.get("infi-nav-collapsed") === "true";
+
+function syncMenuButton() {
+  const open = drawerQuery.matches ? drawerOpen() : !desktopNavCollapsed;
+  menuToggle.setAttribute("aria-expanded", String(open));
+  const label = open ? "סגירת תפריט היחידות" : "פתיחת תפריט היחידות";
+  menuToggle.querySelector(".visually-hidden").textContent = label;
+  menuToggle.title = label;
+}
+
+function syncDesktopNav() {
+  document.body.classList.toggle("nav-collapsed", desktopNavCollapsed);
+  syncMenuButton();
+}
 
 function drawerOpen() {
   return document.body.classList.contains("nav-open");
@@ -253,7 +267,7 @@ function openDrawer() {
   lastFocusBeforeDrawer = document.activeElement;
   document.body.classList.add("nav-open");
   backdrop.hidden = false;
-  menuToggle.setAttribute("aria-expanded", "true");
+  syncMenuButton();
   courseNav.setAttribute("role", "dialog");
   courseNav.setAttribute("aria-modal", "true");
   setInert(true);
@@ -265,17 +279,30 @@ function closeDrawer(restoreFocus = true) {
   if (!drawerOpen()) return;
   document.body.classList.remove("nav-open");
   backdrop.hidden = true;
-  menuToggle.setAttribute("aria-expanded", "false");
+  syncMenuButton();
   courseNav.removeAttribute("role");
   courseNav.removeAttribute("aria-modal");
   setInert(false);
   if (restoreFocus && lastFocusBeforeDrawer) lastFocusBeforeDrawer.focus();
 }
 
-menuToggle.addEventListener("click", () => (drawerOpen() ? closeDrawer() : openDrawer()));
+menuToggle.addEventListener("click", () => {
+  if (drawerQuery.matches) {
+    if (drawerOpen()) closeDrawer();
+    else openDrawer();
+    return;
+  }
+  desktopNavCollapsed = !desktopNavCollapsed;
+  store.set("infi-nav-collapsed", String(desktopNavCollapsed));
+  syncDesktopNav();
+});
 menuClose.addEventListener("click", () => closeDrawer());
 backdrop.addEventListener("click", () => closeDrawer());
-drawerQuery.addEventListener("change", () => closeDrawer(false));
+drawerQuery.addEventListener("change", () => {
+  closeDrawer(false);
+  syncDesktopNav();
+});
+syncDesktopNav();
 
 courseNav.addEventListener("keydown", (event) => {
   if (!drawerOpen()) return;

@@ -348,7 +348,7 @@ mark {
 }
 
 .menu-button {
-  display: none;
+  display: inline-grid;
 }
 
 .brand {
@@ -614,6 +614,16 @@ mark {
 
 .course-nav-head {
   display: none;
+}
+
+@media (min-width: 1061px) {
+  .nav-collapsed .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .nav-collapsed .course-nav {
+    display: none;
+  }
 }
 
 .tree-group + .tree-group {
