@@ -814,6 +814,9 @@
         .filter((item) => item.kind !== "point")
         .map((item) => h("li", {}, h("span", { class: `demo-swatch ${item.cls}${item.dash ? " is-dashed" : ""}`, "aria-hidden": "true" }), h("span", { text: `\\(${item.latex}\\)` })))
     );
+    if (Object.keys(params).length) {
+      ui.controls.append(h("p", { class: "demo-instruction", text: "הזיזו את המחוון ועקבו אחר השינוי בגרף ובערכים." }));
+    }
     ui.controls.append(legend);
     for (const [name, initial] of Object.entries(params)) {
       const span = view.xmax - view.xmin;

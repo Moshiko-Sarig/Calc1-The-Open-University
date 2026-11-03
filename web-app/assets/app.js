@@ -810,13 +810,22 @@ function renderHome() {
           </div>
           <div class="cover-actions">
             ${firstUnit ? `<a class="button button-primary" href="${pageHref(firstUnit)}">לפתיחת המחברת <span aria-hidden="true">←</span></a>` : ""}
-            ${exam ? `<a class="button" href="${pageHref(exam)}">המשפטים לבחינה</a> <a class="button" href="#/exams">מבחני עבר</a>` : ""}
-            ${game ? `<a class="button" href="${game.href}">משחק ε‑δ</a>` : ""}
+            ${exam ? `<a class="cover-link" href="${pageHref(exam)}">המשפטים לבחינה</a> <a class="cover-link" href="#/exams">מבחני עבר</a>` : ""}
+            ${game ? `<a class="cover-link" href="${game.href}">משחק ε‑δ</a>` : ""}
           </div>
           <p class="cover-footnote">הסברים בגובה העיניים · דוגמאות פתורות · כלים לחזרה</p>
         </div>
         <aside class="sticky-note" aria-label="${last ? "המשך קריאה" : "הסבר קצר"}">${panel}</aside>
       </section>
+
+      <section aria-labelledby="unitsTitle">
+        <div class="section-head">
+          <h2 id="unitsTitle">יחידות הקורס</h2>
+          <p>שלושה כרכים, שמונה יחידות</p>
+        </div>
+        <div class="unit-grid">${unitCards}</div>
+      </section>
+
 
       ${
         demos.length
@@ -840,14 +849,6 @@ function renderHome() {
             </section>`
           : ""
       }
-
-      <section aria-labelledby="unitsTitle">
-        <div class="section-head">
-          <h2 id="unitsTitle">יחידות הקורס</h2>
-          <p>שלושה כרכים, שמונה יחידות</p>
-        </div>
-        <div class="unit-grid">${unitCards}</div>
-      </section>
 
       ${window.InfiStudy ? window.InfiStudy.homeSection() : ""}
 
@@ -934,8 +935,8 @@ function renderPage(page, section) {
           ${
             prev || next
               ? `<nav class="pager" aria-label="הפתק הקודם והבא">
-                  ${prev ? `<a class="pager-prev" href="${pageHref(prev)}" rel="prev"><small>${icon("prev")} הקודם</small><strong>${escapeHtml(prev.navTitle)}</strong></a>` : ""}
-                  ${next ? `<a class="pager-next" href="${pageHref(next)}" rel="next"><small>הבא ${icon("next")}</small><strong>${escapeHtml(next.navTitle)}</strong></a>` : ""}
+                  ${prev ? `<a class="pager-prev" href="${pageHref(prev)}" rel="prev"><small>${icon("prev")} לנושא הקודם</small><strong>${escapeHtml(prev.navTitle)}</strong></a>` : ""}
+                  ${next ? `<a class="pager-next" href="${pageHref(next)}" rel="next"><small>לנושא הבא ${icon("next")}</small><strong>${escapeHtml(next.navTitle)}</strong></a>` : ""}
                 </nav>`
               : ""
           }
@@ -1095,6 +1096,8 @@ function alignSheetGrid() {
   if (head) blocks.push(head);
   const toc = sheet.querySelector(".toc-inline");
   if (toc && toc.getClientRects().length) blocks.push(toc);
+  const learningPath = sheet.querySelector(".learning-path");
+  if (learningPath && learningPath.getClientRects().length) blocks.push(learningPath);
   const collect = (container) => {
     for (const child of container.children) {
       if (child.classList.contains("grid-probe")) continue;
