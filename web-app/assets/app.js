@@ -736,7 +736,7 @@ function renderHome() {
     "מפת הקורס": "כל היחידות והפתקים בעמוד אחד, לפי סדר הספרים.",
     "תיקונים לספרי הקורס": "כל 40 התיקונים הרשמיים לכרכים א–ג.",
     "תבניות הוכחה": "המהלכים שחוזרים בהוכחות: ε, sup, קטע סגור ונגזרת.",
-    "מפת תלות משפטים": "איזה משפט נשען על איזה, מהשלמות ועד טיילור.",
+    "מפת תלות משפטים": "איזה משפט נשען על איזה, מהשלמות ועד משפטי הנגזרת.",
     "אינדקס דוגמאות נגד": "הדוגמאות שמפריכות הכללות שגויות, לפי נושא.",
     "כרטיסי חזרה": "שאלות ותשובות קצרות לחזרה לפני הבחינה.",
     "מפת מוח": "מבט על הקורס כולו כמפה אחת.",
@@ -770,20 +770,23 @@ function renderHome() {
     <div class="home">
       <section class="cover" aria-labelledby="homeTitle">
         <div class="cover-book">
-          <span class="cover-strap" aria-hidden="true"></span>
-          <div class="cover-stickers" aria-hidden="true"><span class="sticker">∫</span><span class="sticker">ε‑δ</span><span class="sticker">sup</span></div>
           <div class="cover-label">
-            <p class="cover-label-kicker">קורס 20474 · האוניברסיטה הפתוחה</p>
-            <h1 id="homeTitle">חשבון אינפיניטסימלי&nbsp;1</h1>
-            <p class="cover-label-line"><span>מחברת</span>כספת אינפי&nbsp;1</p>
-            <p class="cover-label-line"><span>בפנים</span><b>${units.length} יחידות ·</b> <b>33 משפטים לבחינה ·</b> <b>${(data.exams || []).length} מבחנים ·</b> <b>${demos.length} המחשות</b></p>
+            <p class="cover-label-kicker">האוניברסיטה הפתוחה <span aria-hidden="true">/</span> קורס 20474</p>
+            <p class="cover-eyebrow">מחברת לימוד</p>
+            <h1 id="homeTitle">חשבון<br>אינפיניטסימלי 1</h1>
+            <p class="cover-subtitle">הגדרות, הוכחות ותרגול — מקום אחד ללמוד בו, בקצב שלכם.</p>
+            <div class="cover-meta" aria-label="תכולת המחברת">
+              <span><strong>${units.length}</strong> יחידות לימוד</span>
+              <span><strong>33</strong> משפטים לבחינה</span>
+              <span><strong>${(data.exams || []).length}</strong> מבחני עבר</span>
+            </div>
           </div>
-          <p class="cover-lead">כל הקורס כתוב על דפי משבצות: הגדרות ומשפטים לפי חוברת הקורס, הוכחות מלאות ל־33 המשפטים שברשימה לבחינה, 45 מבחני עבר מתויגים לפי נושא, והמחשות שמציירים בהן בעיפרון על המשבצות.</p>
           <div class="cover-actions">
-            ${firstUnit ? `<a class="button button-primary" href="${pageHref(firstUnit)}">לפתוח את המחברת</a>` : ""}
-            ${exam ? `<a class="button" href="${pageHref(exam)}">${icon("star")} 33 המשפטים לבחינה</a> <a class="button" href="#/exams">מבחנים 2019–2026</a>` : ""}
-            ${game ? `<a class="button" href="${game.href}">לשחק במשחק ε‑δ</a>` : ""}
+            ${firstUnit ? `<a class="button button-primary" href="${pageHref(firstUnit)}">לפתיחת המחברת <span aria-hidden="true">←</span></a>` : ""}
+            ${exam ? `<a class="button" href="${pageHref(exam)}">המשפטים לבחינה</a> <a class="button" href="#/exams">מבחני עבר</a>` : ""}
+            ${game ? `<a class="button" href="${game.href}">משחק ε‑δ</a>` : ""}
           </div>
+          <p class="cover-footnote">הסברים בגובה העיניים · דוגמאות פתורות · כלים לחזרה</p>
         </div>
         <aside class="sticky-note" aria-label="${last ? "המשך קריאה" : "הסבר קצר"}">${panel}</aside>
       </section>

@@ -2917,263 +2917,130 @@ bdi {
   }
 }
 
-/* ---------- Home: the notebook cover --------------------------------------
-   A Hebrew notebook's spine is on the right, so the binding is on the
-   inline-start side and the elastic strap near the opening edge. */
-
+/* ---------- Home: a quiet ruled notebook cover ---------------------------- */
 .home .cover {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(250px, 1fr);
-  gap: clamp(24px, 4vw, 56px);
+  grid-template-columns: minmax(0, 1.65fr) minmax(240px, .8fr);
+  gap: clamp(28px, 4.5vw, 64px);
   align-items: center;
-  padding: clamp(16px, 3vw, 34px) 0 clamp(30px, 4vw, 50px);
+  padding: clamp(18px, 3vw, 34px) 0 clamp(38px, 5vw, 64px);
 }
 
 .cover-book {
-  --cover: #1f3f73;
+  --paper: #fbf9f2;
+  --ink: #202b3b;
   position: relative;
-  padding: clamp(26px, 4vw, 46px) clamp(54px, 7vw, 86px) clamp(26px, 4vw, 42px) clamp(26px, 4vw, 44px);
-  padding-inline: clamp(44px, 6vw, 74px) clamp(54px, 7vw, 86px);
-  border-radius: 8px 18px 18px 8px;
-  border-start-start-radius: 8px;
-  border-end-start-radius: 8px;
-  border-start-end-radius: 18px;
-  border-end-end-radius: 18px;
-  background:
-    linear-gradient(100deg, rgba(255, 255, 255, 0.07), rgba(0, 0, 0, 0.08)),
-    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 6px),
-    var(--cover);
-  color: #f4f6fb;
-  box-shadow: 0 2px 4px rgba(8, 18, 38, 0.2), 0 24px 50px rgba(8, 18, 38, 0.24);
+  overflow: hidden;
+  min-width: 0;
+  padding: clamp(34px, 5vw, 62px) clamp(38px, 6vw, 76px) clamp(32px, 4.5vw, 52px);
+  border: 1px solid #c8c5ba;
+  border-inline-start: 11px solid #314b64;
+  border-radius: 5px 13px 13px 5px;
+  background: repeating-linear-gradient(to bottom, transparent 0, transparent 39px, rgba(105, 139, 165, .17) 40px, transparent 41px), var(--paper);
+  color: var(--ink);
+  box-shadow: 0 2px 4px rgba(30, 40, 50, .08), 0 18px 42px rgba(30, 40, 50, .12);
 }
 
-:root[data-theme="dark"] .cover-book {
-  --cover: #20385f;
-}
-
-/* the spine */
 .cover-book::before {
   content: "";
   position: absolute;
   inset-block: 0;
-  inset-inline-start: 0;
-  width: clamp(24px, 3vw, 34px);
-  border-start-start-radius: inherit;
-  border-end-start-radius: inherit;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.24), rgba(255, 255, 255, 0.1) 45%, rgba(0, 0, 0, 0.26));
+  inset-inline-start: clamp(19px, 3vw, 35px);
+  width: 1px;
+  background: rgba(185, 113, 107, .38);
 }
 
-.cover-strap {
-  position: absolute;
-  inset-block: 0;
-  inset-inline-end: clamp(20px, 3vw, 30px);
-  width: 12px;
-  background: linear-gradient(90deg, #0a1322, #2b3854 50%, #0a1322);
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
-}
-
-.cover-label {
-  position: relative;
-  max-width: 31rem;
-  padding: 18px 22px 14px;
-  border-radius: 12px;
-  background: #fffdf6;
-  color: #1c2434;
-  box-shadow:
-    0 2px 3px rgba(0, 0, 0, 0.25),
-    inset 0 0 0 1px rgba(31, 63, 115, 0.3),
-    inset 0 0 0 6px #fffdf6,
-    inset 0 0 0 7px rgba(31, 63, 115, 0.42);
-}
-
+.cover-label { position: relative; max-width: 35rem; }
 .cover-label-kicker {
-  margin: 0;
-  color: #244a8c;
-  font-size: 0.85rem;
+  margin: 0 0 clamp(36px, 5vw, 62px);
+  color: #5c6c7c;
+  font-size: .78rem;
   font-weight: 700;
+  letter-spacing: .02em;
 }
-
-/* The label is paper in both themes, so its text keeps fixed dark colours. */
-.cover-label h1,
-.cover-label-line {
-  color: #1c2434;
+.cover-label-kicker span { padding-inline: .35rem; color: #a0aab1; }
+.cover-eyebrow {
+  margin: 0 0 8px;
+  color: #647b8c;
+  font-size: .87rem;
+  font-weight: 700;
+  letter-spacing: .04em;
 }
-
 .cover-label h1 {
-  margin: 4px 0 12px;
-  font-family: var(--font-display);
-  font-size: clamp(2rem, 1.25rem + 2.6vw, 3rem);
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.cover-label-line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 12px;
   margin: 0;
-  padding: 6px 0 3px;
-  border-bottom: 1px solid #c3cee4;
+  color: #1b3045;
   font-family: var(--font-display);
-  font-size: 1.02rem;
+  font-size: clamp(2.5rem, 1.65rem + 3.2vw, 4.15rem);
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: -.02em;
 }
-
-.cover-label-line b {
-  font-weight: inherit;
-  white-space: nowrap;
+.cover-subtitle {
+  max-width: 31rem;
+  margin: 19px 0 0;
+  color: #536474;
+  font-size: clamp(1rem, .95rem + .25vw, 1.12rem);
+  line-height: 1.75;
 }
-
-.cover-label-line span {
-  min-width: 3.6em;
-  color: #5a6375;
-  font-family: var(--font-body);
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.cover-lead {
-  max-width: 37rem;
-  margin: 24px 0 22px;
-  color: rgba(244, 246, 251, 0.94);
-  font-size: clamp(1.02rem, 0.96rem + 0.3vw, 1.16rem);
-  line-height: 1.8;
-}
-
-.cover-actions {
+.cover-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 10px 24px;
+  margin: 31px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid #d8d9d2;
+  color: #667380;
+  font-size: .88rem;
 }
-
+.cover-meta span { white-space: nowrap; }
+.cover-meta strong { color: #293f52; font-weight: 700; }
+.cover-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 32px; }
 .cover .button {
-  border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  min-height: 44px;
+  border: 1px solid #c8d1d6;
+  background: rgba(255, 255, 255, .72);
+  color: #334b60;
+  box-shadow: none;
 }
+.cover .button:hover { border-color: #8da0ad; background: #fff; color: #1b3045; }
+.cover .button-primary { border-color: #304d66; background: #304d66; color: #fff; }
+.cover .button-primary:hover { background: #233d53; border-color: #233d53; color: #fff; }
+.cover .button-primary span { font-size: 1.15em; }
+.cover-book :focus-visible { outline: 3px solid #5d83a2; outline-offset: 3px; }
+.cover-footnote { margin: 26px 0 0; color: #7a858c; font-size: .79rem; line-height: 1.7; }
 
-.cover .button:hover {
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
-}
-
-.cover .button-primary {
-  border-color: #fffdf6;
-  background: #fffdf6;
-  color: #1f3f73;
-}
-
-.cover .button-primary:hover {
-  background: #fff;
-  color: #1f3f73;
-}
-
-.cover-book :focus-visible {
-  outline: 3px solid #ffd84d;
-  outline-offset: 3px;
-}
-
-.cover-stickers {
-  position: absolute;
-  inset-block-start: clamp(14px, 2.6vw, 26px);
-  inset-inline-end: clamp(48px, 6vw, 74px);
-  display: flex;
-  gap: 10px;
-  pointer-events: none;
-}
-
-.sticker {
-  display: grid;
-  place-items: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: #ffd84d;
-  color: #3b2f00;
-  font: 700 1.2rem/1 var(--font-display);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.28);
-  transform: rotate(-9deg);
-}
-
-.sticker:nth-child(2) {
-  background: #ffa3b4;
-  color: #4a0d1a;
-  font-size: 1rem;
-  transform: rotate(7deg);
-}
-
-.sticker:nth-child(3) {
-  background: #94e6bd;
-  color: #08351f;
-  font-size: 1rem;
-  transform: rotate(-4deg);
-}
-
-/* "Continue where you left off" on a sticky note taped to the desk */
+/* A reading card beside the cover, without a floating sticky note. */
 .sticky-note {
   position: relative;
-  padding: 26px 22px 20px;
-  border-radius: 2px 2px 6px 22px;
-  background: linear-gradient(180deg, #fff5b0, #ffed85);
-  color: #383210;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 16px 28px rgba(70, 58, 0, 0.18);
-  transform: rotate(-1.4deg);
+  padding: 24px 22px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 8px 24px rgba(30, 40, 50, .04);
 }
-
-.sticky-note::before {
-  content: "";
-  position: absolute;
-  top: -11px;
-  left: 50%;
-  width: 92px;
-  height: 22px;
-  margin-left: -46px;
-  background: rgba(255, 255, 255, 0.55);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-  transform: rotate(2deg);
+.sticky-note h2 { margin: 0 0 16px; font-size: 1.05rem; font-weight: 700; }
+.sticky-note .continue-link { border: 1px solid var(--line); background: var(--bg); }
+.sticky-note .continue-link small, .sticky-note .steps li { color: var(--ink-3); }
+.sticky-note .recent-list { margin-top: 14px; }
+:root[data-theme="dark"] .cover-book {
+  --paper: #222d35;
+  --ink: #e5e9e9;
+  border-color: #53636a;
+  border-inline-start-color: #7791a4;
+  background: repeating-linear-gradient(to bottom, transparent 0, transparent 39px, rgba(165, 188, 200, .11) 40px, transparent 41px), var(--paper);
 }
-
-.sticky-note h2 {
-  margin: 0 0 12px;
-  font-size: 1.05rem;
-  font-weight: 700;
-}
-
-.sticky-note a {
-  color: #1e3d86;
-}
-
-.sticky-note .continue-link {
-  background: rgba(255, 255, 255, 0.55);
-  color: #222;
-}
-
-.sticky-note .continue-link small,
-.sticky-note .steps li {
-  color: #4a4218;
-}
-
-:root[data-theme="dark"] .sticky-note {
-  background: linear-gradient(180deg, #59502a, #4b4322);
-  color: #f7efcc;
-}
-
-:root[data-theme="dark"] .sticky-note::before {
-  background: rgba(255, 255, 255, 0.18);
-}
-
-:root[data-theme="dark"] .sticky-note a {
-  color: #ffe38a;
-}
-
-:root[data-theme="dark"] .sticky-note .continue-link {
-  background: rgba(0, 0, 0, 0.22);
-  color: #f7efcc;
-}
-
-:root[data-theme="dark"] .sticky-note .continue-link small,
-:root[data-theme="dark"] .sticky-note .steps li {
-  color: #eadfae;
-}
+:root[data-theme="dark"] .cover-label h1 { color: #eef3f2; }
+:root[data-theme="dark"] .cover-label-kicker,
+:root[data-theme="dark"] .cover-eyebrow,
+:root[data-theme="dark"] .cover-subtitle { color: #bdcbd0; }
+:root[data-theme="dark"] .cover-meta { color: #bac8ca; border-color: #53636a; }
+:root[data-theme="dark"] .cover-meta strong { color: #edf2ef; }
+:root[data-theme="dark"] .cover-footnote { color: #b2c0c2; }
+:root[data-theme="dark"] .cover .button { border-color: #6b7c83; background: #34464f; color: #f3f6f4; }
+:root[data-theme="dark"] .cover .button:hover { background: #435a64; }
+:root[data-theme="dark"] .cover .button-primary { border-color: #d6e5e9; background: #d6e5e9; color: #243f50; }
+:root[data-theme="dark"] .cover .button-primary:hover { background: #edf5f5; color: #243f50; }
 
 /* ---------- Home: demo gallery --------------------------------------------- */
 
@@ -4710,4 +4577,12 @@ bdi {
     grid-column: 2 / -1;
     grid-row: 2;
   }
+}
+
+@media (max-width: 760px) {
+  .home .cover-book { padding: 30px 34px 30px 25px; }
+  .home .cover-label { padding: 0; }
+  .home .cover-label h1 { font-size: clamp(1.95rem, 8vw, 2.45rem); }
+  .home .cover-label-kicker { margin-bottom: 38px; }
+  .home .cover-meta { gap: 8px 15px; }
 }
