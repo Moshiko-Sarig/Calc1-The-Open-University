@@ -15,7 +15,7 @@ const generatedAssetDirs = [webAssetsDir, docsAssetsDir];
 const collator = new Intl.Collator("he", { numeric: true, sensitivity: "base" });
 
 const notice =
-  "אתר לימודי לא רשמי. הפתקים מבוססים על חומרי הקורס 20474 של האוניברסיטה הפתוחה ועל סיכום הרצאות אינפי 1מ של אביב צנזור מהטכניון. כל הזכויות בחומרי המקור שמורות לבעליהן.";
+  "אתר לימודי לא רשמי. הפתקים מבוססים על חומרי הקורס 20474 של האוניברסיטה הפתוחה. כל הזכויות בחומרי המקור שמורות לבעליהן.";
 
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -160,7 +160,6 @@ function unitInfo(relPath) {
     };
   }
   if (first === "00 - מרכז הכספת") return { unitId: "center", unitName: "מרכז הכספת", unitOrder: 1 };
-  if (first.startsWith("נושאים משלימים")) return { unitId: "supplement", unitName: first, unitOrder: 30 };
   if (!relPath.includes("/")) return { unitId: "overview", unitName: "שער ומקורות", unitOrder: 0 };
   return { unitId: "other", unitName: first, unitOrder: 99 };
 }
@@ -674,9 +673,7 @@ function sectionize(html) {
 }
 
 const pluginLabels = {
-  tikz: "קוד TikZ (מצויר באובסידיאן)",
-  "desmos-live": "גרף Desmos (חי באובסידיאן)",
-  "mathematica-plot": "גרף Mathematica (חי באובסידיאן)"
+  "desmos-live": "גרף Desmos",
 };
 
 function pageFileName(page) {
@@ -1041,19 +1038,11 @@ const startOrder = [
   "כרטיסי חזרה",
   "מפת מוח",
   "כספת העל",
-  "מקורות וחומרי גלם"
+  "מקורות וחומרי גלם",
+  "גרפים והמחשות"
 ];
 
-const vaultToolPages = [
-  "אינדקס יחידות ודיאגרמות",
-  "דיאגרמות TikZ",
-  "גרפים דינמיים",
-  "Dataview",
-  "שימוש בפלאגינים",
-  "המלצות פלאגינים",
-  "ניהול הכספת",
-  "Central Note"
-];
+const vaultToolPages = [];
 
 function rankBy(list, title) {
   const index = list.findIndex((key) => title.includes(key));
@@ -1089,7 +1078,7 @@ function buildNavGroups(pages, resolver) {
   const unitIds = Array.from(byUnit.keys())
     .filter((id) => /^unit-\d+$/.test(id))
     .sort((a, b) => Number(a.slice(5)) - Number(b.slice(5)));
-  for (const id of [...unitIds, "supplement"]) {
+  for (const id of unitIds) {
     const list = byUnit.get(id);
     if (!list) continue;
     const gateway = list.find((page) => /^שער /.test(page.title));
@@ -1106,8 +1095,8 @@ function buildNavGroups(pages, resolver) {
     groups.push({
       id,
       number,
-      title: number ? `יחידה ${number}` : "נושאים משלימים",
-      subtitle: number ? officialUnitTitles[number] : "מסיכום ההרצאות של אביב צנזור (אינפי 1מ)",
+      title: `יחידה ${number}`,
+      subtitle: officialUnitTitles[number],
       volume: sample.unitVolume || "",
       gatewayId: gateway?.id || ordered[0],
       pageIds: ordered
@@ -1116,15 +1105,15 @@ function buildNavGroups(pages, resolver) {
 
   const vault = (byUnit.get("vault") || []).sort((a, b) => collator.compare(a.title, b.title));
   if (vault.length) {
-    groups.push({ id: "vault", title: "על הכספת", subtitle: "כלים לעבודה באובסידיאן", pageIds: vault.map((p) => p.id) });
+    groups.push({ id: "vault", title: "על הכספת", subtitle: "", pageIds: vault.map((p) => p.id) });
   }
   return groups;
 }
 
 // Previous / next follow the study order: inside the learning hub, and across
-// units 1 → 8 → supplementary topics as one continuous course.
+// units 1 → 8 as one continuous course.
 function linkSequence(groups, pagesById) {
-  const courseIds = groups.filter((g) => g.number || g.id === "supplement").flatMap((g) => g.pageIds);
+  const courseIds = groups.filter((g) => g.number).flatMap((g) => g.pageIds);
   const sequences = [courseIds, ...groups.filter((g) => !g.number && g.id !== "supplement").map((g) => g.pageIds)];
   for (const sequence of sequences) {
     sequence.forEach((id, index) => {

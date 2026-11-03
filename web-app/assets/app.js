@@ -164,7 +164,7 @@ function renderTree() {
       .map((group) => {
         const listId = `tree-${group.id}`;
         const open = expanded.has(group.id);
-        const badge = group.number ?? (group.id === "start" ? "★" : group.id === "supplement" ? "+" : "·");
+        const badge = group.number ?? (group.id === "start" ? "★" : "·");
         const items = group.pageIds
           .map((id) => pages.get(id))
           .filter(Boolean)
@@ -705,7 +705,7 @@ function demoGallery() {
 
 function renderHome() {
   setTitle("");
-  const unitGroups = groups.filter((group) => group.number || group.id === "supplement");
+  const unitGroups = groups.filter((group) => group.number);
   const units = unitGroups.filter((group) => group.number);
   const start = groupById.get("start");
   const exam = pages.get(data.examListPageId);
@@ -719,7 +719,7 @@ function renderHome() {
       const gateway = pages.get(group.gatewayId);
       const theorems = group.pageIds.filter((id) => pages.get(id)?.hasExamTheorem).length;
       return `<a class="unit-card" href="${pageHref(gateway)}" style="--c:${groupColor(group.id)}">
-        <span class="unit-card-top"><span class="unit-card-num">${group.number ? `יחידה ${group.number}` : "העשרה"}</span><span>${escapeHtml(group.volume || "אינפי 1מ")}</span></span>
+        <span class="unit-card-top"><span class="unit-card-num">יחידה ${group.number}</span><span>${escapeHtml(group.volume || "")}</span></span>
         <h3>${escapeHtml(group.number ? group.subtitle : group.title)}</h3>
         <p>${gateway?.summaryHtml || ""}</p>
         <span class="unit-card-foot">
@@ -812,7 +812,7 @@ function renderHome() {
       <section aria-labelledby="unitsTitle">
         <div class="section-head">
           <h2 id="unitsTitle">יחידות הקורס</h2>
-          <p>שלושה כרכים, שמונה יחידות ונושאי העשרה</p>
+          <p>שלושה כרכים, שמונה יחידות</p>
         </div>
         <div class="unit-grid">${unitCards}</div>
       </section>
@@ -1272,12 +1272,13 @@ function renderAbout() {
           <li>ספרי הקורס 20474 חשבון אינפיניטסימלי 1 של האוניברסיטה הפתוחה (ד"ר גיל אלון): כרך א (יחידות 1–3), כרך ב (יחידות 4–6), כרך ג (יחידות 7–8).</li>
           <li>חוברת ההגדרות והמשפטים של הקורס. מספרי ההגדרות והמשפטים בפתקים אומתו מולה.</li>
           <li>רשימת המשפטים לבחינה, וקובץ התיקונים הרשמי לספרים (עדכון 19.2.2024)${corrections ? ` — <a href="${pageHref(corrections)}">בפתק התיקונים</a>` : ""}.</li>
-          <li>סיכום הרצאות אינפי 1מ של אביב צנזור (הטכניון), לנושאי ההעשרה.</li>
+          <li>סיכום מצגות המרצה במפגשי ההנחיה, ומסקנות משאלות הספר שהמרצה הפנה אליהן.</li>
+          <li>טפסי המבחנים הרשמיים 2019–2026 (סריקות, בלי פתרונות), בעמוד המבחנים.</li>
         </ul>
         ${sources ? `<p>פירוט מלא: <a href="${pageHref(sources)}">מקורות וחומרי גלם</a>.</p>` : ""}
         <h2 id="about-rights">זכויות</h2>
         <p>${escapeHtml(data.notice)}</p>
-        <p>זה אינו אתר רשמי של האוניברסיטה הפתוחה, של הטכניון או של אביב צנזור. אין להעלות ציבורית ספרים, חוברות, קובצי PDF רשמיים, פתרונות רשמיים או הקלטות בלי הרשאה.</p>
+        <p>זה אינו אתר רשמי של האוניברסיטה הפתוחה.</p>
         <h2 id="about-exam">שימוש בבחינה</h2>
         <p>בבחינה מצטטים רק משפטים, טענות, דוגמאות ושאלות מהספר. סיכומים חיצוניים, כולל הכספת הזו, אינם מקור שמותר לצטט בלי הוכחה.</p>
         <h2 id="about-build">עדכון אחרון</h2>
