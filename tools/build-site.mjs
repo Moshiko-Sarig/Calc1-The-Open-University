@@ -683,6 +683,7 @@ function sectionize(html) {
 // plain box. Unknown types fall back to an ordinary blockquote.
 const calloutTypes = {
   simple: "במילים פשוטות",
+  hint: "רמז",
   solution: "פתרון",
   exam: "במבחן",
   plan: "התוכנית בשלוש שורות"

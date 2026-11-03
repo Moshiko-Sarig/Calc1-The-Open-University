@@ -1251,6 +1251,53 @@ details.callout > summary:focus-visible {
   color: var(--ink-2);
 }
 
+.callout-hint {
+  border-color: var(--accent-line);
+  border-inline-start-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.callout-hint > .callout-title {
+  color: var(--accent);
+}
+
+.learning-path {
+  margin-block: 1rem 1.4rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.learning-path p {
+  margin: 0 0 .65rem;
+  color: var(--ink-2);
+  font-size: .9rem;
+}
+
+.learning-path ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.learning-path button, .learning-path a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: .4rem .7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  color: var(--accent);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
 @media print {
   details.callout > .callout-body {
     display: block;

@@ -960,12 +960,59 @@ function renderPage(page, section) {
   window.InfiDemos?.mount(app);
   window.InfiStudy?.decorate(app);
   window.InfiExams?.decorate(app);
+  mountLearningPath(page, group, gateway);
   alignSheetGrid();
   app.querySelector("[data-toc-inline]")?.addEventListener("toggle", alignSheetGrid);
   app.querySelectorAll("details.callout").forEach((box) => box.addEventListener("toggle", alignSheetGrid));
   typesetMath(() => scrollToSection(section, false));
   renderMermaid();
   if (section) scrollToSection(section, false);
+}
+
+// Links only to material that actually exists on this page; the full note
+// remains available and the learner can choose how much to reveal.
+function mountLearningPath(page, group, gateway) {
+  if (!group?.number) return;
+  const prose = app.querySelector(".prose");
+  if (!prose) return;
+  const headings = Array.from(prose.querySelectorAll("h2, h3"));
+  const findHeading = (pattern) => headings.find((h) => pattern.test(h.textContent));
+  const intuition = prose.querySelector(".callout-simple");
+  const example = findHeading(/דוגמ[הת]|עם מספרים/) || Array.from(prose.querySelectorAll(".callout-simple")).find((box) => /עם מספרים/.test(box.textContent));
+  const formal = findHeading(/הגדר|המשפט|ניסוח/) || headings[0];
+  const practice = findHeading(/תרגול קצר|תרגול מודרך|בדיקת שליטה|בדיקה עצמית|כרטיס דיוק/);
+  const exam = prose.querySelector(".callout-exam") || findHeading(/סוגי שאלות במבחן|במבחן/);
+  const items = [["אינטואיציה", intuition], ["דוגמה במספרים", example], ["הגדרה ומשפטים", formal], ["תרגול", practice], ["במבחן", exam]].filter(([, target]) => target);
+  if (!exam && gateway && gateway.id !== page.id) items.push(["שאלות מבחן ביחידה", null]);
+  if (items.length < 2) return;
+  const nav = document.createElement("nav");
+  nav.className = "learning-path";
+  nav.setAttribute("aria-label", "מסלול לימוד בדף");
+  nav.innerHTML = '<p><strong>מסלול לימוד:</strong> בחרו שלב כדי להגיע אליו. אפשר לפתוח הסברים ורמזים לפי הצורך.</p><ol></ol>';
+  const list = nav.querySelector("ol");
+  items.forEach(([label, target], index) => {
+    const li = document.createElement("li");
+    if (!target) {
+      const link = document.createElement("a");
+      link.href = pageHref(gateway);
+      link.textContent = `${index + 1}. ${label}`;
+      li.append(link);
+    } else {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = `${index + 1}. ${label}`;
+      button.addEventListener("click", () => {
+        if (target.tagName === "DETAILS") target.open = true;
+        const focusTarget = target.tagName === "DETAILS" ? target.querySelector("summary") : target;
+        if (!focusTarget.hasAttribute("tabindex")) focusTarget.setAttribute("tabindex", "-1");
+        target.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+        focusTarget.focus({ preventScroll: true });
+      });
+      li.append(button);
+    }
+    list.append(li);
+  });
+  prose.before(nav);
 }
 
 // ---------------------------------------------------------------------------
