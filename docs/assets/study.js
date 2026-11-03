@@ -1,5 +1,5 @@
 /* Study tools: proofs step by step with "why?" notes, a proof puzzle for the
- * 35 exam theorems, and flashcards with spaced repetition.
+ * 33 exam theorems, and flashcards with spaced repetition.
  *
  * Proofs are the vault's <!-- infi-proof: N --> blocks (div.proof). A proof
  * is split into steps: list items, paragraphs, and the sentences of long
@@ -875,7 +875,7 @@
         <header class="practice-head">
           <p class="practice-kicker">לפני הבחינה</p>
           <h1 id="pageTitle" tabindex="-1">תרגול</h1>
-          <p class="practice-lead">כרטיסי חזרה עם חזרה מרווחת, ופאזל הוכחה לכל אחד מ־35 המשפטים שברשימה לבחינה. בכל הוכחה בפתקים יש גם כפתור "שלב אחר שלב". ההתקדמות נשמרת בדפדפן הזה.</p>
+          <p class="practice-lead">כרטיסי חזרה עם חזרה מרווחת, ופאזל הוכחה לכל אחד מ־33 המשפטים שברשימה לבחינה. בכל הוכחה בפתקים יש גם כפתור "שלב אחר שלב". ההתקדמות נשמרת בדפדפן הזה.</p>
         </header>
         <div class="hub-cards">
           <article class="hub-card">
@@ -892,7 +892,7 @@
           </article>
         </div>
         <section aria-labelledby="hubListTitle">
-          <h2 id="hubListTitle" class="hub-list-title">35 המשפטים לבחינה</h2>
+          <h2 id="hubListTitle" class="hub-list-title">33 המשפטים לבחינה</h2>
           ${rows}
         </section>
       </div>`;

@@ -36,6 +36,9 @@
   --gold: #7a5510;
   --gold-soft: #fbf0d6;
   --gold-line: #e7cf96;
+  --calm: #2f6b3f;
+  --calm-soft: #eaf4ec;
+  --calm-line: #b5d6bd;
   --danger: #9f2720;
   --mark: #fde68a;
   --shadow-1: 0 1px 2px rgba(20, 22, 28, 0.06), 0 1px 1px rgba(20, 22, 28, 0.04);
@@ -86,6 +89,9 @@
   --gold: #e9c06b;
   --gold-soft: #33291a;
   --gold-line: #5a4825;
+  --calm: #8fd19e;
+  --calm-soft: #1b2b20;
+  --calm-line: #36593f;
   --danger: #f19a92;
   --mark: #6b5513;
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -1150,6 +1156,95 @@ a.chip:hover {
 
 .callout-source p {
   margin: 0;
+}
+
+/* Typed callouts: "במילים פשוטות" (calm green), solutions (neutral, folded),
+   exam tips (gold) and the three-line proof plan (blue). */
+.callout-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+details.callout > summary.callout-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+details.callout > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.callout > summary::before {
+  content: "";
+  width: 0.5em;
+  height: 0.5em;
+  flex: none;
+  border-block-end: 2px solid currentColor;
+  border-inline-end: 2px solid currentColor;
+  transform: rotate(135deg);
+  transition: transform 0.15s ease;
+}
+
+details.callout[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+details.callout > summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+  border-radius: var(--radius-s);
+}
+
+.callout-body > :first-child {
+  margin-block-start: 0.5em;
+}
+
+.callout-body > :last-child {
+  margin-block-end: 0;
+}
+
+.callout-simple {
+  border-color: var(--calm-line);
+  border-inline-start-color: var(--calm);
+  background: var(--calm-soft);
+}
+
+.callout-simple > .callout-title {
+  color: var(--calm);
+}
+
+.callout-exam {
+  border-color: var(--gold-line);
+  border-inline-start-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.callout-exam > .callout-title {
+  color: var(--gold);
+}
+
+.callout-plan {
+  border-color: var(--accent-line);
+  border-inline-start-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.callout-plan > .callout-title {
+  color: var(--accent);
+}
+
+.callout-solution > .callout-title {
+  color: var(--ink-2);
+}
+
+@media print {
+  details.callout > .callout-body {
+    display: block;
+  }
 }
 
 /* Special sections */
@@ -4296,5 +4391,323 @@ bdi {
   .math-display,
   .diagram-wrap {
     break-inside: avoid;
+  }
+}
+
+/* ---------- Past exams (#/exams) --------------------------------------------
+   assets/exams.js: a frequency board of the exam theorems, a unit-by-year
+   heat map, a question finder, and one exam's scans next to its questions. */
+
+.exams-page,
+.exam-view {
+  max-width: 72rem;
+  margin-inline: auto;
+}
+
+.exam-section {
+  margin-block: 2.2rem;
+}
+
+.exam-section > h2 {
+  margin: 0 0 0.3em;
+  font-size: 1.35rem;
+}
+
+.exam-section > p {
+  margin: 0 0 1em;
+  color: var(--ink-2);
+}
+
+.freq-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.freq-row {
+  display: grid;
+  grid-template-columns: 3.4rem minmax(0, 1fr) minmax(4rem, 12rem) 2rem;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+}
+
+.freq-num a,
+.freq-num {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.freq-name {
+  min-width: 0;
+  color: var(--ink-2);
+  font-size: 0.95rem;
+}
+
+.freq-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(to left, var(--gold) var(--w), var(--surface-3) var(--w));
+}
+
+.freq-count {
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.freq-exams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  grid-column: 2 / -1;
+  font-size: 0.82rem;
+}
+
+.heatmap {
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.heatmap th,
+.heatmap td {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.heatmap tbody th {
+  text-align: start;
+  font-weight: 500;
+}
+
+.heatmap td {
+  min-width: 3rem;
+  background: color-mix(in srgb, var(--accent) calc(var(--heat) * 70%), var(--surface));
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.exam-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-block-end: 8px;
+}
+
+.exam-filters label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--ink-2);
+}
+
+.exam-filters :is(select, input) {
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.exam-filter-text {
+  flex: 1 1 14rem;
+}
+
+.exam-q-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.exam-q {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  scroll-margin-top: calc(var(--header-h) + 12px);
+}
+
+.exam-q p {
+  margin: 0;
+}
+
+.exam-q-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-weight: 700;
+}
+
+.exam-q-meta {
+  color: var(--ink-3);
+  font-weight: 400;
+  font-size: 0.85rem;
+}
+
+.exam-q-summary {
+  margin-block-start: 4px !important;
+}
+
+.exam-q-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-block-start: 6px !important;
+}
+
+.exam-q-note {
+  margin-block-start: 6px !important;
+  padding: 6px 10px;
+  border-inline-start: 3px solid var(--calm);
+  background: var(--calm-soft);
+  border-radius: var(--radius-s);
+  font-size: 0.9rem;
+}
+
+.exam-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border: 1px solid color-mix(in srgb, var(--c, var(--line-2)) 45%, transparent);
+  border-radius: 999px;
+  color: var(--c, var(--ink-2));
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+
+.exam-chip-proof {
+  border-color: var(--gold-line);
+  background: var(--gold-soft);
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.exam-chip-topic {
+  color: var(--ink-2);
+}
+
+.exam-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.exam-card {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.exam-card-link {
+  display: grid;
+  text-decoration: none;
+}
+
+.exam-card-sem {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.exam-card-meta,
+.exam-card-proves {
+  color: var(--ink-3);
+  font-size: 0.85rem;
+}
+
+.exam-card-proves {
+  margin: 4px 0 0;
+}
+
+.exam-crumbs {
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+}
+
+.exam-layout {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.exam-side {
+  position: sticky;
+  top: calc(var(--header-h) + 12px);
+  max-height: calc(100vh - var(--header-h) - 24px);
+  overflow: auto;
+}
+
+.exam-pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-start: 12px;
+}
+
+.exam-scans {
+  display: grid;
+  gap: 18px;
+}
+
+.exam-scan {
+  margin: 0;
+  scroll-margin-top: calc(var(--header-h) + 12px);
+}
+
+.exam-scan img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: #fff;
+  box-shadow: var(--shadow-1);
+}
+
+.exam-scan figcaption {
+  margin-block-start: 4px;
+  color: var(--ink-3);
+  font-size: 0.8rem;
+}
+
+.proof-asked {
+  margin-block: 0 4px !important;
+  color: var(--gold);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 860px) {
+  .exam-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .exam-side {
+    position: static;
+    max-height: none;
+  }
+
+  .freq-row {
+    grid-template-columns: 3rem minmax(0, 1fr) 2rem;
+  }
+
+  .freq-bar {
+    grid-column: 2 / -1;
+    grid-row: 2;
   }
 }

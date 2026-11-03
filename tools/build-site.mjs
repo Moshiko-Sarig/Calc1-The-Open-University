@@ -10,6 +10,7 @@ const docsDir = path.join(root, "docs");
 const webAssetsDir = path.join(webAppDir, "assets");
 const docsAssetsDir = path.join(docsDir, "assets");
 const figuresDir = path.join(root, "figures");
+const examsDir = path.join(root, "exams");
 const generatedAssetDirs = [webAssetsDir, docsAssetsDir];
 
 const collator = new Intl.Collator("he", { numeric: true, sensitivity: "base" });
@@ -526,6 +527,11 @@ function renderMarkdown(body, resolveLink) {
         i += 1;
       }
       const first = quote.find((part) => part.trim()) || "";
+      const typed = renderTypedCallout(quote, resolveLink);
+      if (typed) {
+        html.push(typed);
+        continue;
+      }
       const kind = /^\s*(\*\*)?מקור/.test(first) ? "callout callout-source" : "callout";
       html.push(`<blockquote class="${kind}">${renderMarkdown(quote.join("\n"), resolveLink)}</blockquote>`);
       continue;
@@ -672,6 +678,31 @@ function sectionize(html) {
     .join("\n");
 }
 
+// Obsidian-style typed callouts: "> [!simple]- title" opens a box. A "-"
+// after the type makes it fold closed, "+" folds open; with neither it is a
+// plain box. Unknown types fall back to an ordinary blockquote.
+const calloutTypes = {
+  simple: "במילים פשוטות",
+  solution: "פתרון",
+  exam: "במבחן",
+  plan: "התוכנית בשלוש שורות"
+};
+
+function renderTypedCallout(quote, resolveLink) {
+  const start = quote.findIndex((part) => part.trim());
+  const head = start < 0 ? null : quote[start].match(/^\s*\[!(\w+)\]([+-]?)\s*(.*)$/);
+  if (!head || !calloutTypes[head[1].toLowerCase()]) return null;
+  const type = head[1].toLowerCase();
+  const title = renderInline(head[3].trim() || calloutTypes[type], resolveLink);
+  const body = renderMarkdown(quote.slice(start + 1).join("\n"), resolveLink);
+  const cls = `callout callout-${type}`;
+  if (!head[2]) {
+    return `<div class="${cls}"><p class="callout-title">${title}</p><div class="callout-body">${body}</div></div>`;
+  }
+  const open = head[2] === "+" ? " open" : "";
+  return `<details class="${cls}"${open}><summary class="callout-title">${title}</summary><div class="callout-body">${body}</div></details>`;
+}
+
 const pluginLabels = {
   "desmos-live": "גרף Desmos",
 };
@@ -804,6 +835,7 @@ function buildExamTheorems(examPage, resolver, pages) {
     const note = target ? resolver(target.trim()) : null;
     rows.push({
       number,
+      count: Number.parseInt(cells[4], 10) || 0,
       part: part.trim(),
       kind: cells[1].trim(),
       statementHtml: renderInline(cells[2].trim(), resolver),
@@ -995,6 +1027,32 @@ function writeGeneratedContent(payload) {
   for (const assetDir of generatedAssetDirs) {
     fs.mkdirSync(assetDir, { recursive: true });
     fs.writeFileSync(path.join(assetDir, "content.js"), `window.COURSE_DATA = ${JSON.stringify(payload)};\n`, "utf8");
+  }
+}
+
+// Past exams: exams/exams.json (tags typed from the scans) and the page
+// scans, pNNN.jpg by page of the exam booklet, copied next to the figures.
+// An exam lists its pages in reading order; a few photographed exams were
+// bound out of order.
+function loadExams() {
+  const file = path.join(examsDir, "exams.json");
+  if (!fs.existsSync(file)) return [];
+  const exams = JSON.parse(fs.readFileSync(file, "utf8"));
+  for (const exam of exams) {
+    exam.images = exam.pages.map((page) => `assets/exams/p${String(page).padStart(3, "0")}.jpg`);
+  }
+  return exams;
+}
+
+function copyExams() {
+  if (!fs.existsSync(examsDir)) return;
+  for (const assetDir of generatedAssetDirs) {
+    const out = path.join(assetDir, "exams");
+    fs.rmSync(out, { recursive: true, force: true });
+    fs.mkdirSync(out, { recursive: true });
+    for (const entry of fs.readdirSync(examsDir, { withFileTypes: true })) {
+      if (entry.isFile() && entry.name.endsWith(".jpg")) fs.copyFileSync(path.join(examsDir, entry.name), path.join(out, entry.name));
+    }
   }
 }
 
@@ -1194,7 +1252,17 @@ function main() {
   }
 
   const statements = buildStatements(pages);
-  const examTheorems = buildExamTheorems({ body: examBody }, resolver, pages);
+  // The official list comes first; theorems under "## הופיעו במבחנים…" were
+  // asked in past exams but are not on the current list.
+  const [officialBody, pastBody = ""] = examBody.split(/^##\s+הופיעו במבחנים.*$/m);
+  const examTheorems = buildExamTheorems({ body: officialBody }, resolver, pages);
+  const pastTheorems = buildExamTheorems({ body: pastBody }, resolver, pages);
+  const exams = loadExams();
+  for (const row of [...examTheorems, ...pastTheorems]) {
+    row.exams = exams.flatMap((exam) =>
+      exam.questions.filter((q) => (q.prove || []).includes(row.number)).map((q) => ({ exam: exam.n, q: q.q }))
+    );
+  }
   const missingProofs = examTheorems.filter((row) => !row.proofPageId).map((row) => row.number);
   if (missingProofs.length) console.warn(`Exam theorems without a marked proof: ${missingProofs.join(", ")}`);
 
@@ -1227,6 +1295,8 @@ function main() {
     graph,
     statements,
     examTheorems,
+    pastTheorems,
+    exams,
     flashcards,
     pages
   };
@@ -1234,6 +1304,7 @@ function main() {
   writeGeneratedContent(payload);
   fs.writeFileSync(path.join(docsDir, ".nojekyll"), "", "utf8");
   copyFigures();
+  copyExams();
   console.log(`Built ${pages.length} pages, ${edges.length} graph edges -> ${path.relative(root, docsDir)}`);
 }
 

@@ -1,5 +1,6 @@
 /* כספת אינפי 1 — client app.
-   Hash routes: #/  #/page/<id>[/<section>]  #/index  #/graph  #/about */
+   Hash routes: #/  #/page/<id>[/<section>]  #/index  #/graph  #/about
+   #/practice[...]  #/exams[/<n>[/q<k>]] */
 
 const data = window.COURSE_DATA;
 const app = document.querySelector("#app");
@@ -591,6 +592,7 @@ function route({ initial = false } = {}) {
   else if (next.view === "graph") renderGraph();
   else if (next.view === "about" || next.view === "credits") renderAbout();
   else if (next.view === "practice" && window.InfiStudy) window.InfiStudy.render(app, next);
+  else if (next.view === "exams" && window.InfiExams) window.InfiExams.render(app, next);
   else if (next.view === "home") renderHome();
   else renderNotFound();
 
@@ -774,12 +776,12 @@ function renderHome() {
             <p class="cover-label-kicker">קורס 20474 · האוניברסיטה הפתוחה</p>
             <h1 id="homeTitle">חשבון אינפיניטסימלי&nbsp;1</h1>
             <p class="cover-label-line"><span>מחברת</span>כספת אינפי&nbsp;1</p>
-            <p class="cover-label-line"><span>בפנים</span><b>${units.length} יחידות ·</b> <b>35 משפטים לבחינה ·</b> <b>${demos.length} המחשות</b></p>
+            <p class="cover-label-line"><span>בפנים</span><b>${units.length} יחידות ·</b> <b>33 משפטים לבחינה ·</b> <b>${(data.exams || []).length} מבחנים ·</b> <b>${demos.length} המחשות</b></p>
           </div>
-          <p class="cover-lead">כל הקורס כתוב על דפי משבצות: הגדרות ומשפטים לפי חוברת הקורס, הוכחות מלאות ל־35 המשפטים שברשימה לבחינה, והמחשות שמציירים בהן בעיפרון על המשבצות.</p>
+          <p class="cover-lead">כל הקורס כתוב על דפי משבצות: הגדרות ומשפטים לפי חוברת הקורס, הוכחות מלאות ל־33 המשפטים שברשימה לבחינה, 45 מבחני עבר מתויגים לפי נושא, והמחשות שמציירים בהן בעיפרון על המשבצות.</p>
           <div class="cover-actions">
             ${firstUnit ? `<a class="button button-primary" href="${pageHref(firstUnit)}">לפתוח את המחברת</a>` : ""}
-            ${exam ? `<a class="button" href="${pageHref(exam)}">${icon("star")} 35 המשפטים לבחינה</a>` : ""}
+            ${exam ? `<a class="button" href="${pageHref(exam)}">${icon("star")} 33 המשפטים לבחינה</a> <a class="button" href="#/exams">מבחנים 2019–2026</a>` : ""}
             ${game ? `<a class="button" href="${game.href}">לשחק במשחק ε‑δ</a>` : ""}
           </div>
         </div>
@@ -824,8 +826,8 @@ function renderHome() {
           ? `<section class="exam-band" aria-labelledby="examTitle">
               <span class="exam-band-icon" aria-hidden="true">${icon("star")}</span>
               <div>
-                <h2 id="examTitle">35 המשפטים לבחינה</h2>
-                <p>בבחינה מבקשים להוכיח 2–3 משפטים מהרשימה הרשמית. לכל משפט יש בכספת הוכחה מלאה עם כל הנימוקים.</p>
+                <h2 id="examTitle">33 המשפטים לבחינה</h2>
+                <p>בבחינה מבקשים להוכיח 2–3 משפטים מהרשימה הרשמית. לכל משפט יש בכספת הוכחה מלאה עם כל הנימוקים, וליד כל הוכחה כתוב באילו מבחנים היא נשאלה.</p>
               </div>
               <a class="button" href="${pageHref(exam)}">לרשימה המלאה</a>
             </section>`
@@ -927,8 +929,10 @@ function renderPage(page, section) {
   buildToc(page);
   window.InfiDemos?.mount(app);
   window.InfiStudy?.decorate(app);
+  window.InfiExams?.decorate(app);
   alignSheetGrid();
   app.querySelector("[data-toc-inline]")?.addEventListener("toggle", alignSheetGrid);
+  app.querySelectorAll("details.callout").forEach((box) => box.addEventListener("toggle", alignSheetGrid));
   typesetMath(() => scrollToSection(section, false));
   renderMermaid();
   if (section) scrollToSection(section, false);
