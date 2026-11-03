@@ -315,6 +315,22 @@ function renderInline(value, resolveLink) {
     .replace(/__([^_]+)__/g, "<strong>$1</strong>")
     .replace(/(^|[^\*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
 
+  // Browsers may break a line on either side of an inline formula box, which
+  // leaves a lone "." at the start of the next line or "ב-" dangling at the
+  // end of the previous one. Keep a formula together with a Hebrew prefix
+  // (ב-, ש-, של-), an opening bracket and trailing punctuation. The
+  // punctuation is glued in an inner run of its own, so on a narrow screen
+  // the prefix can still let go first (see markWideFormulas in app.js).
+  text = text.replace(
+    /((?<![א-ת])[א-ת]{1,4}[-־])?([(\[]?)(@@MATH\d+@@)([.,;:!?)\]]*)/g,
+    (match, prefix = "", open = "", token, punctuation = "") => {
+      if (!prefix && !open && !punctuation) return match;
+      const core = `${open}${token}${punctuation}`;
+      if (prefix && core !== token) return `<span class="nobr">${prefix}<span class="nobr">${core}</span></span>`;
+      return `<span class="nobr">${prefix}${core}</span>`;
+    }
+  );
+
   mathTokens.forEach((html, index) => {
     text = text.replaceAll(`@@MATH${index}@@`, html);
   });

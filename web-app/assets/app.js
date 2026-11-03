@@ -108,6 +108,7 @@ sizeButton.addEventListener("click", () => {
   store.set("infi-text-size", next);
   syncPreferenceControls();
   markWideFormulas();
+  requestAnimationFrame(alignSheetGrid);
 });
 
 syncPreferenceControls();
@@ -764,17 +765,20 @@ function renderPage(page, section) {
   app.innerHTML = `
     <div class="page-grid">
       <article class="note" aria-labelledby="pageTitle">
-        <header class="note-head">
-          <nav class="breadcrumbs" aria-label="מיקום בקורס"><ol>${crumbs.join("")}</ol></nav>
-          <h1 id="pageTitle" class="note-title">${page.titleHtml || escapeHtml(page.title)}</h1>
-          <div class="note-meta">${meta}</div>
-          ${page.aliases?.length ? `<p class="note-aliases">נקרא גם: ${page.aliases.map(escapeHtml).join(" · ")}</p>` : ""}
-        </header>
-        <details class="toc-inline" data-toc-inline hidden>
-          <summary>בדף הזה ${icon("chevron")}</summary>
-          <nav aria-label="תוכן הדף"><ol data-toc-list></ol></nav>
-        </details>
-        <div class="prose">${page.html}</div>
+        <nav class="breadcrumbs" aria-label="מיקום בקורס"><ol>${crumbs.join("")}</ol></nav>
+        <div class="sheet" data-sheet>
+          <header class="note-head">
+            <h1 id="pageTitle" class="note-title">${page.titleHtml || escapeHtml(page.title)}</h1>
+            <div class="note-meta">${meta}</div>
+            ${page.aliases?.length ? `<p class="note-aliases">נקרא גם: ${page.aliases.map(escapeHtml).join(" · ")}</p>` : ""}
+            <div class="grid-probe" aria-hidden="true"><div class="note-title"><span class="bl"></span>א</div></div>
+          </header>
+          <details class="toc-inline" data-toc-inline hidden>
+            <summary>בדף הזה ${icon("chevron")}</summary>
+            <nav aria-label="תוכן הדף"><ol data-toc-list></ol></nav>
+          </details>
+          <div class="prose">${page.html}<div class="grid-probe" aria-hidden="true"><p><span class="bl"></span>א</p><h2><span class="bl"></span>א</h2><h3><span class="bl"></span>א</h3><div class="grid-cell" style="height: var(--cell)"></div></div></div>
+        </div>
         <footer class="note-foot">
           ${
             prev || next
@@ -802,9 +806,204 @@ function renderPage(page, section) {
 
   decorateHeadings(page);
   buildToc(page);
+  alignSheetGrid();
+  app.querySelector("[data-toc-inline]")?.addEventListener("toggle", alignSheetGrid);
   typesetMath(() => scrollToSection(section, false));
   renderMermaid();
   if (section) scrollToSection(section, false);
+}
+
+// ---------------------------------------------------------------------------
+// Notebook sheet: put text baselines on the grid lines
+// ---------------------------------------------------------------------------
+
+function mod(value, size) {
+  return ((value % size) + size) % size;
+}
+
+// Boxes on the page (cards, callouts, tables, diagrams) are ruled along the
+// grid lines, like a frame a student draws around a theorem.
+const SHEET_BOX =
+  ".toc-inline, .callout, .table-wrap, .diagram-wrap, .section-card, .section-review, .dataview-result, pre, .section-related > ul";
+// Boxes that get extra padding so they also end on a line. The related-notes
+// cards already have a height in whole cells (see site.css).
+const SHEET_BOX_ROUNDED =
+  ".toc-inline, .callout, .table-wrap, .diagram-wrap, .section-card, .section-review, .dataview-result, pre";
+
+// 1. The grid is shifted so its horizontal lines pass through the baselines
+//    of body text; a line of text is exactly two cells tall.
+// 2. Every text block (paragraph, list, heading, formula) is snapped so its
+//    top starts a whole number of cells below the top of the sheet, which
+//    keeps it in phase with the grid after boxes of any height.
+// 3. Boxes start on a grid line and are padded to end on one, and the red
+//    rule under the title is laid over a grid line.
+// 4. Headings are nudged so their baselines sit on a line.
+function alignSheetGrid() {
+  const sheet = app.querySelector("[data-sheet]");
+  if (!sheet) return;
+  const prose = sheet.querySelector(".prose");
+  const cellEl = sheet.querySelector(".grid-cell");
+  const probes = prose?.querySelector(".grid-probe");
+  if (!prose || !cellEl || !probes) return;
+
+  sheet.querySelectorAll("[data-grid-snap]").forEach((el) => {
+    el.style.marginBlockStart = "";
+    el.style.marginBlockEnd = "";
+    el.removeAttribute("data-grid-snap");
+  });
+  sheet.querySelectorAll("[data-grid-pad]").forEach((el) => {
+    el.style.paddingBlockStart = "";
+    el.style.paddingBlockEnd = "";
+    el.removeAttribute("data-grid-pad");
+  });
+  sheet.querySelectorAll("[data-grid-fit]").forEach((el) => {
+    el.style.marginBlockStart = "";
+    el.style.marginBlockEnd = "";
+    el.removeAttribute("data-grid-fit");
+  });
+
+  const cell = cellEl.getBoundingClientRect().height;
+  if (!(cell > 4)) return;
+
+  // Baselines measured on hidden probes: they do not depend on where a block
+  // sits, so they are read once, before anything moves.
+  const baseline = (el) => {
+    const mark = el?.querySelector(".bl");
+    return mark ? mark.getBoundingClientRect().bottom - el.getBoundingClientRect().top : null;
+  };
+  const bodyBaseline = baseline(probes.querySelector("p"));
+  if (bodyBaseline === null) return;
+  const nudge = (el) => {
+    const b = baseline(el);
+    if (b === null) return "0px";
+    let delta = mod(bodyBaseline - b, cell);
+    if (delta > cell / 2) delta -= cell;
+    return `${delta.toFixed(2)}px`;
+  };
+  const head = sheet.querySelector(".note-head");
+  const shifts = {
+    "--shift-h1": nudge(head?.querySelector(".grid-probe .note-title")),
+    "--shift-h2": nudge(probes.querySelector("h2")),
+    "--shift-h3": nudge(probes.querySelector("h3"))
+  };
+
+  fitTallFormulas(prose, cell, bodyBaseline);
+
+  const blocks = [];
+  if (head) blocks.push(head);
+  const toc = sheet.querySelector(".toc-inline");
+  if (toc && toc.getClientRects().length) blocks.push(toc);
+  const collect = (container) => {
+    for (const child of container.children) {
+      if (child.classList.contains("grid-probe")) continue;
+      if (child.classList.contains("note-section") && !child.matches(".section-card, .section-review")) collect(child);
+      else if (child.getClientRects().length) blocks.push(child);
+    }
+  };
+  collect(prose);
+
+  const sheetStyle = getComputedStyle(sheet);
+  const contentTop = parseFloat(sheetStyle.paddingTop || "0");
+  // Where the grid lines fall, measured from the top of the sheet's padding
+  // box (the background's origin).
+  const lineAt = mod(contentTop + bodyBaseline, cell);
+
+  // Heights: a box is a whole number of cells plus 1px, so its bottom border
+  // covers a line; the head ends where its 2px red rule covers a line.
+  const padWrites = [];
+  const roundHeight = (el, remainder, split) => {
+    const extra = mod(remainder - el.getBoundingClientRect().height, cell);
+    if (extra < 0.5 || cell - extra < 0.5) return;
+    const style = getComputedStyle(el);
+    const before = split ? Math.floor(extra / 2) : 0;
+    padWrites.push([el, (parseFloat(style.paddingTop) || 0) + before, (parseFloat(style.paddingBottom) || 0) + extra - before]);
+  };
+  if (head) roundHeight(head, mod(bodyBaseline + 1, cell), false);
+  blocks.forEach((el) => {
+    if (el !== head && el.matches(SHEET_BOX_ROUNDED)) roundHeight(el, 1, true);
+  });
+  // A formula on a line of its own inside running text (a display formula in
+  // a list item, or an inline one too wide for a phone) is whole cells tall,
+  // so the text after it stays on the lines.
+  prose.querySelectorAll(".math-display, .math-inline.math-overflow").forEach((el) => {
+    if (!el.closest(`${SHEET_BOX}, .grid-probe`) && el.getClientRects().length) roundHeight(el, 0, true);
+  });
+  for (const [el, top, bottom] of padWrites) {
+    el.style.paddingBlockStart = `${top}px`;
+    el.style.paddingBlockEnd = `${bottom}px`;
+    el.dataset.gridPad = "1";
+  }
+
+  const originTop = sheet.getBoundingClientRect().top + parseFloat(sheetStyle.borderTopWidth || "0");
+  const boxes = blocks.map((el) => {
+    const box = el.getBoundingClientRect();
+    return {
+      el,
+      top: box.top - originTop,
+      bottom: box.bottom - originTop,
+      target: el !== head && el.matches(SHEET_BOX) ? lineAt : contentTop
+    };
+  });
+
+  // Margins between consecutive blocks are rewritten as one explicit gap on
+  // the later block, so margin collapsing cannot distort the arithmetic.
+  let shift = 0;
+  const writes = [];
+  for (let i = 1; i < boxes.length; i += 1) {
+    const gap = boxes[i].top - boxes[i - 1].bottom;
+    let pad = mod(boxes[i].target - (boxes[i].top + shift), cell);
+    if (pad < 0.5 || cell - pad < 0.5) pad = 0;
+    if (pad) {
+      writes.push([boxes[i - 1].el, boxes[i].el, gap + pad]);
+      shift += pad;
+    }
+  }
+  for (const [before, after, value] of writes) {
+    before.style.marginBlockEnd = "0px";
+    after.style.marginBlockStart = `${Math.max(0, value)}px`;
+    before.dataset.gridSnap = "1";
+    after.dataset.gridSnap = "1";
+  }
+
+  sheet.style.setProperty("--grid-offset", `${lineAt.toFixed(2)}px`);
+  for (const [name, value] of Object.entries(shifts)) sheet.style.setProperty(name, value);
+}
+
+// A formula taller than the line (a fraction, floor brackets, a sum) would
+// stretch its line box by a few pixels and push every later line off the
+// grid. It may reach into the space between lines by up to ~0.45 cell; past
+// that its line grows by whole cells. Both are done with margins on the
+// formula's box, which change the line box and never move the formula.
+function fitTallFormulas(prose, cell, bodyBaseline) {
+  const lineHeight = cell * 2;
+  const reach = cell * 0.45;
+  const formulas = Array.from(prose.querySelectorAll(".math-inline:not(.math-overflow) mjx-math")).filter(
+    (math) => !math.closest(`${SHEET_BOX}, h1, h2, h3, h4, .grid-probe`) && math.getClientRects().length
+  );
+  if (!formulas.length) return;
+  // The baseline mark goes inside the formula's box, which never wraps, so it
+  // is on the formula's own line even when the formula starts a new line.
+  const marks = formulas.map((math) => {
+    const mark = document.createElement("span");
+    mark.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
+    math.prepend(mark);
+    return mark;
+  });
+  const fits = formulas.map((math, i) => {
+    const base = marks[i].getBoundingClientRect().bottom;
+    const box = math.getBoundingClientRect();
+    const above = base - bodyBaseline - box.top;
+    const below = box.bottom - (base - bodyBaseline + lineHeight);
+    const margin = (excess) => (excess > 0.5 ? Math.max(0, Math.ceil((excess - reach) / cell)) * cell - excess : null);
+    return [math, margin(above), margin(below)];
+  });
+  marks.forEach((mark) => mark.remove());
+  for (const [math, top, bottom] of fits) {
+    if (top === null && bottom === null) continue;
+    if (top !== null) math.style.marginBlockStart = `${top.toFixed(2)}px`;
+    if (bottom !== null) math.style.marginBlockEnd = `${bottom.toFixed(2)}px`;
+    math.dataset.gridFit = "1";
+  }
 }
 
 function decorateHeadings(page) {
@@ -1205,6 +1404,7 @@ function typesetMath(after) {
       .typesetPromise([app])
       .then(() => {
         markWideFormulas();
+        alignSheetGrid();
         if (typeof after === "function") after();
       })
       .catch(() => {});
@@ -1214,14 +1414,34 @@ function typesetMath(after) {
 }
 
 // Inline formulas cannot wrap; the few that are wider than the text column
-// become a scrollable line of their own on narrow screens.
+// become a scrollable line of their own on narrow screens. A formula glued to
+// its punctuation (.nobr) may run a few pixels into the ragged left margin,
+// which is better than a lone "." starting the next line; only a glued run
+// that is clearly too wide is released.
+const GLUE_SLACK = 10;
+
 function markWideFormulas() {
-  app.querySelectorAll(".math-inline").forEach((el) => {
-    el.classList.remove("math-overflow");
+  const formulas = Array.from(app.querySelectorAll(".math-inline"));
+  if (!formulas.length) return;
+  // Reset first and measure in one pass, so the page is laid out once rather
+  // than once per formula.
+  app.querySelectorAll(".math-overflow").forEach((el) => el.classList.remove("math-overflow"));
+  app.querySelectorAll(".nobr-off").forEach((el) => el.classList.remove("nobr-off"));
+  const verdicts = [];
+  formulas.forEach((el) => {
     const column = el.closest("p, li, td, th, blockquote, .prose") || app;
     const formula = el.querySelector("mjx-container") || el;
-    if (formula.getBoundingClientRect().width > column.clientWidth + 1) el.classList.add("math-overflow");
+    const limit = column.clientWidth + 1;
+    if (formula.getBoundingClientRect().width > limit) {
+      verdicts.push([el, "math-overflow"]);
+      return;
+    }
+    // Innermost run first (formula + punctuation), then the prefix around it.
+    for (let glue = el.closest(".nobr"); glue && app.contains(glue); glue = glue.parentElement?.closest(".nobr")) {
+      if (glue.getBoundingClientRect().width > limit + GLUE_SLACK) verdicts.push([glue, "nobr-off"]);
+    }
   });
+  verdicts.forEach(([el, className]) => el.classList.add(className));
 }
 
 function renderMermaid(rerender = false) {
@@ -1250,6 +1470,7 @@ function renderMermaid(rerender = false) {
         app.querySelectorAll(".diagram-wrap").forEach((wrap) => {
           wrap.scrollLeft = wrap.scrollWidth;
         });
+        alignSheetGrid();
       })
       .catch(() => {});
   } catch {
@@ -1299,7 +1520,10 @@ window.addEventListener(
   () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-      if (currentRoute.view === "page") markWideFormulas();
+      if (currentRoute.view === "page") {
+        markWideFormulas();
+        alignSheetGrid();
+      }
       updateScrollUi();
     }, 150);
   },
@@ -1312,3 +1536,4 @@ window.addEventListener(
 
 renderTree();
 route({ initial: true });
+document.fonts?.ready?.then(() => alignSheetGrid());

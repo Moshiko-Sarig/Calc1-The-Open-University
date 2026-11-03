@@ -55,6 +55,16 @@
   --c-supplement: #465d2c;
   --c-vault: #515661;
 
+  /* Notebook sheet (squared paper) */
+  --cell: 17px;
+  --sheet-margin: 3;
+  --paper: #fffefa;
+  --paper-edge: #e6e1d4;
+  --grid-line: #dce5ef;
+  --margin-line: #eda4a0;
+  --hole: var(--bg);
+  --hole-edge: #d9d3c4;
+
   color-scheme: light;
 }
 
@@ -94,12 +104,25 @@
   --c-supplement: #a8c787;
   --c-vault: #a3a9b5;
 
+  --paper: #1c1f26;
+  --paper-edge: #2e333d;
+  --grid-line: rgba(140, 172, 222, 0.11);
+  --margin-line: rgba(236, 120, 116, 0.55);
+  --hole-edge: #343a46;
+
   color-scheme: dark;
 }
 
-html[data-text-size="s"] { font-size: 93.75%; }
-html[data-text-size="m"] { font-size: 100%; }
-html[data-text-size="l"] { font-size: 112.5%; }
+html[data-text-size="s"] { font-size: 93.75%; --cell: 16px; }
+html[data-text-size="m"] { font-size: 100%; --cell: 17px; }
+html[data-text-size="l"] { font-size: 112.5%; --cell: 19px; }
+
+@media (max-width: 760px) {
+  html[data-text-size="s"] { --cell: 15px; }
+  html[data-text-size="m"] { --cell: 16px; }
+  html[data-text-size="l"] { --cell: 18px; }
+  :root { --sheet-margin: 2; }
+}
 
 /* ---------- Base ------------------------------------------------------------ */
 
@@ -1259,6 +1282,15 @@ mjx-container {
   display: inline;
 }
 
+/* A formula travels with its prefix and punctuation ("ב-x." never splits). */
+.nobr {
+  white-space: nowrap;
+}
+
+.nobr.nobr-off {
+  white-space: normal;
+}
+
 .math-display {
   display: block;
   max-width: 100%;
@@ -2091,6 +2123,203 @@ bdi {
   transform-origin: right center;
 }
 
+/* ---------- Notebook sheet --------------------------------------------------
+   Every note is written on a page of squared paper. The grid cell is
+   --cell; text lines are exactly two cells tall and block spacing is a whole
+   number of cells. app.js shifts the grid so text baselines sit on its
+   lines and snaps spacing after formulas, tables and boxes. Hebrew
+   notebooks open from the right, so the margin line and the punch holes
+   are on the inline-start (right) side. */
+
+.sheet {
+  --sheet-pad-start: calc(var(--cell) * (var(--sheet-margin) + 1));
+  --sheet-pad-end: calc(var(--cell) * 2);
+  position: relative;
+  padding: calc(var(--cell) * 2) var(--sheet-pad-end) calc(var(--cell) * 3) var(--sheet-pad-start);
+  padding-inline: var(--sheet-pad-start) var(--sheet-pad-end);
+  border: 1px solid var(--paper-edge);
+  border-radius: 6px;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell);
+  background-position: right 0 top var(--grid-offset, 0px);
+  box-shadow: 0 1px 2px rgba(20, 22, 28, 0.06), 0 12px 32px rgba(20, 22, 28, 0.07);
+}
+
+/* Red margin line, laid over a grid line (vertical lines are 1px at the
+   left edge of each cell, counted from the right) */
+.sheet::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: calc(var(--cell) * var(--sheet-margin) - 1px);
+  width: 2px;
+  background: var(--margin-line);
+  pointer-events: none;
+}
+
+/* Punch holes along the binding edge */
+.sheet::after {
+  content: "";
+  position: absolute;
+  inset-block: calc(var(--cell) * 2);
+  inset-inline-start: calc(var(--cell) * 0.5);
+  width: var(--cell);
+  background-image: radial-gradient(
+    circle at 50% 50%,
+    var(--hole) 0 calc(var(--cell) * 0.3),
+    var(--hole-edge) calc(var(--cell) * 0.3) calc(var(--cell) * 0.36),
+    transparent calc(var(--cell) * 0.38)
+  );
+  background-size: var(--cell) calc(var(--cell) * 4);
+  background-repeat: repeat-y;
+  pointer-events: none;
+}
+
+.sheet .note-head {
+  position: relative;
+  margin: 0 0 var(--cell);
+  padding: 0 0 var(--cell);
+  border: 0;
+}
+
+/* The page's top margin line under the title, from edge to edge */
+.sheet .note-head::after {
+  content: "";
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: calc(-1 * var(--sheet-pad-start)) calc(-1 * var(--sheet-pad-end));
+  height: 2px;
+  background: var(--margin-line);
+}
+
+.sheet .note-title {
+  font-size: calc(var(--cell) * 2.35);
+  line-height: calc(var(--cell) * 3);
+  position: relative;
+  top: var(--shift-h1, 0px);
+}
+
+.sheet .note-meta {
+  margin-block-start: var(--cell);
+}
+
+.sheet .note-aliases {
+  margin-block-start: calc(var(--cell) * 0.5);
+}
+
+.sheet .toc-inline {
+  margin-block: 0 var(--cell);
+  background: var(--surface);
+}
+
+.sheet .prose {
+  position: relative;
+  font-size: var(--cell);
+  line-height: calc(var(--cell) * 2);
+}
+
+/* Inline code and raised text must not stretch a line off the grid. */
+.sheet .prose code {
+  line-height: 1;
+}
+
+.sheet .prose :is(sup, sub) {
+  line-height: 0;
+}
+
+.sheet .prose :is(p, ul, ol, h4, .callout, .table-wrap, .math-display, .diagram-wrap, .dataview-result, pre, hr, .section-card, .section-review) {
+  margin-block: 0 var(--cell);
+}
+
+.sheet .prose .note-section,
+.sheet .prose li,
+.sheet .prose li > ul,
+.sheet .prose li > ol {
+  margin-block: 0;
+}
+
+.sheet .prose h2 {
+  position: relative;
+  top: var(--shift-h2, 0px);
+  margin: 0;
+  padding-block-start: calc(var(--cell) * 2);
+  font-size: calc(var(--cell) * 1.5);
+  line-height: calc(var(--cell) * 2);
+}
+
+.sheet .prose h3 {
+  position: relative;
+  top: var(--shift-h3, 0px);
+  margin: 0;
+  padding-block-start: var(--cell);
+  font-size: calc(var(--cell) * 1.12);
+  line-height: calc(var(--cell) * 2);
+}
+
+.sheet .prose > :first-child,
+.sheet .prose > .note-section:first-child > h2:first-child {
+  padding-block-start: 0;
+}
+
+/* Boxes on the page: cards, callouts, tables and diagrams keep their own
+   solid background so text inside them stays easy to read. app.js starts
+   and ends each box on a grid line. */
+.sheet .section-card,
+.sheet .section-review {
+  display: flow-root;
+  padding: var(--cell) calc(var(--cell) * 1.25) 0;
+}
+
+/* Related notes are small cards ruled along the grid: one line of text is
+   two cells, so a card is a whole number of cells plus its 1px border, and
+   the row gap (one cell less 1px) puts the next card on the next line. */
+.sheet .section-related ul {
+  gap: calc(var(--cell) - 1px) var(--cell);
+}
+
+.sheet .section-related li {
+  padding-block: calc(var(--cell) * 0.5 - 1px) calc(var(--cell) * 0.5);
+  line-height: calc(var(--cell) * 2);
+}
+
+.sheet .section-card > h2,
+.sheet .section-review > h2 {
+  top: 0;
+  padding-block-start: 0;
+  margin-block-end: calc(var(--cell) * 0.5);
+  font-size: calc(var(--cell) * 1.2);
+}
+
+.sheet .section-review {
+  background: var(--surface-2);
+}
+
+.sheet .callout {
+  line-height: 1.75;
+}
+
+.sheet .math-display {
+  padding-block: calc(var(--cell) * 0.25);
+}
+
+.grid-probe {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.grid-probe .bl {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  vertical-align: baseline;
+}
+
 /* ---------- Responsive ------------------------------------------------------ */
 
 @media (max-width: 1240px) {
@@ -2241,6 +2470,25 @@ bdi {
     padding: 18px 16px 56px;
   }
 
+  body[data-view="page"] .main {
+    padding-inline: 6px;
+  }
+
+  body[data-view="page"] .breadcrumbs ol,
+  body[data-view="page"] .note-foot {
+    padding-inline: 10px;
+  }
+
+  .sheet {
+    --sheet-pad-end: var(--cell);
+    border-radius: 4px;
+  }
+
+  .sheet::after {
+    inset-inline-start: calc(var(--cell) * 0.25);
+    width: calc(var(--cell) * 1.25);
+  }
+
   .prose {
     font-size: 1.03rem;
     line-height: 1.8;
@@ -2350,6 +2598,19 @@ bdi {
   .layout,
   .page-grid {
     display: block;
+  }
+
+  .sheet {
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .sheet::before,
+  .sheet::after,
+  .sheet .note-head::after {
+    display: none;
   }
 
   .main {
