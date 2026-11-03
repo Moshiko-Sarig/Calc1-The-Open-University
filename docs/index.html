@@ -1,13 +1,39 @@
 <!doctype html>
-<html lang="he" dir="rtl">
+<html lang="he" dir="rtl" data-theme="light" data-text-size="m">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light" />
-    <title>כספת אינפי 1</title>
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#15171c" media="(prefers-color-scheme: dark)" />
+    <title>כספת אינפי 1 · חשבון אינפיניטסימלי 1</title>
     <meta
       name="description"
-      content="אתר לימודי לא רשמי לחשבון אינפיסימטלי 1: פתקים, חיפוש, מפת קורס וגרף תלות."
+      content="אתר לימודי לא רשמי לקורס 20474 חשבון אינפיניטסימלי 1 של האוניברסיטה הפתוחה: סיכומים לפי יחידות, 35 המשפטים לבחינה עם הוכחות מלאות, חיפוש ומפת תלות."
+    />
+    <script>
+      // Apply saved reading preferences before first paint, so the page never
+      // flashes in the wrong theme or text size.
+      (function () {
+        var root = document.documentElement;
+        try {
+          var theme = localStorage.getItem("infi-theme");
+          var size = localStorage.getItem("infi-text-size");
+          if (theme !== "light" && theme !== "dark") {
+            theme = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+          root.dataset.theme = theme;
+          if (size === "s" || size === "m" || size === "l") root.dataset.textSize = size;
+        } catch (error) {
+          /* storage blocked: keep defaults */
+        }
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@400;500;600;700&display=swap"
     />
     <link rel="stylesheet" href="./assets/site.css" />
     <script>
@@ -34,51 +60,117 @@
     <script defer src="./assets/app.js"></script>
   </head>
   <body>
-    <a class="skip-link" href="#app">דלג לתוכן הראשי</a>
-    <div class="paper-shell">
-      <header class="masthead" aria-label="ראש האתר">
-        <a class="brand" href="#/home" aria-label="כספת אינפי 1, בית">
+    
+    <a class="skip-link" href="#main" data-skip>דלג לתוכן הראשי</a>
+    <div class="progress-bar" aria-hidden="true"><span></span></div>
+
+    <header class="site-header">
+      <div class="header-inner">
+        <button class="icon-button menu-button" type="button" aria-controls="courseNav" aria-expanded="false" data-menu-toggle>
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+          <span class="visually-hidden">תפריט היחידות</span>
+        </button>
+
+        <a class="brand" href="#/">
           <span class="brand-mark" aria-hidden="true">∫</span>
-          <span class="brand-copy">
+          <span class="brand-text">
             <strong>כספת אינפי 1</strong>
-            <small>מהדורת לימוד פתוחה</small>
+            <small>20474 · אתר לימודי לא רשמי</small>
           </span>
         </a>
 
-        <label class="search-box" for="siteSearch">
-          <span aria-hidden="true">⌕</span>
-          <input id="siteSearch" type="search" autocomplete="off" placeholder="חיפוש משפט, מושג, דוגמה נגד" />
-        </label>
+        <div class="search" data-search>
+          <label class="visually-hidden" for="siteSearch">חיפוש באתר</label>
+          <div class="search-field">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4.2-4.2" /></svg>
+            <input
+              id="siteSearch"
+              type="search"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="חיפוש משפט, מושג או דוגמה"
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded="false"
+              aria-controls="searchResults"
+              aria-describedby="searchHint"
+            />
+            <kbd class="search-kbd" aria-hidden="true">/</kbd>
+            <button class="icon-button search-close" type="button" data-search-close>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg>
+              <span class="visually-hidden">סגירת החיפוש</span>
+            </button>
+          </div>
+          <p id="searchHint" class="visually-hidden">הקלידו לפחות שתי אותיות. חצים למעבר בין התוצאות, Enter לפתיחה, Escape לסגירה.</p>
+          <div id="searchResults" class="search-panel" role="listbox" aria-label="תוצאות החיפוש" hidden></div>
+          <p class="visually-hidden" aria-live="polite" data-search-status></p>
+        </div>
 
-        <nav class="view-tabs" aria-label="תצוגות">
-          <button class="tab-button" type="button" data-view="home">ראשי</button>
-          <button class="tab-button" type="button" data-view="graph">גרף</button>
-          <button class="tab-button" type="button" data-view="index">אינדקס</button>
-          <button class="tab-button" type="button" data-view="credits">קרדיט</button>
+        <nav class="primary-nav" aria-label="ניווט ראשי">
+          <a href="#/" data-nav="home">בית</a>
+          <a href="#/index" data-nav="index">כל הפתקים</a>
+          <a href="#/graph" data-nav="graph">גרף קשרים</a>
         </nav>
-      </header>
 
-      <div class="edition-rule" aria-hidden="true">
-        <span>20474</span>
-        <span>גבולות, רציפות, נגזרות</span>
-        <span>לא רשמי</span>
+        <div class="header-actions">
+          <button class="icon-button search-open" type="button" data-search-open>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4.2-4.2" /></svg>
+            <span class="visually-hidden">פתיחת החיפוש</span>
+          </button>
+          <button class="icon-button" type="button" data-text-size-toggle aria-describedby="textSizeLabel">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 19l5-13h1l5 13M5 14h7M15 19l3-8h.6l3 8M16 16.5h4.6" /></svg>
+            <span id="textSizeLabel" class="visually-hidden">גודל טקסט: רגיל</span>
+          </button>
+          <button class="icon-button" type="button" data-theme-toggle aria-pressed="false">
+            <svg class="icon theme-icon-dark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></svg>
+            <svg class="icon theme-icon-light" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" /></svg>
+            <span class="visually-hidden">מצב כהה</span>
+          </button>
+        </div>
       </div>
+    </header>
 
-      <div id="searchResults" class="search-results" hidden></div>
+    <div class="layout">
+      <div class="nav-backdrop" data-nav-backdrop hidden></div>
+      <aside id="courseNav" class="course-nav" aria-label="ניווט בקורס">
+        <div class="course-nav-head">
+          <strong>תוכן הקורס</strong>
+          <button class="icon-button nav-close" type="button" data-menu-close>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            <span class="visually-hidden">סגירת התפריט</span>
+          </button>
+        </div>
+        <nav class="course-tree" aria-label="יחידות ופתקים" data-course-tree></nav>
+      </aside>
 
-      <div class="reading-room">
-        <aside class="unit-rail" aria-label="יחידות הקורס">
-          <div class="rail-title">מדורים</div>
-          <div id="unitNav" class="unit-list"></div>
-        </aside>
-
-        <main id="app" class="content-stage" tabindex="-1">
-          <section class="loading-state">
-            <h1>טוען כספת</h1>
-            <p>בודק תוכן, קשרים ונוסחאות.</p>
+      <main id="main" class="main" tabindex="-1">
+        <div id="app" class="app" aria-live="off">
+          <section class="loading-state" aria-busy="true">
+            <span class="spinner" aria-hidden="true"></span>
+            <p>טוען את הכספת…</p>
           </section>
-        </main>
-      </div>
+          <noscript>
+            <p class="noscript">האתר צריך JavaScript כדי להציג את הפתקים.</p>
+          </noscript>
+        </div>
+      </main>
     </div>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <p>
+          אתר לימודי לא רשמי לקורס 20474 חשבון אינפיניטסימלי 1. מבוסס על ספרי הקורס של האוניברסיטה הפתוחה ועל סיכום הרצאות אינפי 1מ של אביב צנזור. כל הזכויות בחומרי המקור שמורות לבעליהן.
+        </p>
+        <nav aria-label="קישורי סיום">
+          <a href="#/about">מקורות וקרדיט</a>
+          <a href="https://github.com/Moshiko-Sarig/Calc1-The-Open-University" rel="noreferrer">קוד המקור</a>
+        </nav>
+      </div>
+    </footer>
+
+    <button class="back-to-top" type="button" data-back-to-top hidden>
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 19V5M6 11l6-6 6 6" /></svg>
+      <span class="visually-hidden">חזרה לראש הדף</span>
+    </button>
   </body>
 </html>

@@ -94,6 +94,34 @@ function extractHeadings(body) {
   }));
 }
 
+// Heading ids. The same function is used for headings and for the
+// "#heading" part of wiki links, so [[note#heading]] lands on the section.
+function slugify(value) {
+  const text = String(value || "")
+    .replace(/\$\$?([^$]*)\$\$?/g, "$1")
+    .replace(/\\[a-zA-Z]+/g, " ")
+    .replace(/[{}^_\\]/g, " ")
+    .normalize("NFKC")
+    .toLocaleLowerCase("he")
+    .replace(/[^\p{L}\p{N}\s.-]/gu, " ")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+  return text || "section";
+}
+
+function uniqueSlug(value) {
+  const base = slugify(value);
+  let slug = base;
+  let counter = 2;
+  while (renderContext.slugs.has(slug)) {
+    slug = `${base}-${counter}`;
+    counter += 1;
+  }
+  renderContext.slugs.add(slug);
+  return slug;
+}
+
 function stripInline(value) {
   return String(value)
     .replace(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g, (_, target, label) => label || target)
@@ -167,6 +195,16 @@ function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+// Inline text is HTML-escaped before links are parsed, so link parts must be
+// unescaped to resolve them and must not be escaped a second time.
+function unescapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&amp;", "&");
 }
 
 function escapeAttribute(value) {
@@ -255,19 +293,21 @@ function renderInline(value, resolveLink) {
     return `<span class="dead-link">${escapeHtml(target)}</span>`;
   });
 
-  text = text.replace(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g, (_, target, label) => {
-    const page = resolveLink(target);
-    const textLabel = label || target;
-    if (!page) return `<span class="dead-link">${escapeHtml(textLabel)}</span>`;
-    return `<a href="#/page/${page.id}" data-page-link="${page.id}">${escapeHtml(textLabel)}</a>`;
+  text = text.replace(/\[\[([^\]|#]*)(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]/g, (_, rawTarget, anchor, label) => {
+    const target = unescapeHtml(rawTarget.trim());
+    const page = target ? resolveLink(target) : renderContext.current;
+    const textLabel = label || rawTarget.trim() || anchor || "";
+    if (!page) return `<span class="dead-link" title="הפתק אינו מתפרסם באתר">${textLabel}</span>`;
+    const hash = anchor ? `/${encodeURIComponent(slugify(unescapeHtml(anchor)))}` : "";
+    return `<a href="#/page/${page.id}${hash}">${textLabel}</a>`;
   });
 
   text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, href) => {
-    return `<img src="${escapeAttribute(href)}" alt="${escapeAttribute(alt)}" loading="lazy" />`;
+    return `<img src="${escapeAttribute(unescapeHtml(href))}" alt="${alt}" loading="lazy" />`;
   });
 
   text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
-    return `<a href="${escapeAttribute(href)}" target="_blank" rel="noreferrer">${label}</a>`;
+    return `<a href="${escapeAttribute(unescapeHtml(href))}" target="_blank" rel="noreferrer">${label}</a>`;
   });
 
   text = text
@@ -402,8 +442,10 @@ function renderMarkdown(body, resolveLink) {
     const heading = line.match(/^(#{1,6})\s+(.+)$/);
     if (heading) {
       const level = heading[1].length;
-      const content = renderInline(heading[2], resolveLink);
-      html.push(`<h${level}>${content}</h${level}>`);
+      const raw = heading[2].trim() === "Dataview" ? "כל הפתקים כאן" : heading[2];
+      const content = markExamBadge(renderInline(raw, resolveLink));
+      const id = level >= 2 && level <= 4 ? ` id="${escapeAttribute(uniqueSlug(heading[2]))}"` : "";
+      html.push(`<h${level}${id}>${content}</h${level}>`);
       i += 1;
       continue;
     }
@@ -430,7 +472,9 @@ function renderMarkdown(body, resolveLink) {
         quote.push(lines[i].replace(/^\s*>\s?/, ""));
         i += 1;
       }
-      html.push(`<blockquote>${renderMarkdown(quote.join("\n"), resolveLink)}</blockquote>`);
+      const first = quote.find((part) => part.trim()) || "";
+      const kind = /^\s*(\*\*)?מקור/.test(first) ? "callout callout-source" : "callout";
+      html.push(`<blockquote class="${kind}">${renderMarkdown(quote.join("\n"), resolveLink)}</blockquote>`);
       continue;
     }
 
@@ -535,7 +579,40 @@ function rtlMermaid(code) {
 
 // The page being rendered and the full page list, so Dataview blocks can be
 // evaluated at build time instead of showing raw query code on the site.
-const renderContext = { pages: [], current: null };
+const renderContext = { pages: [], current: null, slugs: new Set() };
+const PLUGIN_MARKER = "<!--plugin-block-->";
+
+// "(…, ברשימת המשפטים לבחינה)" in a heading becomes a visible badge.
+function markExamBadge(html) {
+  const badge = `<span class="badge badge-exam">ברשימה לבחינה</span>`;
+  return html
+    .replace(/\(([^()]*?),\s*ברשימת המשפטים לבחינה\)/g, (_, inner) => `(${inner}) ${badge}`)
+    .replace(/\(ברשימת המשפטים לבחינה\)/g, badge)
+    .replace(/—\s*ברשימת המשפטים לבחינה/g, badge);
+}
+
+// Wraps every h2 and the content up to the next h2 in a <section>, gives
+// special sections a class, and drops sections that held only plugin blocks.
+function sectionize(html) {
+  const parts = html.split(/\n(?=<h2[ >])/);
+  return parts
+    .map((part) => {
+      if (!part.startsWith("<h2")) return part.replaceAll(PLUGIN_MARKER, "");
+      const heading = part.match(/^<h2[^>]*>([\s\S]*?)<\/h2>/);
+      const id = (part.match(/^<h2 id="([^"]+)"/) || [])[1] || "";
+      const body = part.slice(heading ? heading[0].length : 0);
+      if (!body.replaceAll(PLUGIN_MARKER, "").trim()) return "";
+      const title = (heading ? heading[1] : "").replace(/<[^>]+>/g, "");
+      let kind = "note-section";
+      if (/כרטיס דיוק/.test(title)) kind += " section-card";
+      else if (/^\s*קשרים\s*$/.test(title)) kind += " section-related";
+      else if (/בדיקת שליטה|חזרה|שלוש נקודות/.test(title)) kind += " section-review";
+      const labelled = id ? ` aria-labelledby="${id}"` : "";
+      return `<section class="${kind}"${labelled}>${part.replaceAll(PLUGIN_MARKER, "")}</section>`;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
 
 const pluginLabels = {
   tikz: "קוד TikZ (מצויר באובסידיאן)",
@@ -605,7 +682,9 @@ function renderCodeBlock(lang, code) {
   if (lang === "dataview") return renderDataview(code);
   const safe = escapeHtml(code);
   if (pluginLabels[lang]) {
-    return `<details class="plugin-block"><summary>${escapeHtml(pluginLabels[lang])}</summary><pre><code>${safe}</code></pre></details>`;
+    // TikZ / Desmos / Mathematica only render inside Obsidian. On the site the
+    // block is dropped; a section left empty by this is removed in sectionize().
+    return PLUGIN_MARKER;
   }
   return `<pre><code class="language-${escapeAttribute(lang)}">${safe}</code></pre>`;
 }
@@ -736,6 +815,134 @@ function copyFigures() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Navigation: titles, groups, study order
+// ---------------------------------------------------------------------------
+
+const leadingSymbols = /^[\p{Extended_Pictographic}\uFE0F\u200D\s]+/u;
+
+// Short, TeX-free title for menus, cards and search results.
+function navTitleFor(page) {
+  let title = page.title.replace(leadingSymbols, "");
+  if (/\$/.test(title)) title = path.basename(page.path, ".md");
+  if (/מפת הקורס/.test(title)) return "מפת הקורס";
+  return title
+    .replace(/\s+\(עדכון[^)]*\)\s*$/, "")
+    .replace(/\s+-\s+אינפי 1$/, "")
+    .replace(/\s+(ב|בכספת )אינפי 1$/, "")
+    .trim();
+}
+
+const startOrder = [
+  "רשימת המשפטים לבחינה",
+  "מפת הקורס",
+  "תיקונים לספרי הקורס",
+  "תבניות הוכחה",
+  "מפת תלות משפטים",
+  "אינדקס דוגמאות נגד",
+  "כרטיסי חזרה",
+  "מפת מוח",
+  "כספת העל",
+  "מקורות וחומרי גלם"
+];
+
+const vaultToolPages = [
+  "אינדקס יחידות ודיאגרמות",
+  "דיאגרמות TikZ",
+  "גרפים דינמיים",
+  "Dataview",
+  "שימוש בפלאגינים",
+  "המלצות פלאגינים",
+  "ניהול הכספת",
+  "Central Note"
+];
+
+function rankBy(list, title) {
+  const index = list.findIndex((key) => title.includes(key));
+  return index < 0 ? list.length : index;
+}
+
+// The study order of a unit is the numbered "ציר לימוד" list in its gateway.
+function studyOrder(gateway, resolver) {
+  if (!gateway?.body) return [];
+  const match = gateway.body.match(/^##\s+ציר לימוד\s*\n([\s\S]*?)(?=^##\s|(?![\s\S]))/m);
+  if (!match) return [];
+  return Array.from(match[1].matchAll(/\[\[([^\]|#]+)/g))
+    .map((m) => resolver(m[1])?.id)
+    .filter(Boolean);
+}
+
+function buildNavGroups(pages, resolver) {
+  const byUnit = new Map();
+  for (const page of pages) {
+    const tool = page.unitId === "center" && rankBy(vaultToolPages, page.title) < vaultToolPages.length;
+    const groupId = page.unitId === "center" || page.unitId === "overview" ? (tool ? "vault" : "start") : page.unitId;
+    page.groupId = groupId;
+    if (!byUnit.has(groupId)) byUnit.set(groupId, []);
+    byUnit.get(groupId).push(page);
+  }
+
+  const groups = [];
+  const start = (byUnit.get("start") || []).sort(
+    (a, b) => rankBy(startOrder, a.title) - rankBy(startOrder, b.title) || collator.compare(a.title, b.title)
+  );
+  groups.push({ id: "start", title: "מרכז הלימוד", subtitle: "מפות, רשימות וכלי חזרה", pageIds: start.map((p) => p.id) });
+
+  const unitIds = Array.from(byUnit.keys())
+    .filter((id) => /^unit-\d+$/.test(id))
+    .sort((a, b) => Number(a.slice(5)) - Number(b.slice(5)));
+  for (const id of [...unitIds, "supplement"]) {
+    const list = byUnit.get(id);
+    if (!list) continue;
+    const gateway = list.find((page) => /^שער /.test(page.title));
+    const ordered = [];
+    if (gateway) ordered.push(gateway.id);
+    for (const pid of studyOrder(gateway, resolver)) {
+      if (list.some((page) => page.id === pid) && !ordered.includes(pid)) ordered.push(pid);
+    }
+    for (const page of list.sort((a, b) => collator.compare(a.title, b.title))) {
+      if (!ordered.includes(page.id)) ordered.push(page.id);
+    }
+    const sample = list[0];
+    const number = id.startsWith("unit-") ? Number(id.slice(5)) : null;
+    groups.push({
+      id,
+      number,
+      title: number ? `יחידה ${number}` : "נושאים משלימים",
+      subtitle: number ? officialUnitTitles[number] : "מסיכום ההרצאות של אביב צנזור (אינפי 1מ)",
+      volume: sample.unitVolume || "",
+      gatewayId: gateway?.id || ordered[0],
+      pageIds: ordered
+    });
+  }
+
+  const vault = (byUnit.get("vault") || []).sort((a, b) => collator.compare(a.title, b.title));
+  if (vault.length) {
+    groups.push({ id: "vault", title: "על הכספת", subtitle: "כלים לעבודה באובסידיאן", pageIds: vault.map((p) => p.id) });
+  }
+  return groups;
+}
+
+// Previous / next follow the study order: inside the learning hub, and across
+// units 1 → 8 → supplementary topics as one continuous course.
+function linkSequence(groups, pagesById) {
+  const courseIds = groups.filter((g) => g.number || g.id === "supplement").flatMap((g) => g.pageIds);
+  const sequences = [courseIds, ...groups.filter((g) => !g.number && g.id !== "supplement").map((g) => g.pageIds)];
+  for (const sequence of sequences) {
+    sequence.forEach((id, index) => {
+      const page = pagesById.get(id);
+      page.prevId = sequence[index - 1] || "";
+      page.nextId = sequence[index + 1] || "";
+    });
+  }
+}
+
+function firstParagraph(html) {
+  const withoutCallouts = html.replace(/<blockquote[\s\S]*?<\/blockquote>/g, "");
+  const match = withoutCallouts.match(/<p>([\s\S]*?)<\/p>/);
+  return match ? match[1].replace(/<a [^>]*>([\s\S]*?)<\/a>/g, "$1") : "";
+}
+
 function findByTitle(pages, includes) {
   return pages.find((page) => includes.some((value) => page.title.includes(value)))?.id || "";
 }
@@ -762,23 +969,46 @@ function main() {
     for (const target of page.links) backlinks.get(target)?.push(page.id);
   }
 
+  const pagesById = new Map(pages.map((page) => [page.id, page]));
+  const navGroups = buildNavGroups(pages, resolver);
+  linkSequence(navGroups, pagesById);
+
+  const examList = pages.find((page) => page.title.includes("רשימת המשפטים לבחינה"));
+  // Only unit notes count: the exam list also links to hub pages in its footer.
+  const examLinked = new Set(
+    (examList ? examList.links : []).filter((id) => /^unit-/.test(pagesById.get(id)?.groupId || ""))
+  );
+
   renderContext.pages = pages;
   for (const page of pages) {
     page.backlinks = Array.from(new Set(backlinks.get(page.id) || []));
     renderContext.current = page;
-    page.html = renderMarkdown(page.body, resolver);
+    renderContext.slugs = new Set();
+
+    // The note's own "# title" becomes the page header, not a second h1.
+    const h1 = page.body.match(/^\s*#\s+(.+)\s*$/m);
+    let body = page.body;
+    if (h1 && body.trimStart().startsWith("# ")) body = body.replace(h1[0], "");
+    page.titleHtml = renderInline((h1 ? h1[1] : page.title).replace(leadingSymbols, ""), resolver);
+    page.navTitle = navTitleFor(page);
+    page.html = sectionize(renderMarkdown(body, resolver));
+    page.summaryHtml = firstParagraph(page.html);
+    page.readMinutes = Math.max(1, Math.round(page.wordCount / 170));
+    page.hasExamTheorem = examLinked.has(page.id);
     delete page.body;
     delete page.rawLinks;
     delete page.sourcePath;
     delete page.unitOrder;
+    delete page.headings;
   }
 
   const edges = pages.flatMap((page) => page.links.map((target) => ({ source: page.id, target })));
   const graph = {
     nodes: pages.map((page) => ({
       id: page.id,
-      title: page.title,
+      title: page.navTitle,
       unitId: page.unitId,
+      groupId: page.groupId,
       degree: page.links.length + page.backlinks.length
     })),
     edges
@@ -794,6 +1024,7 @@ function main() {
     examListPageId: findByTitle(pages, ["רשימת המשפטים לבחינה"]),
     counterPageId: findByTitle(pages, ["דוגמאות נגד"]),
     units,
+    navGroups,
     stats: {
       formulaCount: pages.reduce((sum, page) => sum + (page.searchText.match(/\$/g)?.length || 0), 0)
     },
