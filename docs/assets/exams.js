@@ -68,7 +68,7 @@
         const asked = row.exams
           .map(({ exam, q }) => {
             const e = exams().find((x) => x.n === exam);
-            return e ? `<a href="${examHref(exam, q)}" title="${esc(examLabel(e))}">${esc(e.semester)}</a>` : "";
+            return e ? `<a href="${examHref(exam, q)}" title="${esc(examLabel(e))}">${esc(e.semester)}·${esc(e.moed)}</a>` : "";
           })
           .join("");
         return `<li class="freq-row">
@@ -271,7 +271,7 @@
       const links = row.exams
         .map(({ exam, q }) => {
           const e = exams().find((x) => x.n === exam);
-          return e ? `<a href="${examHref(exam, q)}">${esc(e.semester)}</a>` : "";
+          return e ? `<a href="${examHref(exam, q)}">${esc(e.semester)}·${esc(e.moed)}</a>` : "";
         })
         .join(" · ");
       const note = document.createElement("p");
