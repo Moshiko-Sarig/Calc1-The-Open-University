@@ -4877,3 +4877,37 @@ details.callout > summary.callout-title { min-height: 32px; }
   .home-intro-meta { margin-top: 18px; }
   .home-resume { padding-inline-start: 14px; }
 }
+
+/* The drawer repeats the header links on screens where the header hides them. */
+.tree-primary {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .tree-primary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin: 0 0 10px;
+  }
+
+  .tree-primary a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .tree-primary a[aria-current="page"] {
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+}

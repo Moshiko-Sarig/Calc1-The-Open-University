@@ -54,11 +54,19 @@
           // Formulas are not controls: keep them out of the Tab order (screen
           // readers still read the hidden MathML; right-click opens the menu).
           menuOptions: { settings: { inTabOrder: false } }
+        },
+        // MathJax loads after the page is drawn; app.js typesets the current
+        // view once it is ready instead of MathJax scanning the document.
+        startup: {
+          typeset: false,
+          ready() {
+            MathJax.startup.defaultReady();
+            MathJax.startup.promise.then(() => window.dispatchEvent(new Event("infi:mathjax-ready")));
+          }
         }
       };
     </script>
-    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
     <script defer src="./assets/content.js"></script>
     <script defer src="./assets/demos.js"></script>
     <script defer src="./assets/study.js"></script>

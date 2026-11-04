@@ -220,7 +220,7 @@
     const pagesHtml = exam.images
       .map(
         (src, i) => `<figure class="exam-scan" id="page-${exam.pages[i]}">
-          <a href="${src}" target="_blank" rel="noopener"><img src="${src}" loading="${i <= eagerUntil ? "eager" : "lazy"}" alt="${esc(`${examLabel(exam)}, עמוד ${i + 1} מתוך ${exam.images.length}`)}" /></a>
+          <a href="${src}" target="_blank" rel="noopener"><img src="${src}" width="875" height="1240" decoding="async" loading="${i <= eagerUntil ? "eager" : "lazy"}" alt="${esc(`${examLabel(exam)}, עמוד ${i + 1} מתוך ${exam.images.length}`)}" /></a>
           <figcaption>עמוד ${i + 1} מתוך ${exam.images.length} · לחיצה פותחת בגודל מלא</figcaption>
         </figure>`
       )

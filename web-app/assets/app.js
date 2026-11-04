@@ -158,8 +158,17 @@ function saveExpanded() {
   }
 }
 
+// On narrow screens the header links are hidden, so the drawer repeats them.
+const DRAWER_LINKS = [
+  ["home", "#/", "בית"],
+  ["index", "#/index", "כל הפתקים"],
+  ["exams", "#/exams", "מבחנים"],
+  ["graph", "#/graph", "גרף קשרים"]
+];
+
 function renderTree() {
   tree.innerHTML =
+    `<nav class="tree-primary" aria-label="ניווט ראשי">${DRAWER_LINKS.map(([view, href, label]) => `<a href="${href}" data-nav="${view}">${label}</a>`).join("")}</nav>` +
     `<a class="tree-practice" href="#/practice" data-nav="practice">${icon("star")}<span><strong>תרגול</strong><small>כרטיסי חזרה ופאזלי הוכחה</small></span></a>` +
     groups
       .map((group) => {
@@ -1652,10 +1661,25 @@ function markWideFormulas() {
   verdicts.forEach(([el, className]) => el.classList.add(className));
 }
 
+// Mermaid is large and only some notes have diagrams, so it is fetched the
+// first time a page needs it.
+const MERMAID_SRC = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js";
+let mermaidLoading = null;
+
 function renderMermaid(rerender = false) {
-  if (!window.mermaid) return;
   const diagrams = Array.from(app.querySelectorAll("pre.mermaid"));
   if (!diagrams.length) return;
+  if (!window.mermaid) {
+    mermaidLoading ||= new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = MERMAID_SRC;
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.append(script);
+    });
+    mermaidLoading.then(() => renderMermaid(rerender)).catch(() => {});
+    return;
+  }
   for (const pre of diagrams) {
     if (!pre.dataset.source) pre.dataset.source = pre.textContent;
     if (rerender) {
@@ -1899,3 +1923,6 @@ window.addEventListener("infi:demo-resized", () => {
 renderTree();
 route({ initial: true });
 document.fonts?.ready?.then(() => alignSheetGrid());
+// MathJax loads asynchronously; whatever is on screen when it becomes ready
+// is typeset then (earlier requests found no MathJax and did nothing).
+window.addEventListener("infi:mathjax-ready", () => typesetMath());
