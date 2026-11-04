@@ -48,7 +48,7 @@
       ? `<a href="${examHref(exam.n, q.q)}">${esc(examLabel(exam))} · שאלה ${q.q}</a>`
       : `<a href="${examHref(exam.n, q.q)}" data-jump="${q.page}">שאלה ${q.q}</a>`;
     return `<li class="exam-q"${withExam ? "" : ` id="q${q.q}"`}>
-      <p class="exam-q-head">${head}<span class="exam-q-meta">${esc(q.format || "")}${q.points ? ` · ${q.points} נק'` : ""}${q.kind ? ` · ${esc(q.kind)}` : ""}</span></p>
+      <p class="exam-q-head">${head}<span class="exam-q-meta">${esc(q.format || "")}${q.points ? ` · ${q.points} נק'` : ""}${q.kind ? ` · ${esc(q.kind)}` : ""}${q.kind_detail ? ` + ${esc(q.kind_detail)}` : ""}</span></p>
       <p class="exam-q-summary">${esc(q.summary)}</p>
       <p class="exam-q-tags">${proves}${units}${(q.topics || []).map((t) => `<span class="exam-chip exam-chip-topic">${esc(t)}</span>`).join("")}</p>
       ${q.note ? `<p class="exam-q-note">${esc(q.note)}</p>` : ""}
@@ -125,7 +125,7 @@
   function renderList(root, route = {}) {
     app().setTitle("מבחנים");
     const list = exams();
-    const kinds = Array.from(new Set(list.flatMap((e) => e.questions.map((q) => q.kind)).filter(Boolean))).sort();
+    const kinds = Array.from(new Set(list.flatMap((e) => e.questions.flatMap((q) => [q.kind, q.kind_detail])).filter(Boolean))).sort();
     const nums = (app().data.examTheorems || []).map((r) => r.number);
     const cards = list
       .slice()
@@ -185,7 +185,7 @@
         for (const q of exam.questions) {
           if (unit && !(q.units || []).map(String).includes(unit)) continue;
           if (thm && !(q.prove || []).includes(thm)) continue;
-          if (kind && q.kind !== kind) continue;
+          if (kind && q.kind !== kind && q.kind_detail !== kind) continue;
           if (text && !norm(`${q.summary} ${(q.topics || []).join(" ")} ${q.note || ""}`).includes(text)) continue;
           hits.push(questionRow(exam, q, true));
         }
