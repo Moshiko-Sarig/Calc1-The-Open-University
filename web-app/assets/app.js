@@ -1275,6 +1275,8 @@ function scrollToSection(section, smooth) {
   if (!section) return;
   const target = document.getElementById(section);
   if (!target) return;
+  // A target inside folded boxes must be visible before scrolling to it.
+  for (let box = target.closest("details"); box; box = box.parentElement?.closest("details")) box.open = true;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   target.scrollIntoView({ behavior: smooth && !reduce ? "smooth" : "auto", block: "start" });
   target.setAttribute("tabindex", "-1");

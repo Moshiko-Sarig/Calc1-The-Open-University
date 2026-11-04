@@ -700,7 +700,11 @@ function renderTypedCallout(quote, resolveLink) {
   if (!head[2]) {
     return `<div class="${cls}"><p class="callout-title">${title}</p><div class="callout-body">${body}</div></div>`;
   }
-  const open = head[2] === "+" ? " open" : "";
+  // The first plain-words box of a note opens by itself, so a beginner meets
+  // the intuition before folding anything open.
+  const firstSimple = type === "simple" && !renderContext.openedSimple;
+  if (firstSimple) renderContext.openedSimple = true;
+  const open = head[2] === "+" || firstSimple ? " open" : "";
   return `<details class="${cls}"${open}><summary class="callout-title">${title}</summary><div class="callout-body">${body}</div></details>`;
 }
 
@@ -1233,6 +1237,7 @@ function main() {
     page.backlinks = Array.from(new Set(backlinks.get(page.id) || []));
     renderContext.current = page;
     renderContext.slugs = new Set();
+    renderContext.openedSimple = false;
 
     // The note's own "# title" becomes the page header, not a second h1.
     const h1 = page.body.match(/^\s*#\s+(.+)\s*$/m);
