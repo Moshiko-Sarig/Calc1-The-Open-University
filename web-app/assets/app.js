@@ -189,6 +189,12 @@ function keyGuides() {
 }
 
 function renderTree() {
+  if (expanded.size > 1) {
+    const keep = Array.from(expanded).at(-1);
+    expanded.clear();
+    expanded.add(keep);
+    saveExpanded();
+  }
   tree.innerHTML =
     `<nav class="tree-primary" aria-label="ניווט ראשי">${DRAWER_LINKS.map(([view, href, label]) => `<a href="${href}" data-nav="${view}">${label}</a>`).join("")}</nav>` +
     `<a class="tree-practice" href="#/practice" data-nav="practice">${icon("star")}<span><strong>תרגול</strong><small>כרטיסי חזרה ופאזלי הוכחה</small></span></a>` +
@@ -226,10 +232,21 @@ tree.addEventListener("click", (event) => {
     const id = toggle.dataset.groupToggle;
     const list = document.getElementById(`tree-${id}`);
     const open = toggle.getAttribute("aria-expanded") !== "true";
-    toggle.setAttribute("aria-expanded", String(open));
-    list.hidden = !open;
-    if (open) expanded.add(id);
-    else expanded.delete(id);
+    if (open) {
+      for (const other of tree.querySelectorAll("[data-group-toggle]")) {
+        const otherId = other.dataset.groupToggle;
+        const isThis = otherId === id;
+        other.setAttribute("aria-expanded", String(isThis));
+        const otherList = document.getElementById(`tree-${otherId}`);
+        if (otherList) otherList.hidden = !isThis;
+      }
+      expanded.clear();
+      expanded.add(id);
+    } else {
+      toggle.setAttribute("aria-expanded", "false");
+      list.hidden = true;
+      expanded.delete(id);
+    }
     saveExpanded();
     return;
   }
@@ -238,14 +255,17 @@ tree.addEventListener("click", (event) => {
 
 function syncTree(activeId) {
   const page = pages.get(activeId);
-  if (page?.groupId && !expanded.has(page.groupId)) {
+  if (page?.groupId && (expanded.size !== 1 || !expanded.has(page.groupId))) {
+    for (const toggle of tree.querySelectorAll("[data-group-toggle]")) {
+      const id = toggle.dataset.groupToggle;
+      const isThis = id === page.groupId;
+      toggle.setAttribute("aria-expanded", String(isThis));
+      const list = document.getElementById(`tree-${id}`);
+      if (list) list.hidden = !isThis;
+    }
+    expanded.clear();
     expanded.add(page.groupId);
     saveExpanded();
-    const toggle = tree.querySelector(`[data-group-toggle="${page.groupId}"]`);
-    if (toggle) {
-      toggle.setAttribute("aria-expanded", "true");
-      document.getElementById(`tree-${page.groupId}`).hidden = false;
-    }
   }
   let current = null;
   tree.querySelectorAll("a[data-id]").forEach((link) => {
