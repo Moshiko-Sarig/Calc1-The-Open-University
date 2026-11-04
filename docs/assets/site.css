@@ -1,4 +1,4 @@
-/* Hallmark · redesign: restyle · built: the project · theme: brand (kept: Heebo + Frank Ruhl Libre, paper and blue, the squared notebook sheet, black dark mode) · scope: app · render: skipped (no browser verification by request) */
+/* Hallmark · redesign: restyle · built: the project · theme: brand (kept: Heebo + Frank Ruhl Libre, paper and blue, the squared notebook sheet, black dark mode; light mode softened to an off-white paper ladder) · scope: app · render: skipped (no browser verification by request) */
 /* Hallmark · critique: a calm notebook already; the refresh is in the tokens: softer dark ink, controls you can see, one small-type scale, states with more than opacity */
 /* Hallmark · waive 24b · note spacing is set in multiples of --cell on the sheet · app.js snaps every block on the squared notebook paper to the cell, so a 4px scale would pull text off its grid lines */
 /* Hallmark · waive 37 · STIX Two Text appears only on demo axis names and formula letters · graph labels must match the serif math MathJax draws, not the Hebrew text faces */
@@ -29,29 +29,32 @@
   --radius: 10px;
   --radius-l: 16px;
 
-  --bg: #f7f6f2;
-  --surface: #ffffff;
-  --surface-2: #f1efe9;
-  --surface-3: #e7e4db;
-  --ink: #1d2028;
-  --ink-2: #454b59;
-  --ink-3: #5d6372;
-  --line: #e2ded4;
-  --line-2: #cbc5b6;
-  --line-control: #857f70; /* field and checkbox edges: 3:1 or more on every surface */
-  --accent: #1c58a3;
-  --accent-hover: #123f78;
-  --accent-soft: #e6eef9;
-  --accent-line: #b8cdea;
-  --on-accent: #ffffff;
-  --gold: #7a5510;
-  --gold-soft: #fbf0d6;
-  --gold-line: #e7cf96;
-  --calm: #2f6b3f;
-  --calm-soft: #eaf4ec;
-  --calm-line: #b5d6bd;
-  --danger: #9f2720;
-  --mark: #fde68a;
+  /* Light theme: a soft paper ladder, nothing at pure white (OKLCH L 91 to 98,
+     chroma under 0.02 on the warm paper hue); accents and unit hues keep their
+     lightness for contrast but carry about 30% less chroma. */
+  --bg: #f3f1eb;
+  --surface: #f9f7f3;
+  --surface-2: #eeebe5;
+  --surface-3: #e5e2da;
+  --ink: #202329;
+  --ink-2: #464c57;
+  --ink-3: #5c626e;
+  --line: #dedad1;
+  --line-2: #c9c4b8;
+  --line-control: #847e72; /* field and checkbox edges: 3:1 or more on every surface */
+  --accent: #225a93;
+  --accent-hover: #164574;
+  --accent-soft: #e5edf5;
+  --accent-line: #bbcbdc;
+  --on-accent: #fbfaf7;
+  --gold: #73582f;
+  --gold-soft: #f7efe0;
+  --gold-line: #ddceaf;
+  --calm: #3f6748;
+  --calm-soft: #e8f3ea;
+  --calm-line: #bdd3c0;
+  --danger: #913931;
+  --mark: #f1e2b6;
   --shadow-1: 0 1px 2px rgba(20, 22, 28, 0.06), 0 1px 1px rgba(20, 22, 28, 0.04);
   --shadow-2: 0 10px 30px rgba(20, 22, 28, 0.12), 0 2px 6px rgba(20, 22, 28, 0.06);
   --shadow-sheet: 0 1px 4px rgba(20, 22, 28, 0.05);
@@ -66,26 +69,26 @@
   --focus: 0 0 0 3px var(--surface), 0 0 0 5px var(--accent);
   --header-bg: var(--bg);
 
-  --c-start: #1b56a0;
-  --c-unit-1: #235a82;
-  --c-unit-2: #66541b;
-  --c-unit-3: #844630;
-  --c-unit-4: #256156;
-  --c-unit-5: #983345;
-  --c-unit-6: #445396;
-  --c-unit-7: #704582;
-  --c-unit-8: #7e4a1c;
+  --c-start: #30598f;
+  --c-unit-1: #355976;
+  --c-unit-2: #615530;
+  --c-unit-3: #794d3d;
+  --c-unit-4: #375e56;
+  --c-unit-5: #89424b;
+  --c-unit-6: #495685;
+  --c-unit-7: #6a4c77;
+  --c-unit-8: #744f31;
   --c-vault: #515661;
 
   /* Notebook sheet (squared paper) */
   --cell: 17px;
   --sheet-margin: 3;
-  --paper: #fffefa;
-  --paper-edge: #e6e1d4;
-  --grid-line: #dce5ef;
-  --margin-line: #eda4a0;
+  --paper: #faf8f2;
+  --paper-edge: #e0dcd2;
+  --grid-line: #dee4ea;
+  --margin-line: #dcb2ae;
   --hole: var(--bg);
-  --hole-edge: #d9d3c4;
+  --hole-edge: #d6d1c5;
   --sheet-grid: color-mix(in srgb, var(--grid-line) 58%, transparent);
   --sheet-rule: color-mix(in srgb, var(--grid-line) 70%, transparent);
 
@@ -374,8 +377,7 @@ mark {
 }
 
 .button-primary:active,
-.demo-btn:active,
-.proof-btn:active {
+.demo-btn:active {
   border-color: var(--accent-hover);
   background: var(--accent-hover);
   color: var(--on-accent);
@@ -2476,15 +2478,15 @@ bdi {
 
 :root {
   --pencil-graphite: #3c3f45;
-  --pencil-blue: #2453c0;
-  --pencil-red: #a92f27;
-  --pencil-green: #186b3e;
-  --pencil-purple: #6740ad;
-  --pencil-orange: #9a5208;
+  --pencil-blue: #3659a5;
+  --pencil-red: #98433a;
+  --pencil-green: #346747;
+  --pencil-purple: #634b97;
+  --pencil-orange: #89562e;
   --pencil-gray: #5c6068;
-  --band-red: rgba(214, 64, 52, 0.12);
-  --band-blue: rgba(36, 83, 192, 0.1);
-  --band-green: rgba(29, 122, 71, 0.13);
+  --band-red: rgba(152, 67, 58, 0.1);
+  --band-blue: rgba(54, 89, 165, 0.08);
+  --band-green: rgba(52, 103, 71, 0.1);
 }
 
 :root[data-theme="dark"] {
@@ -3187,10 +3189,10 @@ bdi {
   align-items: center;
   min-height: 34px;
   padding: 3px 14px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--accent-line);
   border-radius: 999px;
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--accent-soft);
+  color: var(--accent);
   font: inherit;
   font-size: var(--fs-s);
   font-weight: 600;
@@ -3199,13 +3201,19 @@ bdi {
 }
 
 .proof-btn:hover {
-  background: var(--accent-hover);
-  color: var(--on-accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
 }
 
 .proof-btn.is-quiet {
+  border-color: var(--line-2);
   background: transparent;
   color: var(--accent);
+}
+
+.proof-btn:active {
+  background: var(--accent-line);
 }
 
 .proof-btn.is-quiet:hover {
@@ -4513,6 +4521,12 @@ bdi {
   border-radius: var(--radius-s);
   background: var(--img-bg);
   box-shadow: var(--shadow-1);
+}
+
+/* Light theme: figures and exam scans are drawn on white; multiply lets their
+   white take the paper's tone instead of glowing above it. */
+:root[data-theme="light"] :is(.prose img, .exam-scan img) {
+  mix-blend-mode: multiply;
 }
 
 .exam-scan figcaption {
