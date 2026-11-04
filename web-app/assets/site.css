@@ -4732,3 +4732,113 @@ details.callout > summary.callout-title { min-height: 32px; }
   border-bottom: 1px solid var(--line);
   background: none;
 }
+
+/* Key guides: the book-question conclusions and the lecturer's methods are
+   pinned on the home page, in the drawer and on the practice page. */
+.guide-band {
+  margin-block: 36px 8px;
+}
+
+.guide-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 14px;
+}
+
+.guide-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 18px 20px;
+  border: 1px solid var(--calm-line);
+  border-inline-start: 5px solid var(--calm);
+  border-radius: var(--radius-l);
+  background: var(--calm-soft);
+  color: var(--ink);
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.guide-card:hover {
+  box-shadow: var(--shadow-2);
+  color: var(--ink);
+  transform: translateY(-2px);
+}
+
+.guide-card > span:nth-child(2) {
+  display: grid;
+  gap: 4px;
+}
+
+.guide-card strong {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+}
+
+.guide-card > span:nth-child(2) > span {
+  color: var(--ink-2);
+  font-size: 0.94rem;
+}
+
+.guide-card-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--calm);
+}
+
+.guide-card-icon .icon {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+.guide-card-go {
+  color: var(--calm);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.tree-guides {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.tree-guide {
+  display: grid;
+  gap: 2px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--calm-line);
+  border-inline-start: 4px solid var(--calm);
+  border-radius: var(--radius);
+  background: var(--calm-soft);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.tree-guide strong {
+  font-size: 0.95rem;
+}
+
+.tree-guide small {
+  color: var(--ink-2);
+  font-size: 0.8rem;
+}
+
+.tree-guide[aria-current="page"],
+.tree-guide:hover {
+  border-color: var(--calm);
+  color: var(--ink);
+}
+
+.hub-card-guide {
+  border-color: var(--calm-line);
+  border-inline-start: 5px solid var(--calm);
+  background: var(--calm-soft);
+}

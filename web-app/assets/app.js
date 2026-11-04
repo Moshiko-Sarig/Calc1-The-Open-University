@@ -166,10 +166,33 @@ const DRAWER_LINKS = [
   ["graph", "#/graph", "גרף קשרים"]
 ];
 
+// Two guides the course leans on in every exam: what may be cited from the
+// book, and how the lecturer chooses a method. They are pinned in the drawer,
+// on the home page and on the practice page.
+const KEY_GUIDES = [
+  {
+    match: "מסקנות משאלות הספר",
+    title: "מסקנות משאלות הספר",
+    text: "שאלות מהספר שמותר לצטט במבחן בלי הוכחה, ומתי שולפים כל אחת. חוסך הוכחות שלמות.",
+    short: "מה מותר לצטט במבחן"
+  },
+  {
+    match: "שיטות המרצה",
+    title: "שיטות המרצה: איך בוחרים דרך פתרון",
+    text: "דרכי העבודה שהמרצה הדגיש במפגשים: איך מזהים סוג שאלה ובוחרים כלי מתאים.",
+    short: "איך בוחרים דרך פתרון"
+  }
+];
+
+function keyGuides() {
+  return KEY_GUIDES.map((guide) => ({ ...guide, page: data.pages.find((p) => p.navTitle.includes(guide.match) || p.title.includes(guide.match)) })).filter((guide) => guide.page);
+}
+
 function renderTree() {
   tree.innerHTML =
     `<nav class="tree-primary" aria-label="ניווט ראשי">${DRAWER_LINKS.map(([view, href, label]) => `<a href="${href}" data-nav="${view}">${label}</a>`).join("")}</nav>` +
     `<a class="tree-practice" href="#/practice" data-nav="practice">${icon("star")}<span><strong>תרגול</strong><small>כרטיסי חזרה ופאזלי הוכחה</small></span></a>` +
+    `<div class="tree-guides">${keyGuides().map((g) => `<a class="tree-guide" href="${pageHref(g.page)}" data-id="${g.page.id}"><strong>${escapeHtml(g.match)}</strong><small>${escapeHtml(g.short)}</small></a>`).join("")}</div>` +
     groups
       .map((group) => {
         const listId = `tree-${group.id}`;
@@ -788,7 +811,7 @@ function renderHome() {
   };
   const tools = (start?.pageIds || [])
     .map((id) => pages.get(id))
-    .filter((page) => page && page.id !== data.examListPageId && !page.navTitle.includes("כספת העל"))
+    .filter((page) => page && page.id !== data.examListPageId && !page.navTitle.includes("כספת העל") && !KEY_GUIDES.some((g) => page.navTitle.includes(g.match)))
     .map((page) => {
       const key = Object.keys(toolDescriptions).find((k) => page.navTitle.includes(k));
       return `<a class="tool-card" href="${pageHref(page)}"><strong>${escapeHtml(page.navTitle)}</strong><span>${escapeHtml(toolDescriptions[key] || "")}</span></a>`;
@@ -822,6 +845,19 @@ function renderHome() {
         </div>
         <aside class="home-resume" aria-label="${last ? "המשך קריאה" : "תחילת הלימוד"}">${panel}</aside>
       </section>
+
+      ${
+        keyGuides().length
+          ? `<section class="guide-band" aria-labelledby="guidesTitle">
+              <div class="section-head">
+                <h2 id="guidesTitle">שני דפים שכדאי להכיר לפני הבחינה</h2>
+              </div>
+              <div class="guide-cards">${keyGuides()
+                .map((g) => `<a class="guide-card" href="${pageHref(g.page)}"><span class="guide-card-icon" aria-hidden="true">${icon("star")}</span><span><strong>${escapeHtml(g.title)}</strong><span>${escapeHtml(g.text)}</span></span><span class="guide-card-go" aria-hidden="true">←</span></a>`)
+                .join("")}</div>
+            </section>`
+          : ""
+      }
 
       <section aria-labelledby="unitsTitle">
         <div class="section-head">
@@ -1953,7 +1989,8 @@ window.InfiApp = {
   queueTypeset,
   alignSheetGrid,
   setTitle,
-  sectionPreview
+  sectionPreview,
+  keyGuides
 };
 
 // A demo re-draws itself when the column or the grid cell changes size.

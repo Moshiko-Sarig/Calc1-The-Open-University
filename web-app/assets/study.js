@@ -887,6 +887,9 @@
           <p class="practice-lead">כרטיסי חזרה עם חזרה מרווחת, ופאזל הוכחה לכל אחד מ־${theorems().length} המשפטים שברשימה לבחינה. בכל הוכחה בפתקים יש גם כפתור "שלב אחר שלב". ההתקדמות נשמרת בדפדפן הזה.</p>
         </header>
         <div class="hub-cards">
+          ${(app().keyGuides?.() || [])
+            .map((g) => `<a class="hub-card hub-card-link hub-card-guide" href="${app().pageHref(g.page)}"><h2>${esc(g.title)}</h2><p>${esc(g.text)}</p></a>`)
+            .join("")}
           <article class="hub-card">
             <h2>כרטיסי חזרה</h2>
             <p class="hub-big"><strong>${summary.due + summary.fresh}</strong> להיום</p>
