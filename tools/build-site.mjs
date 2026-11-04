@@ -757,7 +757,7 @@ function evaluateDataview(code) {
 function renderDataview(code) {
   const results = evaluateDataview(code);
   if (!results) {
-    return `<details class="plugin-block"><summary>שאילתת Dataview (פעילה באובסידיאן)</summary><pre><code>${escapeHtml(code)}</code></pre></details>`;
+    return `<details class="plugin-block"><summary>רשימת פתקים</summary><pre><code>${escapeHtml(code)}</code></pre></details>`;
   }
   if (!results.length) return `<p class="dataview-empty">אין פתקים מתאימים.</p>`;
   const items = results
@@ -1105,8 +1105,6 @@ const startOrder = [
   "גרפים והמחשות"
 ];
 
-const vaultToolPages = [];
-
 function rankBy(list, title) {
   const index = list.findIndex((key) => title.includes(key));
   return index < 0 ? list.length : index;
@@ -1125,8 +1123,7 @@ function studyOrder(gateway, resolver) {
 function buildNavGroups(pages, resolver) {
   const byUnit = new Map();
   for (const page of pages) {
-    const tool = page.unitId === "center" && rankBy(vaultToolPages, page.title) < vaultToolPages.length;
-    const groupId = page.unitId === "center" || page.unitId === "overview" ? (tool ? "vault" : "start") : page.unitId;
+    const groupId = page.unitId === "center" || page.unitId === "overview" ? "start" : page.unitId;
     page.groupId = groupId;
     if (!byUnit.has(groupId)) byUnit.set(groupId, []);
     byUnit.get(groupId).push(page);
@@ -1166,10 +1163,6 @@ function buildNavGroups(pages, resolver) {
     });
   }
 
-  const vault = (byUnit.get("vault") || []).sort((a, b) => collator.compare(a.title, b.title));
-  if (vault.length) {
-    groups.push({ id: "vault", title: "על הכספת", subtitle: "", pageIds: vault.map((p) => p.id) });
-  }
   return groups;
 }
 
@@ -1177,7 +1170,7 @@ function buildNavGroups(pages, resolver) {
 // units 1 → 8 as one continuous course.
 function linkSequence(groups, pagesById) {
   const courseIds = groups.filter((g) => g.number).flatMap((g) => g.pageIds);
-  const sequences = [courseIds, ...groups.filter((g) => !g.number && g.id !== "supplement").map((g) => g.pageIds)];
+  const sequences = [courseIds, ...groups.filter((g) => !g.number).map((g) => g.pageIds)];
   for (const sequence of sequences) {
     sequence.forEach((id, index) => {
       const page = pagesById.get(id);

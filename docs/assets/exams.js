@@ -287,7 +287,11 @@
   function decorate(root) {
     root.querySelectorAll(".proof[data-proof]").forEach((proof) => {
       const row = theoremByNumber(proof.dataset.proof);
-      if (!row || !row.exams?.length || proof.previousElementSibling?.classList.contains("proof-asked")) return;
+      // The line goes above the proof bar, so study.js still finds its bar
+      // right before the proof and never adds a second one.
+      const bar = proof.previousElementSibling?.classList.contains("proof-bar") ? proof.previousElementSibling : null;
+      const anchor = bar || proof;
+      if (!row || !row.exams?.length || anchor.previousElementSibling?.classList.contains("proof-asked")) return;
       const links = row.exams
         .map(({ exam, q }) => {
           const e = exams().find((x) => x.n === exam);
@@ -297,7 +301,7 @@
       const note = document.createElement("p");
       note.className = "proof-asked";
       note.innerHTML = `<b>נשאל ב-${row.exams.length} מבחנים:</b> ${links}`;
-      proof.before(note);
+      anchor.before(note);
     });
   }
 
