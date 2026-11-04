@@ -1,5 +1,5 @@
 /* Study tools: proofs step by step with "why?" notes, a proof puzzle for the
- * 33 exam theorems, and flashcards with spaced repetition.
+ * exam theorems, and flashcards with spaced repetition.
  *
  * Proofs are the vault's <!-- infi-proof: N --> blocks (div.proof). A proof
  * is split into steps: list items, paragraphs, and the sentences of long
@@ -534,13 +534,22 @@
       let order = shuffle(strips);
       if (order.every((strip, i) => strip.index === i)) order = order.reverse();
       for (const strip of order) {
-        const card = document.createElement("button");
-        card.type = "button";
+        // A strip holds paragraphs and display math, which a <button> may not
+        // contain; it is a focusable element with the button role instead.
+        const card = document.createElement("div");
+        card.setAttribute("role", "button");
+        card.tabIndex = 0;
         card.className = "strip";
         card.dataset.index = String(strip.index);
         card.style.setProperty("--tilt", `${(Math.random() * 1.6 - 0.8).toFixed(2)}deg`);
         card.innerHTML = strip.html;
         card.addEventListener("click", () => choose(card));
+        card.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            choose(card);
+          }
+        });
         pool.append(card);
       }
       status.textContent = `בחרו את השלב הראשון של ההוכחה (${strips.length} שלבים).`;
@@ -875,7 +884,7 @@
         <header class="practice-head">
           <p class="practice-kicker">לפני הבחינה</p>
           <h1 id="pageTitle" tabindex="-1">תרגול</h1>
-          <p class="practice-lead">כרטיסי חזרה עם חזרה מרווחת, ופאזל הוכחה לכל אחד מ־33 המשפטים שברשימה לבחינה. בכל הוכחה בפתקים יש גם כפתור "שלב אחר שלב". ההתקדמות נשמרת בדפדפן הזה.</p>
+          <p class="practice-lead">כרטיסי חזרה עם חזרה מרווחת, ופאזל הוכחה לכל אחד מ־${theorems().length} המשפטים שברשימה לבחינה. בכל הוכחה בפתקים יש גם כפתור "שלב אחר שלב". ההתקדמות נשמרת בדפדפן הזה.</p>
         </header>
         <div class="hub-cards">
           <article class="hub-card">
@@ -892,7 +901,7 @@
           </article>
         </div>
         <section aria-labelledby="hubListTitle">
-          <h2 id="hubListTitle" class="hub-list-title">33 המשפטים לבחינה</h2>
+          <h2 id="hubListTitle" class="hub-list-title">${theorems().length} המשפטים לבחינה</h2>
           ${rows}
         </section>
       </div>`;

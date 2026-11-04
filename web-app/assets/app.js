@@ -487,8 +487,13 @@ function closeSearchPanel() {
   searchInput.removeAttribute("aria-activedescendant");
 }
 
+// A search result opens the page at the first place the words appear, not
+// at its top.
+let pendingFind = "";
+
 function openResult(id) {
   if (!id) return;
+  pendingFind = normalize(searchInput.value).trim();
   searchInput.value = "";
   closeSearchPanel();
   closeMobileSearch(false);
@@ -576,8 +581,8 @@ let graph = null;
 let tocObserver = null;
 
 function parseRoute() {
-  const hash = location.hash;
-  if (!hash || hash === "#" || hash === "#/") return { view: "home" };
+  const [hash, queryString = ""] = location.hash.split("?");
+  if (!hash || hash === "#" || hash === "#/") return { view: "home", query: new URLSearchParams(queryString) };
   const parts = hash
     .slice(2)
     .split("/")
@@ -589,7 +594,7 @@ function parseRoute() {
         return part;
       }
     });
-  return { view: parts[0] || "home", id: parts[1] || "", section: parts[2] || "" };
+  return { view: parts[0] || "home", id: parts[1] || "", section: parts[2] || "", query: new URLSearchParams(queryString) };
 }
 
 function setTitle(text) {
@@ -770,18 +775,20 @@ function renderHome() {
 
   const toolDescriptions = {
     "מפת הקורס": "כל היחידות והפתקים בעמוד אחד, לפי סדר הספרים.",
-    "תיקונים לספרי הקורס": "כל 40 התיקונים הרשמיים לכרכים א–ג.",
+    "תיקונים לספרי הקורס": "התיקונים הרשמיים לכרכים א–ג.",
     "תבניות הוכחה": "המהלכים שחוזרים בהוכחות: ε, sup, קטע סגור ונגזרת.",
     "מפת תלות משפטים": "איזה משפט נשען על איזה, מהשלמות ועד משפטי הנגזרת.",
     "אינדקס דוגמאות נגד": "הדוגמאות שמפריכות הכללות שגויות, לפי נושא.",
     "כרטיסי חזרה": "שאלות ותשובות קצרות לחזרה לפני הבחינה.",
     "מפת מוח": "מבט על הקורס כולו כמפה אחת.",
-    "כספת העל": "שער הכניסה המקורי של הכספת.",
-    "מקורות וחומרי גלם": "מאיפה כל פרט בכספת מגיע."
+    "מסקנות משאלות הספר": "שאלות מהספר שמותר לצטט במבחן, ומתי שולפים כל אחת.",
+    "שיטות המרצה": "דרכי העבודה שהמרצה הדגיש במפגשים, לפי יחידות.",
+    "גרפים והמחשות": "כל הגרפים החיים של הקורס במקום אחד.",
+    "מקורות וחומרי גלם": "מאיפה כל פרט באתר מגיע."
   };
   const tools = (start?.pageIds || [])
     .map((id) => pages.get(id))
-    .filter((page) => page && page.id !== data.examListPageId)
+    .filter((page) => page && page.id !== data.examListPageId && !page.navTitle.includes("כספת העל"))
     .map((page) => {
       const key = Object.keys(toolDescriptions).find((k) => page.navTitle.includes(k));
       return `<a class="tool-card" href="${pageHref(page)}"><strong>${escapeHtml(page.navTitle)}</strong><span>${escapeHtml(toolDescriptions[key] || "")}</span></a>`;
@@ -793,8 +800,8 @@ function renderHome() {
        <a class="home-resume-link" href="${pageHref(last)}"><small>${escapeHtml(groupHeading(groupById.get(last.groupId)))}</small><strong>${escapeHtml(last.navTitle)}</strong><span aria-hidden="true">←</span></a>
        ${recent.length > 1 ? `<p class="home-recent-label">ביקרתם לאחרונה</p><ul class="home-recent-list">${recent.slice(1, 4).map((page) => `<li><a href="${pageHref(page)}">${escapeHtml(page.navTitle)}</a></li>`).join("")}</ul>` : ""}`
     : `<p class="home-resume-label">מאיפה מתחילים?</p>
-       <p class="home-start-text">בחרו יחידה, חפשו מושג או עברו ישירות לתרגול.</p>
-       <a class="home-start-link" href="#/practice">לתרגול ולכרטיסי חזרה <span aria-hidden="true">←</span></a>`;
+       <p class="home-start-text">מתחילים ביחידה 1 ומתקדמים לפי הסדר. בכל פתק יש קודם הסבר במילים פשוטות, ואז ההגדרה, הדוגמאות והתרגול.</p>
+       ${firstUnit ? `<a class="home-start-link" href="${pageHref(firstUnit)}">ליחידה 1: המספרים הממשיים <span aria-hidden="true">←</span></a>` : ""}`;
 
   const demos = demoGallery();
   const game = demos.find((item) => item.name === "epsilon-delta");
@@ -811,7 +818,7 @@ function renderHome() {
             ${exam ? `<a class="home-quick-link" href="${pageHref(exam)}">המשפטים לבחינה</a><a class="home-quick-link" href="#/exams">מבחני עבר</a>` : ""}
             ${game ? `<a class="home-quick-link" href="${game.href}">משחק ε‑δ</a>` : ""}
           </div>
-          <p class="home-intro-meta">${units.length} יחידות לימוד <span aria-hidden="true">·</span> 33 משפטים לבחינה <span aria-hidden="true">·</span> ${(data.exams || []).length} מבחני עבר</p>
+          <p class="home-intro-meta">${units.length} יחידות לימוד <span aria-hidden="true">·</span> ${(data.examTheorems || []).length} משפטים לבחינה <span aria-hidden="true">·</span> ${(data.exams || []).length} מבחני עבר</p>
         </div>
         <aside class="home-resume" aria-label="${last ? "המשך קריאה" : "תחילת הלימוד"}">${panel}</aside>
       </section>
@@ -819,7 +826,7 @@ function renderHome() {
       <section aria-labelledby="unitsTitle">
         <div class="section-head">
           <h2 id="unitsTitle">יחידות הקורס</h2>
-          <p>שלושה כרכים, שמונה יחידות</p>
+          <p>${new Set(unitGroups.map((g) => g.volume).filter(Boolean)).size} כרכים, ${unitGroups.length} יחידות</p>
         </div>
         <div class="unit-grid">${unitCards}</div>
       </section>
@@ -855,7 +862,7 @@ function renderHome() {
           ? `<section class="exam-band" aria-labelledby="examTitle">
               <span class="exam-band-icon" aria-hidden="true">${icon("star")}</span>
               <div>
-                <h2 id="examTitle">33 המשפטים לבחינה</h2>
+                <h2 id="examTitle">${(data.examTheorems || []).length} המשפטים לבחינה</h2>
                 <p>בבחינה מבקשים להוכיח 2–3 משפטים מהרשימה הרשמית. לכל משפט יש בכספת הוכחה מלאה עם כל הנימוקים, וליד כל הוכחה כתוב באילו מבחנים היא נשאלה.</p>
               </div>
               <a class="button" href="${pageHref(exam)}">לרשימה המלאה</a>
@@ -966,6 +973,32 @@ function renderPage(page, section) {
   typesetMath(() => scrollToSection(section, false));
   renderMermaid();
   if (section) scrollToSection(section, false);
+  else if (pendingFind) revealMatch(pendingFind);
+  pendingFind = "";
+}
+
+function revealMatch(query) {
+  const prose = app.querySelector(".prose");
+  if (!prose) return;
+  const terms = [query, ...query.split(/\s+/).filter((t) => t.length >= 2)];
+  const walker = document.createTreeWalker(prose, NodeFilter.SHOW_TEXT);
+  let hit = null;
+  for (const term of terms) {
+    walker.currentNode = prose;
+    while (!hit && walker.nextNode()) {
+      if (normalize(walker.currentNode.nodeValue).includes(term)) hit = walker.currentNode.parentElement;
+    }
+    if (hit) break;
+  }
+  if (!hit || hit.closest(".note-head")) return;
+  for (let box = hit.closest("details"); box; box = box.parentElement?.closest("details")) box.open = true;
+  alignSheetGrid();
+  const block = hit.closest("p, li, h2, h3, h4, td, .callout, .math-display") || hit;
+  requestAnimationFrame(() => {
+    block.scrollIntoView({ behavior: "auto", block: "center" });
+    block.classList.add("search-hit");
+    setTimeout(() => block.classList.remove("search-hit"), 2400);
+  });
 }
 
 // Links only to material that actually exists on this page; the full note
@@ -993,7 +1026,7 @@ function mountLearningPath(page, group, gateway) {
     const li = document.createElement("li");
     if (!target) {
       const link = document.createElement("a");
-      link.href = pageHref(gateway);
+      link.href = `#/exams?unit=${group.number}`;
       link.textContent = `${index + 1}. ${label}`;
       li.append(link);
     } else {
@@ -1011,7 +1044,15 @@ function mountLearningPath(page, group, gateway) {
     }
     list.append(li);
   });
-  prose.before(nav);
+  // Where the contents list is folded into the page (narrow screens), the
+  // learning path goes inside it, so the text starts on the first screen.
+  const inlineToc = app.querySelector("[data-toc-inline]");
+  if (inlineToc && !inlineToc.hidden && getComputedStyle(inlineToc).display !== "none") {
+    nav.classList.add("learning-path-inline");
+    inlineToc.querySelector("nav")?.before(nav);
+  } else {
+    prose.before(nav);
+  }
 }
 
 // ---------------------------------------------------------------------------

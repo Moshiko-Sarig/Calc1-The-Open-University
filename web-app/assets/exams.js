@@ -47,7 +47,7 @@
     const head = withExam
       ? `<a href="${examHref(exam.n, q.q)}">${esc(examLabel(exam))} · שאלה ${q.q}</a>`
       : `<a href="${examHref(exam.n, q.q)}" data-jump="${q.page}">שאלה ${q.q}</a>`;
-    return `<li class="exam-q" id="${withExam ? "" : `q${q.q}`}">
+    return `<li class="exam-q"${withExam ? "" : ` id="q${q.q}"`}>
       <p class="exam-q-head">${head}<span class="exam-q-meta">${esc(q.format || "")}${q.points ? ` · ${q.points} נק'` : ""}${q.kind ? ` · ${esc(q.kind)}` : ""}</span></p>
       <p class="exam-q-summary">${esc(q.summary)}</p>
       <p class="exam-q-tags">${proves}${units}${(q.topics || []).map((t) => `<span class="exam-chip exam-chip-topic">${esc(t)}</span>`).join("")}</p>
@@ -84,7 +84,7 @@
       .join("");
     return `<section class="exam-section" aria-labelledby="freqTitle">
       <h2 id="freqTitle">כמה פעמים כל משפט נשאל</h2>
-      <p>33 המשפטים של הרשימה הרשמית (2026ג), לפי השכיחות בטבלה המקורית. במקום שבו מספר המבחנים בסריקות המתויגות שונה, שני המספרים מוצגים. לחיצה על מספר המשפט פותחת את ההוכחה, ולחיצה על סמסטר פותחת את השאלה.</p>
+      <p>${(app().data.examTheorems || []).length} המשפטים של הרשימה הרשמית (2026ג), מהנפוץ לנדיר. המספר הוא כמות המבחנים מ-2019 עד 2026 שבהם ביקשו להוכיח את המשפט. לחיצה על מספר המשפט פותחת את ההוכחה, ולחיצה על סמסטר פותחת את השאלה.</p>
       <ol class="freq-list">${items}</ol>
     </section>`;
   }
@@ -122,7 +122,7 @@
     </section>`;
   }
 
-  function renderList(root) {
+  function renderList(root, route = {}) {
     app().setTitle("מבחנים");
     const list = exams();
     const kinds = Array.from(new Set(list.flatMap((e) => e.questions.map((q) => q.kind)).filter(Boolean))).sort();
@@ -193,8 +193,26 @@
       results.innerHTML = hits.join("");
       status.textContent = hits.length ? `${hits.length} שאלות מתאימות` : "אין שאלות מתאימות";
     };
-    root.querySelectorAll("[data-f]").forEach((el) => el.addEventListener("input", update));
+    // Filters live in the address, so a unit's exam questions can be linked
+    // to (#/exams?unit=5) and survive a reload.
+    for (const name of ["unit", "thm", "kind", "text"]) {
+      const value = route.query?.get(name);
+      if (value) root.querySelector(`[data-f="${name}"]`).value = value;
+    }
+    const syncUrl = () => {
+      const params = new URLSearchParams();
+      for (const name of ["unit", "thm", "kind", "text"]) if (field(name)) params.set(name, field(name));
+      const query = params.toString();
+      history.replaceState(null, "", `#/exams${query ? `?${query}` : ""}`);
+    };
+    root.querySelectorAll("[data-f]").forEach((el) =>
+      el.addEventListener("input", () => {
+        update();
+        syncUrl();
+      })
+    );
     update();
+    if (route.query?.toString()) requestAnimationFrame(() => root.querySelector("#findTitle")?.scrollIntoView({ block: "start" }));
     app().queueTypeset(root);
   }
 
@@ -285,7 +303,7 @@
 
   function render(root, route) {
     if (route.id) renderExam(root, route.id, route.section);
-    else renderList(root);
+    else renderList(root, route);
   }
 
   window.InfiExams = { render, decorate };
