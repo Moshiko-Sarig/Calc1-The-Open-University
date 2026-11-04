@@ -94,12 +94,49 @@ function syncPreferenceControls() {
   sizeButton.title = `גודל טקסט: ${SIZE_NAMES[size]}`;
 }
 
-themeButton.addEventListener("click", () => {
-  root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
-  store.set("infi-theme", root.dataset.theme);
+// Switching theme swaps the whole screen between paper and black. Done in one
+// frame it is a flash, so the old and new screens cross-fade instead (View
+// Transitions; durations and easing live in site.css under "Theme switch").
+// data-theme-fade says which way it goes: toward light is slower, so the
+// brightness rises gently. Browsers without View Transitions get a short
+// colour transition instead (data-theme-fade-css).
+let themeFadeToken = null;
+// The theme the last press asked for. A fade applies its theme a frame or more
+// after the press, so a second press must toggle from this, not from the page.
+let themeTarget = null;
+
+function applyTheme(next) {
+  root.dataset.theme = next;
+  store.set("infi-theme", next);
   syncPreferenceControls();
   renderMermaid(true);
   if (currentRoute.view === "graph") graph?.redraw();
+}
+
+themeButton.addEventListener("click", () => {
+  const next = (themeTarget || root.dataset.theme) === "dark" ? "light" : "dark";
+  themeTarget = next;
+  const token = (themeFadeToken = {});
+  const done = () => {
+    if (themeFadeToken !== token) return;
+    themeTarget = null;
+    delete root.dataset.themeFade;
+    delete root.dataset.themeFadeCss;
+  };
+  root.dataset.themeFade = next === "light" ? "to-light" : "to-dark";
+
+  if (typeof document.startViewTransition === "function") {
+    const transition = document.startViewTransition(() => applyTheme(next));
+    // A fade is skipped when the tab is hidden or the button is pressed again
+    // mid-fade; the theme still changes (the update still runs), so the skip
+    // is not an error.
+    transition.ready.catch(() => {});
+    transition.finished.then(done, done);
+  } else {
+    root.dataset.themeFadeCss = "";
+    applyTheme(next);
+    setTimeout(done, 900);
+  }
 });
 
 sizeButton.addEventListener("click", () => {

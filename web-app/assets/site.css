@@ -16,6 +16,11 @@
   --font-mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --font-math: "STIX Two Text", "Cambria Math", "Times New Roman", serif;
 
+  /* Theme switch cross-fade: toward light is slower, because the eye takes
+     longer to adapt to a brighter screen than to a darker one */
+  --dur-theme-light: 800ms;
+  --dur-theme-dark: 500ms;
+
   --header-h: 60px;
   --nav-w: 288px;
   --toc-w: 232px;
@@ -4135,6 +4140,36 @@ bdi {
   }
 }
 
+/* ---------- Theme switch ----------------------------------------------------
+   app.js cross-fades the whole screen when the theme changes, instead of
+   swapping paper for black in one frame. Opacity only, nothing moves. */
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-theme-dark);
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Toward light: longer, and slow at the start, so brightness rises gently */
+:root[data-theme-fade="to-light"]::view-transition-old(root),
+:root[data-theme-fade="to-light"]::view-transition-new(root) {
+  animation-duration: var(--dur-theme-light);
+  animation-timing-function: cubic-bezier(0.6, 0, 0.35, 1);
+}
+
+/* Browsers without View Transitions: colours ease for the switch only */
+:root[data-theme-fade-css] body,
+:root[data-theme-fade-css] body * {
+  transition-property: background-color, color, border-color, fill, stroke;
+  transition-duration: var(--dur-theme-dark);
+  transition-timing-function: ease;
+}
+
+:root[data-theme-fade-css][data-theme-fade="to-light"] body,
+:root[data-theme-fade-css][data-theme-fade="to-light"] body * {
+  transition-duration: var(--dur-theme-light);
+}
+
 /* ---------- Motion & print -------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -4145,6 +4180,13 @@ bdi {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* The theme cross-fade has no movement and spares the eyes a flash, so it
+     stays for reduced motion, just shorter */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 300ms !important;
   }
 }
 
