@@ -4611,6 +4611,57 @@ bdi {
   font-size: var(--fs-xs);
 }
 
+/* A page scanned on white lies on a squared sheet, like the linear algebra
+   archive. Isolation keeps the scan's blending inside its own sheet.
+   Photographed exams keep the plain image above: their gray paper hides the grid. */
+.exam-scan-sheet {
+  isolation: isolate;
+  padding: 20px 24px 12px;
+  border: 1px solid var(--paper-edge);
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--sheet-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--sheet-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.exam-scan-sheet img {
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  mix-blend-mode: multiply;
+}
+
+/* White paper becomes black (neutral for screen); dark ink becomes light. */
+:root[data-theme="dark"] .exam-scan-sheet img {
+  filter: invert(1) hue-rotate(180deg) brightness(.88);
+  mix-blend-mode: screen;
+}
+
+.exam-scan-sheet figcaption {
+  margin-block-start: 8px;
+}
+
+@media (max-width: 600px) {
+  .exam-scan-sheet {
+    padding: 16px 12px 8px;
+  }
+}
+
+@media print {
+  .exam-scan-sheet {
+    border-color: #ccc;
+    background: white;
+  }
+
+  :root .exam-scan-sheet img,
+  :root[data-theme] .exam-scan-sheet img {
+    filter: none;
+    mix-blend-mode: normal;
+  }
+}
+
 .proof-asked {
   margin-block: 0 4px !important;
   color: var(--gold);
@@ -4817,18 +4868,105 @@ details.callout > summary.callout-title { min-height: 32px; }
   margin-inline: auto;
   text-align: center;
 }
-.landing-kicker {
-  margin: 0 0 12px;
-  color: var(--ink-3);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
 .landing-intro h1 {
   margin: 0;
   font-family: var(--font-display);
   font-size: clamp(2.75rem, 1.5rem + 4vw, 4.5rem);
   line-height: 1.08;
   letter-spacing: -0.02em;
+}
+/* Under the site's name: real graphs in pencil, drawn fastest first, that leave
+   the page on their way to infinity. */
+.infinity-figure {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-block-start: 20px;
+  overflow: visible;
+  direction: ltr;
+}
+.infinity-axis,
+.infinity-curve,
+.infinity-sign {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.infinity-axis {
+  stroke: var(--pencil-gray);
+  stroke-width: 1.25;
+}
+.infinity-curve {
+  stroke: var(--curve);
+  stroke-width: 2.25;
+}
+.infinity-sign {
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+.infinity-labels text {
+  fill: var(--curve, var(--ink-3));
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-style: italic;
+  font-weight: 500;
+}
+/* Each function climbs at its own pace: eˣ is gone first, ln x crawls in last. */
+.curve-exp { --curve: var(--pencil-red); --climb: 1.5s; --climb-ease: cubic-bezier(.6, 0, .9, .45); }
+.curve-sq { --curve: var(--pencil-orange); --climb: 1.9s; --climb-ease: cubic-bezier(.55, 0, .85, .55); }
+.curve-lin { --curve: var(--pencil-green); --climb: 2.7s; --climb-ease: linear; }
+.curve-sqrt { --curve: var(--pencil-blue); --climb: 4.2s; --climb-ease: cubic-bezier(.2, .45, .5, 1); }
+.curve-ln { --curve: var(--pencil-purple); --climb: 4.6s; --climb-ease: cubic-bezier(.2, .45, .5, 1); }
+.infinity-tip {
+  display: none;
+  fill: var(--curve);
+}
+@keyframes infinity-draw {
+  from {
+    opacity: 0;
+    stroke-dashoffset: 1;
+  }
+  1% {
+    opacity: 1;
+  }
+}
+@keyframes infinity-climb {
+  from {
+    offset-distance: 0%;
+  }
+  to {
+    offset-distance: 100%;
+  }
+}
+@keyframes infinity-labels-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .infinity-curve,
+  .infinity-sign {
+    stroke-dasharray: 1;
+  }
+  .infinity-curve {
+    animation: infinity-draw var(--climb) var(--climb-ease) .3s both;
+  }
+  .infinity-labels text {
+    animation: infinity-labels-in .6s ease calc(.3s + var(--climb) * .75) both;
+  }
+  .infinity-labels .infinity-limit {
+    animation-delay: 4.4s;
+  }
+  .infinity-sign {
+    animation: infinity-draw 1.6s ease-in-out 3.4s both;
+  }
+  @supports (offset-path: path("M0 0")) {
+    .infinity-tip {
+      display: block;
+      offset-rotate: 0deg;
+      animation: infinity-climb var(--climb) var(--climb-ease) .3s both;
+    }
+  }
 }
 .landing-lead {
   max-width: 34rem;
@@ -5083,7 +5221,6 @@ details.callout > summary.callout-title { min-height: 32px; }
   }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .landing-kicker,
   .landing-intro h1,
   .landing-lead,
   .landing-overview,

@@ -16,7 +16,10 @@
   const examHref = (n, q) => `#/exams/${n}${q ? `/q${q}` : ""}`;
   const course = window.COURSE_DATA.course;
   const words = course.words;
-  const unitNames = () => Object.fromEntries(app().groups.filter((group) => group.number).map((group) => [group.number, group.subtitle]));
+  // Exams photographed on gray paper rather than scanned on white. They stay as
+  // plain images; only white scans can lie on the squared sheet.
+  const PHOTOGRAPHED_EXAMS = new Set([15, 36, 40, 41]);
+  const unitNames = () =>Object.fromEntries(app().groups.filter((group) => group.number).map((group) => [group.number, group.subtitle]));
 
   function theoremByNumber(number) {
     return theorems().find((row) => row.number === number);
@@ -230,7 +233,7 @@
     const next = list[index + 1];
     const pagesHtml = exam.images
       .map(
-        (src, i) => `<figure class="exam-scan" id="page-${exam.pages[i]}">
+        (src, i) => `<figure class="exam-scan${PHOTOGRAPHED_EXAMS.has(exam.n) ? "" : " exam-scan-sheet"}" id="page-${exam.pages[i]}">
           <a href="${src}" target="_blank" rel="noopener"><img src="${src}" width="875" height="1240" decoding="async" loading="${i <= eagerUntil ? "eager" : "lazy"}" alt="${esc(`${examLabel(exam)}, עמוד ${i + 1} מתוך ${exam.images.length}`)}" /></a>
           <figcaption>עמוד ${i + 1} מתוך ${exam.images.length} · לחיצה פותחת בגודל מלא</figcaption>
         </figure>`
