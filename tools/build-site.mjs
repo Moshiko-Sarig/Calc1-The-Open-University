@@ -1005,7 +1005,11 @@ function copyStaticApp() {
     throw new Error(`Web app source not found: ${webAppDir}`);
   }
   // Generated per course: never carry another course's content or scans along.
-  copyDirectory(webAppDir, outDir, (rel) => rel === "landing.html" || /^assets\/(?:content\.js$|figures(?:\/|$)|exams(?:\/|$))/.test(rel));
+  copyDirectory(webAppDir, outDir, (rel) => rel === "landing.html" || rel === "icons" || /^assets\/(?:content\.js$|figures(?:\/|$)|exams(?:\/|$))/.test(rel));
+}
+
+function writeFavicon(directory, favicon = SITE.favicon) {
+  fs.copyFileSync(path.join(webAppDir, "icons", favicon), path.join(directory, "assets", "favicon.svg"));
 }
 
 // web-app/index.html is a template; each course fills in its own identity.
@@ -1223,6 +1227,7 @@ export function buildCourse(nextCourse) {
   // A course's folder is entirely generated, so it starts clean.
   fs.rmSync(outDir, { recursive: true, force: true });
   copyStaticApp();
+  writeFavicon(outDir, course.favicon);
   fs.writeFileSync(path.join(outDir, "index.html"), renderIndexHtml(), "utf8");
 
   const pages = collectPages();
@@ -1392,6 +1397,7 @@ function writeHomePage(results) {
     .replace(/\{\{([A-Z_]+)\}\}/g, (_, name) => tokens[name]);
   fs.mkdirSync(path.join(docsDir, "assets"), { recursive: true });
   fs.copyFileSync(path.join(webAppDir, "assets", "site.css"), path.join(docsDir, "assets", "site.css"));
+  writeFavicon(docsDir);
   fs.writeFileSync(path.join(docsDir, "index.html"), html, "utf8");
   fs.writeFileSync(path.join(docsDir, ".nojekyll"), "", "utf8");
   writeRootIndex(html);

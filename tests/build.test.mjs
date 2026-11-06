@@ -23,9 +23,9 @@ test("linear1 gets its own index.html with its own course identity", () => {
 
 const landing = (...parts) => fs.readFileSync(path.join(root, ...parts), "utf8");
 
-test("the calculus vault's mark is the infinity sign, on its site and on its card", () => {
-  assert.match(fs.readFileSync(path.join(root, "docs", "infi", "index.html"), "utf8"), /<span class="brand-mark" aria-hidden="true">∞<\/span>/);
-  assert.match(landing("docs", "index.html"), /<span class="course-cover-mark" aria-hidden="true">∞<\/span>/);
+test("the calculus vault's mark is epsilon, on its site and on its card", () => {
+  assert.match(landing("docs", "infi", "index.html"), /<span class="brand-mark" aria-hidden="true">ε<\/span>/);
+  assert.match(landing("docs", "index.html"), /<span class="course-cover-mark" aria-hidden="true">ε<\/span>/);
   assert.match(fs.readFileSync(out("index.html"), "utf8"), /<span class="brand-mark" aria-hidden="true">λ<\/span>/);
 });
 
