@@ -75,7 +75,7 @@ test("statements reach the client in the book's order, so definition cards do to
 });
 
 test("each key theorem is linked to its marked proof", () => {
-  assert.deepEqual(payload.examTheorems.map((row) => row.number).sort(compareNumbers), KEY_THEOREMS);
+  assert.deepEqual(payload.examTheorems.map((row) => row.number).filter((number) => number.startsWith("1.")).sort(compareNumbers), KEY_THEOREMS);
   for (const row of payload.examTheorems) assert.ok(row.proofPageId, row.number);
 });
 
@@ -84,11 +84,9 @@ test("the key theorem list says plainly that it is not official", () => {
   assert.match(list.html, /לא רשימה רשמית/);
 });
 
-test("the chapter has at least 25 flashcards, all under chapter 1", () => {
-  assert.ok(payload.flashcards.length >= 25, String(payload.flashcards.length));
-  const authored = payload.flashcards.filter((card) => card.unit);
-  assert.ok(authored.length >= 25);
-  for (const card of authored) assert.equal(card.unit, "unit-1");
+test("chapter 1 has at least 25 flashcards of its own", () => {
+  const authored = payload.flashcards.filter((card) => card.unit === "unit-1");
+  assert.ok(authored.length >= 25, String(authored.length));
 });
 
 test("the gateway's study order covers all twelve notes, in order", () => {

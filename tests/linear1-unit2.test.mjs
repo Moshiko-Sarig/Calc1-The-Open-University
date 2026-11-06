@@ -58,3 +58,43 @@ test("the R³ remark reports what the book does", () => {
 test("claim 2.3.2 explains the b on the line case as part of the flow", () => {
   assert.doesNotMatch(note("2.3"), /דיוק ביחס לנוסח הספר/);
 });
+
+const KEY_THEOREMS = ["2.5.2", "2.6.3", "2.6.6", "2.7.8", "2.7.9", "2.7.10", "2.7.11"];
+const CORE_NOTES = ["2.5", "2.6", "2.7"];
+const count = (text, pattern) => (text.match(pattern) || []).length;
+
+test("each key theorem of 2.5–2.7 is listed and linked to its marked proof", () => {
+  const rows = payload.examTheorems.filter((row) => row.number.startsWith("2."));
+  assert.deepEqual(rows.map((row) => row.number), KEY_THEOREMS);
+  for (const row of rows) assert.ok(row.proofPageId, row.number);
+});
+
+test("every marked proof in 2.5–2.7 has a plan just before it", () => {
+  for (const prefix of CORE_NOTES) {
+    const text = note(prefix);
+    assert.equal(count(text, /^> \[!plan\]/gm), count(text, /<!-- infi-proof:/g), prefix);
+    assert.ok(count(text, /<!-- infi-proof:/g) >= 1, prefix);
+  }
+});
+
+test("the core notes explain in simple words and end with a worked self-check", () => {
+  for (const prefix of CORE_NOTES) {
+    const text = note(prefix);
+    assert.ok(count(text, /^> \[!simple\]- /gm) >= 3, prefix);
+    assert.match(text, /^## כרטיס דיוק/m, prefix);
+    assert.ok(count(text, /^> \[!solution\]- /gm) >= 4, prefix);
+  }
+});
+
+test("no box sits inside a proof in the core notes", () => {
+  for (const prefix of CORE_NOTES) {
+    for (const [, body] of note(prefix).matchAll(/<!-- infi-proof: [^>]+-->([\s\S]*?)<!-- \/infi-proof -->/g)) {
+      assert.doesNotMatch(body, /^> /m, prefix);
+    }
+  }
+});
+
+test("chapter 2 has its own flashcards", () => {
+  const cards = payload.flashcards.filter((card) => card.unit === "unit-2");
+  assert.ok(cards.length >= 15, String(cards.length));
+});
