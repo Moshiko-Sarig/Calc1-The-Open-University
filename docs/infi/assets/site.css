@@ -101,20 +101,21 @@
 }
 
 :root[data-theme="dark"] {
-  --bg: #000000;
-  --surface: #121212;
-  --surface-2: #1a1a1a;
-  --surface-3: #242424;
+  --bg: #111111;
+  --surface: #1e1e1e;
+  --surface-2: #242424;
+  --surface-3: #282828;
   --ink: #e0e0e0;
   --ink-2: #b8b8b8;
   --ink-3: #9a9a9a;
   --line: #2a2a2a;
   --line-2: #404040;
-  --line-control: #6e6e6e;
+  --line-control: #777777;
   --accent: #7eb6ff;
   --accent-hover: #a9ccff;
   --accent-soft: #101a28;
   --accent-line: #2c4d7a;
+  --link-underline: currentColor;
   --on-accent: #050505;
   --gold: #e6c17a;
   --gold-soft: #221c10;
@@ -144,12 +145,12 @@
   --c-unit-8: #f0b478;
   --c-vault: #b0b0b0;
 
-  --paper: #101010;
+  --paper: #181818;
   --paper-edge: #2c2c2c;
   --grid-line: rgba(255, 255, 255, 0.09);
   --margin-line: #735955;
   --hole-edge: #3a3a3a;
-  --sheet-grid: rgba(255, 255, 255, 0.08);
+  --sheet-grid: rgba(255, 255, 255, 0.05);
   --sheet-rule: rgba(255, 255, 255, 0.055);
 
   color-scheme: dark;
@@ -216,7 +217,7 @@ a {
   color: var(--accent);
   text-decoration-line: underline;
   text-decoration-thickness: 1px;
-  text-decoration-color: var(--accent-line);
+  text-decoration-color: var(--link-underline, var(--accent-line));
   text-underline-offset: 0.24em;
 }
 
@@ -2748,6 +2749,7 @@ bdi {
 }
 
 .demo-check label {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -2761,17 +2763,46 @@ bdi {
   height: 22px;
   border: 2px solid var(--line-control);
   border-radius: 6px;
-  background: var(--surface) center / 14px no-repeat;
+  background: var(--surface);
 }
 
 .demo-check input:checked + label::before {
   border-color: var(--accent);
   background-color: var(--accent);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3 3 7-7' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.demo-check input:checked + label::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 4px;
+  inset-block-start: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translateY(-50%);
+  background-color: var(--on-accent);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3 8.5l3 3 7-7' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 
 .demo-check input:focus-visible + label::before {
   box-shadow: var(--focus);
+}
+
+@media (forced-colors: active) {
+  .demo-check input:checked + label::before {
+    forced-color-adjust: none;
+    border-color: Highlight;
+    background-color: Highlight;
+  }
+
+  .demo-check input:checked + label::after {
+    forced-color-adjust: none;
+    background-color: HighlightText;
+  }
+
+  .demo-check input:focus-visible + label::before {
+    outline: 2px solid Highlight;
+    outline-offset: 2px;
+  }
 }
 
 .demo-buttons {
@@ -4820,6 +4851,11 @@ details.callout > summary.callout-title { min-height: 32px; }
   color: var(--label-ink);
   text-decoration: none;
   transition: transform .22s ease;
+}
+[data-theme="dark"] .course-card {
+  --label-paper: #222222;
+  --label-ink: var(--ink);
+  --label-ink-2: var(--ink-2);
 }
 [dir="rtl"] .course-card {
   border-radius: 12px 4px 4px 12px;

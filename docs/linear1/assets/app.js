@@ -1598,7 +1598,11 @@ function mountGraph(canvas, info) {
 
   function readColors() {
     const css = getComputedStyle(document.documentElement);
-    colors = { ink: css.getPropertyValue("--ink").trim(), line: css.getPropertyValue("--line-2").trim(), surface: css.getPropertyValue("--surface").trim() };
+    colors = {
+      ink: css.getPropertyValue("--ink").trim(),
+      line: css.getPropertyValue("--line-2").trim(),
+      activeLine: css.getPropertyValue("--ink-3").trim()
+    };
     for (const id of groupOrder) colors[id] = css.getPropertyValue(`--c-${id}`).trim() || colors.ink;
   }
 
@@ -1675,23 +1679,30 @@ function mountGraph(canvas, info) {
     }
   }
 
-  function draw() {
-    ctx.clearRect(0, 0, width, height);
-    ctx.save();
-    ctx.translate(width / 2, height / 2);
-    ctx.scale(zoom, zoom);
-    ctx.lineWidth = 1 / zoom;
-    ctx.strokeStyle = colors.line;
-    ctx.globalAlpha = 0.55;
+  function drawEdges(activeNode) {
+    ctx.lineWidth = (activeNode ? 2 : 1) / zoom;
+    ctx.strokeStyle = activeNode ? colors.activeLine : colors.line;
+    ctx.globalAlpha = activeNode ? 1 : 0.55;
     for (const { a, b } of edges) {
+      if (activeNode && a !== activeNode && b !== activeNode) continue;
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
       ctx.stroke();
     }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, width, height);
+    ctx.save();
+    ctx.translate(width / 2, height / 2);
+    ctx.scale(zoom, zoom);
+    const activeNode = dragged || hover;
+    drawEdges();
+    if (activeNode) drawEdges(activeNode);
     ctx.globalAlpha = 1;
     for (const node of nodes) {
-      const active = node === hover;
+      const active = node === activeNode;
       ctx.fillStyle = colors[node.groupId] || colors.ink;
       ctx.beginPath();
       ctx.roundRect ? ctx.roundRect(node.x - node.r, node.y - node.r, node.r * 2, node.r * 2, 2) : ctx.rect(node.x - node.r, node.y - node.r, node.r * 2, node.r * 2);
@@ -1700,8 +1711,6 @@ function mountGraph(canvas, info) {
         ctx.lineWidth = 2 / zoom;
         ctx.strokeStyle = colors.ink;
         ctx.stroke();
-        ctx.lineWidth = 1 / zoom;
-        ctx.strokeStyle = colors.line;
       }
       if (active || node.degree > 34) {
         ctx.font = `${active ? 600 : 500} ${12 / zoom}px Heebo, system-ui, sans-serif`;
@@ -1761,6 +1770,8 @@ function mountGraph(canvas, info) {
   canvas.addEventListener("pointermove", onMove);
   canvas.addEventListener("pointerdown", onDown);
   canvas.addEventListener("pointerup", onUp);
+  canvas.addEventListener("pointerleave", () => { hover = null; });
+  canvas.addEventListener("lostpointercapture", () => { dragged = null; });
   canvas.addEventListener("click", onClick);
   canvas.addEventListener("wheel", onWheel, { passive: false });
   window.addEventListener("resize", resize, { passive: true });
