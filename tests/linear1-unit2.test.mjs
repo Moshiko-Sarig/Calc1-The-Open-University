@@ -59,11 +59,11 @@ test("claim 2.3.2 explains the b on the line case as part of the flow", () => {
   assert.doesNotMatch(note("2.3"), /דיוק ביחס לנוסח הספר/);
 });
 
-const KEY_THEOREMS = ["2.5.2", "2.6.3", "2.6.6", "2.7.8", "2.7.9", "2.7.10", "2.7.11"];
+const KEY_THEOREMS = ["2.2.1", "2.3.3", "2.3.7", "2.3.8", "2.5.2", "2.6.3", "2.6.6", "2.7.8", "2.7.9", "2.7.10", "2.7.11"];
 const CORE_NOTES = ["2.5", "2.6", "2.7"];
 const count = (text, pattern) => (text.match(pattern) || []).length;
 
-test("each key theorem of 2.5–2.7 is listed and linked to its marked proof", () => {
+test("each key theorem of chapter 2 is listed and linked to its marked proof", () => {
   const rows = payload.examTheorems.filter((row) => row.number.startsWith("2."));
   assert.deepEqual(rows.map((row) => row.number), KEY_THEOREMS);
   for (const row of rows) assert.ok(row.proofPageId, row.number);
@@ -97,4 +97,24 @@ test("no box sits inside a proof in the core notes", () => {
 test("chapter 2 has its own flashcards", () => {
   const cards = payload.flashcards.filter((card) => card.unit === "unit-2");
   assert.ok(cards.length >= 15, String(cards.length));
+});
+
+const EARLY_NOTES = ["2.1", "2.2", "2.3", "2.4"];
+
+test("the early notes explain in simple words and end with a worked self-check", () => {
+  for (const prefix of EARLY_NOTES) {
+    const text = note(prefix);
+    assert.ok(count(text, /^> \[!simple\]- /gm) >= 2, prefix);
+    assert.match(text, /^## כרטיס דיוק/m, prefix);
+    assert.ok(count(text, /^> \[!solution\]- /gm) >= 4, prefix);
+    assert.equal(count(text, /^> \[!plan\]/gm), count(text, /<!-- infi-proof:/g), prefix);
+    for (const [, body] of text.matchAll(/<!-- infi-proof: [^>]+-->([\s\S]*?)<!-- \/infi-proof -->/g)) {
+      assert.doesNotMatch(body, /^> /m, prefix);
+    }
+  }
+});
+
+test("the proofs of the early notes are marked where the theorems are", () => {
+  assert.match(note("2.2"), /<!-- infi-proof: 2\.2\.1 -->/);
+  for (const number of ["2.3.3", "2.3.7", "2.3.8"]) assert.ok(note("2.3").includes(`<!-- infi-proof: ${number} -->`), number);
 });
