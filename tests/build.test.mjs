@@ -29,6 +29,13 @@ test("the calculus vault's mark is the infinity sign, on its site and on its car
   assert.match(fs.readFileSync(out("index.html"), "utf8"), /<span class="brand-mark" aria-hidden="true">λ<\/span>/);
 });
 
+test("the site is called שואפים לאינסוף, with the infinity sign as its mark", () => {
+  const html = landing("docs", "index.html");
+  assert.match(html, /<title>שואפים לאינסוף/);
+  assert.match(html, /<span class="brand-mark" aria-hidden="true">∞<\/span>\s*<span class="brand-text">\s*<strong>שואפים לאינסוף<\/strong>/);
+  assert.doesNotMatch(html, /כספות הקורסים/);
+});
+
 test("no published page has leftover template tokens", () => {
   for (const file of ["docs/index.html", "docs/infi/index.html", "docs/linear1/index.html", "index.html"]) {
     assert.doesNotMatch(landing(file), /\{\{/, file);
