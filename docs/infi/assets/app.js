@@ -807,10 +807,28 @@ const DEMO_GALLERY = [
     sketch: `<path class="sk sk-graphite sk-thin" d="M6 74 H154 M28 84 V8"/><path class="sk sk-gray" stroke-dasharray="5 4" d="M16 76 L146 14"/><path class="sk sk-blue sk-bold" d="M50 60 L98 34"/><circle class="sk-dot-red" cx="50" cy="60" r="3.6"/><circle class="sk-dot-green" cx="112" cy="26" r="3.6"/>`
   },
   {
-    name: "span-basis",
-    title: "ישר או כל המישור",
-    text: "כשהווקטורים על אותו ישר נשארים עליו. בשני כיוונים מגיעים לכל נקודה.",
-    sketch: `<path class="sk sk-graphite sk-thin" d="M6 74 H154 M36 84 V8"/><circle class="sk-dot-gray" cx="58" cy="62" r="2.2"/><circle class="sk-dot-gray" cx="80" cy="62" r="2.2"/><circle class="sk-dot-gray" cx="102" cy="62" r="2.2"/><circle class="sk-dot-gray" cx="58" cy="40" r="2.2"/><circle class="sk-dot-gray" cx="80" cy="40" r="2.2"/><circle class="sk-dot-gray" cx="102" cy="40" r="2.2"/><circle class="sk-dot-gray" cx="58" cy="18" r="2.2"/><circle class="sk-dot-gray" cx="80" cy="18" r="2.2"/><path class="sk sk-blue sk-bold" d="M36 62 L112 62"/><path class="sk sk-red sk-bold" d="M36 62 L74 18"/><circle class="sk-dot-green" cx="92" cy="28" r="3.6"/>`
+    name: "reach-target",
+    title: "להגיע ליעד",
+    text: "מזיזים את המקדמים עד שהצירוף פוגע ביעד, ורואים את אותה שאלה כמערכת משוואות.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M6 74 H154 M30 84 V8"/><path class="sk sk-blue sk-bold" d="M30 74 L84 56"/><path class="sk sk-red sk-bold" d="M84 56 L118 22"/><circle class="sk-dot-red" cx="118" cy="22" r="6" fill="none"/><circle class="sk-dot-green" cx="118" cy="22" r="3.2"/>`
+  },
+  {
+    name: "rows-columns",
+    title: "שורות או עמודות",
+    text: "אותה מערכת בשתי תמונות: ישרים שנחתכים, וחיצים שמגיעים ליעד.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M80 6 V84"/><path class="sk sk-blue" d="M8 70 L72 20"/><path class="sk sk-red" d="M8 24 L72 66"/><circle class="sk-dot-green" cx="40" cy="45" r="3.2"/><path class="sk sk-blue sk-bold" d="M90 72 L120 58"/><path class="sk sk-red sk-bold" d="M120 58 L146 22"/><circle class="sk-dot-green" cx="146" cy="22" r="3.2"/>`
+  },
+  {
+    name: "dependence",
+    title: "לחזור הביתה",
+    text: "הולכים לפי הווקטורים ומנסים לחזור לראשית בלי לאפס את כל המקדמים.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M6 74 H154 M36 84 V8"/><path class="sk sk-blue sk-bold" d="M36 74 L112 74"/><path class="sk sk-red sk-bold" d="M112 74 L112 24"/><path class="sk sk-purple sk-bold" d="M112 24 L36 74"/><circle class="sk-dot-green" cx="36" cy="74" r="3.6"/>`
+  },
+  {
+    name: "basis-coordinates",
+    title: "מקדמים לפי בסיס",
+    text: "בוחרים בסיס ויעד, ורואים את המתכון היחיד ואיך הסדר משפיע עליו.",
+    sketch: `<path class="sk sk-gray sk-thin" d="M12 78 L72 60 L132 42 M32 54 L92 36 L152 18 M12 78 L32 54 M72 60 L92 36 M132 42 L152 18"/><path class="sk sk-blue sk-bold" d="M12 78 L72 60"/><path class="sk sk-red sk-bold" d="M72 60 L92 36"/><circle class="sk-dot-green" cx="92" cy="36" r="3.4"/>`
   },
   {
     name: "epsilon-delta",

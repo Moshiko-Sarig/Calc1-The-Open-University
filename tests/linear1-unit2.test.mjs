@@ -118,3 +118,22 @@ test("the proofs of the early notes are marked where the theorems are", () => {
   assert.match(note("2.2"), /<!-- infi-proof: 2\.2\.1 -->/);
   for (const number of ["2.3.3", "2.3.7", "2.3.8"]) assert.ok(note("2.3").includes(`<!-- infi-proof: ${number} -->`), number);
 });
+
+const NOTE_DEMOS = { "2.5": ["reach-target", "rows-columns"], "2.6": ["dependence"], "2.7": ["basis-coordinates"] };
+
+test("each core note has its own illustration, and the repeated one is gone", () => {
+  for (const [prefix, names] of Object.entries(NOTE_DEMOS)) {
+    for (const name of names) assert.ok(note(prefix).includes(`<!-- infi-demo: ${name} -->`), `${prefix} ${name}`);
+  }
+  for (const [name, text] of notes) assert.doesNotMatch(text, /infi-demo: span-basis/, name);
+});
+
+test("the new illustrations exist in the client and in the gallery", () => {
+  const demos = fs.readFileSync(path.join(root, "web-app/assets/demos.js"), "utf8");
+  const app = fs.readFileSync(path.join(root, "web-app/assets/app.js"), "utf8");
+  for (const name of Object.values(NOTE_DEMOS).flat()) {
+    assert.ok(demos.includes(`DEMOS["${name}"]`), name);
+    assert.match(app, new RegExp(`name: "${name}"[\\s\\S]*?sketch:`), name);
+  }
+  assert.doesNotMatch(demos + app, /span-basis/);
+});

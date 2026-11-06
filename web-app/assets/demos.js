@@ -1711,32 +1711,335 @@
     update(); return { render() { plot.layout(); draw(); } };
   };
 
-  DEMOS["span-basis"] = (fig) => {
-    const ui = frame(fig, "שתי הוראות: ישר או כל המישור?");
-    const plot = new Plot(ui.plotHost, { view: { xmin: -6, xmax: 6, ymin: -6, ymax: 6 }, rows: 16 });
-    const state = {s:1,t:1,h:1}; const controls={};
-    for(const [key,label] of [["s","המקדם s של a"],["t","המקדם t של b"],["h","הגובה h של b"]]) {
-      controls[key]=slider({label,min:-2,max:2,step:0.25,value:state[key],onInput(v){state[key]=v;update();}});
+  // Coefficient controls and exact solving shared by the chapter 2 demos below.
+  const half = (value) => window.Linalg.fraction(Math.round(value * 2), 2);
+  const value = (fraction) => fraction.n / fraction.d;
+  const same = (p, q) => Math.abs(p[0] - q[0]) < 1e-9 && Math.abs(p[1] - q[1]) < 1e-9;
+  const term = (c, name) => (c < 0 ? `(${fmt(c)})${name}` : `${fmt(c)}${name}`);
+  const combine = (coefficients, vectors) =>
+    vectors.reduce((sum, vector, i) => [sum[0] + coefficients[i] * vector[0], sum[1] + coefficients[i] * vector[1]], [0, 0]);
+  const columnsSystem = (a, b, target) =>
+    window.Linalg.toFractions([0, 1].map((i) => [half(a[i]), half(b[i]), half(target[i])]));
+
+  function drawSpanLine(plot, direction) {
+    plot.line(-40 * direction[0], -40 * direction[1], 40 * direction[0], 40 * direction[1], { cls: "pc-gray", dash: "5 5" });
+  }
+
+  function drawTarget(plot, target, label = "יעד") {
+    plot.dot(target[0], target[1], { cls: "pc-orange", hollow: true, r: plot.cell * 0.5 });
+    plot.text(target[0], target[1], label, { dy: 1.35, cls: "pc-orange-text" });
+  }
+
+  // Walks the vectors head to tail, each scaled by its coefficient.
+  function drawWalk(plot, coefficients, vectors, classes) {
+    let at = [0, 0];
+    vectors.forEach((vector, i) => {
+      const next = [at[0] + coefficients[i] * vector[0], at[1] + coefficients[i] * vector[1]];
+      if (!same(at, next)) vectorArrow(plot, at, next, classes[i], "", "5 4");
+      at = next;
+    });
+    return at;
+  }
+
+  // 2.5: a linear combination as a recipe that has to hit a target.
+  DEMOS["reach-target"] = (fig) => {
+    const { classify } = window.Linalg;
+    const ui = frame(fig, "להגיע ליעד: מוצאים את המתכון");
+    const plot = new Plot(ui.plotHost, { view: { xmin: -8, xmax: 8, ymin: -7, ymax: 8 }, rows: 16 });
+    const FREE = { a: [2, 1], b: [-1, 1] };
+    const LINE = { a: [1, 2], b: [2, 4] };
+    const CASES = [
+      { label: "יעד ראשון", ...FREE, target: [4, 5] },
+      { label: "יעד שני", ...FREE, target: [-4, 1] },
+      { label: "יעד שלישי", ...FREE, target: [0, -3] },
+      { label: "על ישר אחד: יעד מחוץ לישר", ...LINE, target: [1, 0] },
+      { label: "על ישר אחד: יעד על הישר", ...LINE, target: [3, 6] }
+    ];
+    const state = { index: 0, s: 1, t: 0 };
+    const current = () => CASES[state.index];
+    const controls = {};
+    for (const [key, label] of [["s", "המקדם s של a"], ["t", "המקדם t של b"]]) {
+      controls[key] = slider({ label, min: -3, max: 3, step: 0.5, value: state[key], onInput(v) { state[key] = v; update(); } });
       ui.controls.append(controls[key].el);
     }
-    function set(values){Object.assign(state,values);for(const key of Object.keys(values))controls[key].set(state[key]);update();}
-    ui.buttons.append(button("תלויים: אותו ישר",()=>set({h:0}),"is-quiet"),button("בסיס: שני כיוונים",()=>set({h:1}),"is-quiet"),button("עוד מתכון לאותה נקודה",()=>set({s:state.s===1?0:1,t:state.s===1?1:0,h:0}),"is-quiet"));
-    function draw(){
-      plot.clear();plot.drawAxes();const {s:cs,t,h}=state;
-      // A finite sample of coefficients, not the whole real span.
-      for(let i=-2;i<=2;i++)for(let j=-2;j<=2;j++)plot.dot(i+j,j*h,{cls:"pc-gray",r:2});
-      if(h===0)plot.hline(0,{cls:"pc-gray",dash:"5 4"});
-      vectorArrow(plot,[0,0],[1,0],"pc-blue",h===0?"a=b":"a");
-      vectorArrow(plot,[0,0],[1,h],"pc-red",h===0?"":"b",h===0?"4 4":null);
-      vectorArrow(plot,[0,0],[cs,0],"pc-blue","","4 4");
-      vectorArrow(plot,[cs,0],[cs+t,t*h],"pc-red","","4 4");
-      plot.dot(cs+t,t*h,{cls:"pc-green",r:plot.cell*0.35});plot.text(cs+t,t*h,"sa+tb",{dy:1.25,cls:"pc-green-text"});
+    const setCoefficients = (cs, t) => {
+      state.s = cs;
+      state.t = t;
+      controls.s.set(cs);
+      controls.t.set(t);
+      update();
+    };
+    ui.buttons.append(
+      ...CASES.map((item, index) => button(item.label, () => { state.index = index; setCoefficients(1, 0); }, "is-quiet")),
+      button("הראו לי מתכון", () => {
+        const { a, b, target } = current();
+        const result = classify(columnsSystem(a, b, target));
+        if (result.kind === "one") setCoefficients(value(result.solution[0]), value(result.solution[1]));
+        else if (result.kind === "infinite") setCoefficients(3, 0);
+        else {
+          setCoefficients(0, 0);
+          ui.say(`אין מתכון להראות: למערכת <strong>אין פתרון</strong>, ולכן היעד אינו צירוף של ${m("a, b")}.`);
+        }
+      })
+    );
+    const rows = h("div", { class: "demo-rows" });
+    ui.panel.prepend(rows);
+
+    function draw() {
+      plot.clear();
+      plot.drawAxes();
+      const { a, b, target } = current();
+      if (same(a, LINE.a)) drawSpanLine(plot, a);
+      vectorArrow(plot, [0, 0], a, "pc-blue", "a");
+      vectorArrow(plot, [0, 0], b, "pc-red", "b");
+      drawTarget(plot, target);
+      const end = drawWalk(plot, [state.s, state.t], [a, b], ["pc-blue", "pc-red"]);
+      plot.dot(end[0], end[1], { cls: "pc-green", r: plot.cell * 0.32 });
     }
-    function update(){
-      draw();const {s:cs,t,h}=state;
-      ui.say(`${m(`a = (1, 0), b = (1, ${fmt(h)})`)}. ${m(`sa + tb = ${pair([cs+t,t*h])}`)}. ${h===0 ? `הווקטורים זהים ולכן הסדרה תלויה: ${m("a − b = 0")}. כל צירוף נשאר על ציר x; אי אפשר להגיע ל-${m("(0, 1)")}. נסו עוד מתכון לאותה נקודה.` : `הווקטורים בלתי תלויים ומהווים בסיס של ℝ². לכל יעד ${m("(x, y)")} יש מתכון יחיד: ${m("t = y/h, s = x − y/h")}.`} הנקודות האפורות הן דוגמאות עם מקדמים שלמים בין ‎−2 ל-2; הפרישה כוללת את כל המקדמים הממשיים, גם מחוץ לטווח המחוונים.`);
+
+    function update() {
+      draw();
+      const { a, b, target } = current();
+      const system = columnsSystem(a, b, target);
+      const result = classify(system);
+      rows.replaceChildren(matrixNode(system), h("div", { class: "demo-system", dir: "ltr" }, system.map((row) => h("span", { text: equationOf(row, (column) => "st"[column]) }))));
+      const end = combine([state.s, state.t], [a, b]);
+      const where = `${m(`${term(state.s, "a")} + ${term(state.t, "b")} = ${pair(end)}`)}. היעד הוא ${m(pair(target))}.`;
+      if (same(end, target) && result.kind === "one") ui.say(`${where} <strong>הגעתם.</strong> המקדמים ${m(`s = ${fmt(state.s)}, t = ${fmt(state.t)}`)} הם הפתרון של המערכת, וזה המתכון היחיד.`);
+      else if (same(end, target)) ui.say(`${where} <strong>הגעתם, אבל זה לא המתכון היחיד.</strong> מכיוון ש-${m("b = 2a")}, גם ${m(`s = ${fmt(state.s + 2)}, t = ${fmt(state.t - 1)}`)} מגיע לאותו מקום. למערכת יש אינסוף פתרונות.`);
+      else if (result.kind === "none") ui.say(`${where} כל צירוף נשאר על הישר המקווקו, והיעד לא עליו. אי אפשר להגיע אליו, ובדירוג המערכת מתקבלת שורת סתירה.`);
+      else ui.say(`${where} הזיזו את המקדמים עד שהנקודה הירוקה תיכנס לעיגול. כל עמודה במטריצה היא וקטור, והעמודה האחרונה היא היעד.`);
     }
-    update();return {render(){plot.layout();draw();}};
+
+    update();
+    return { render() { plot.layout(); draw(); } };
+  };
+
+  // 2.5 and chapter 1: one system read by rows (lines) and by columns (arrows).
+  DEMOS["rows-columns"] = (fig) => {
+    const { classify } = window.Linalg;
+    const ui = frame(fig, "אותה מערכת: שורות או עמודות");
+    const CASES = [
+      { label: "פתרון יחיד", a: [2, 1], b: [-1, 1], target: [4, 5], sample: [3, 2] },
+      { label: "אין פתרון", a: [1, 2], b: [2, 4], target: [1, 0], sample: null },
+      { label: "אינסוף פתרונות", a: [1, 2], b: [2, 4], target: [3, 6], sample: [1, 1] }
+    ];
+    const view = { xmin: -6, xmax: 8, ymin: -3, ymax: 7 };
+    const rowHost = h("div");
+    const columnHost = h("div");
+    ui.plotHost.append(rowHost, columnHost);
+    const rowPlot = new Plot(rowHost, { view, rows: 12 });
+    const columnPlot = new Plot(columnHost, { view, rows: 12 });
+    const state = { index: 0, x: 1, y: 1 };
+    const current = () => CASES[state.index];
+    const controls = {};
+    for (const key of ["x", "y"]) {
+      controls[key] = slider({ label: `הניחוש ל-${key}`, min: -3, max: 4, step: 0.5, value: state[key], onInput(v) { state[key] = v; update(); } });
+      ui.controls.append(controls[key].el);
+    }
+    const setGuess = (x, y) => {
+      state.x = x;
+      state.y = y;
+      controls.x.set(x);
+      controls.y.set(y);
+      update();
+    };
+    ui.buttons.append(
+      ...CASES.map((item, index) => button(item.label, () => { state.index = index; setGuess(1, 1); }, "is-quiet")),
+      button("הראו פתרון", () => {
+        const { sample } = current();
+        if (sample) setGuess(sample[0], sample[1]);
+      })
+    );
+    const rows = h("div", { class: "demo-rows" });
+    ui.panel.prepend(rows);
+
+    function drawEquation(p, q, r, cls) {
+      if (q !== 0) rowPlot.curve((x) => (r - p * x) / q, { cls, width: 2.4 });
+      else if (p !== 0) rowPlot.vline(r / p, { cls, width: 2.4 });
+    }
+
+    function draw() {
+      const { a, b, target } = current();
+      rowPlot.clear();
+      rowPlot.drawAxes();
+      drawEquation(a[0], b[0], target[0], "pc-blue");
+      drawEquation(a[1], b[1], target[1], "pc-red");
+      rowPlot.dot(state.x, state.y, { cls: "pc-green", r: rowPlot.cell * 0.32 });
+      rowPlot.text(rowPlot.xLeft + 0.4 * rowPlot.dx, rowPlot.yTop - 1.2 * rowPlot.dy, "שורות: כל משוואה היא ישר", { anchor: "start" });
+
+      columnPlot.clear();
+      columnPlot.drawAxes();
+      vectorArrow(columnPlot, [0, 0], a, "pc-blue", "c₁");
+      vectorArrow(columnPlot, [0, 0], b, "pc-red", "c₂");
+      drawTarget(columnPlot, target, "b");
+      const end = drawWalk(columnPlot, [state.x, state.y], [a, b], ["pc-blue", "pc-red"]);
+      columnPlot.dot(end[0], end[1], { cls: "pc-green", r: columnPlot.cell * 0.32 });
+      columnPlot.text(columnPlot.xLeft + 0.4 * columnPlot.dx, columnPlot.yTop - 1.2 * columnPlot.dy, "עמודות: כל נעלם הוא מקדם של חץ", { anchor: "start" });
+    }
+
+    function update() {
+      draw();
+      const { a, b, target } = current();
+      const system = columnsSystem(a, b, target);
+      const result = classify(system);
+      rows.replaceChildren(matrixNode(system), h("div", { class: "demo-system", dir: "ltr" }, system.map((row) => h("span", { text: equationOf(row, (column) => "xy"[column]) }))));
+      const end = combine([state.x, state.y], [a, b]);
+      const guess = m(`(x, y) = ${pair([state.x, state.y])}`);
+      const reach = m(`${term(state.x, "c₁")} + ${term(state.y, "c₂")} = ${pair(end)}`);
+      if (same(end, target)) ui.say(`${guess} <strong>פותר את המערכת.</strong> למעלה הנקודה נמצאת על שני הישרים, ולמטה החיצים מגיעים בדיוק ל-${m("b")}. ${result.kind === "infinite" ? "כאן שני הישרים מתלכדים, ולכן יש עוד הרבה פתרונות." : "זו אותה עובדה בשתי תמונות."}`);
+      else if (result.kind === "none") ui.say(`${guess}. ${reach}. למעלה הישרים מקבילים ולא נפגשים. למטה ${m("b")} מחוץ לישר של החיצים. בשתי התמונות <strong>אין פתרון</strong>.`);
+      else ui.say(`${guess}. ${reach}, ועדיין לא ${m(pair(target))}. שנו את הניחוש: למעלה הנקודה צריכה להיות על שני הישרים, ולמטה החיצים צריכים להגיע ל-${m("b")}. שני התנאים מתקיימים יחד.`);
+    }
+
+    update();
+    return {
+      render() {
+        rowPlot.layout();
+        columnPlot.layout();
+        draw();
+      }
+    };
+  };
+
+  // 2.6: dependence as a walk that returns home with coefficients that are not all zero.
+  DEMOS["dependence"] = (fig) => {
+    const { fraction } = window.Linalg;
+    const ui = frame(fig, "לחזור הביתה: האם יש וקטור מיותר?");
+    const plot = new Plot(ui.plotHost, { view: { xmin: -4, xmax: 4, ymin: -4.5, ymax: 4.5 }, rows: 18 });
+    const CASES = [
+      { label: "כיוונים שונים", vectors: [[2, 1], [-1, 1]], relation: null },
+      { label: "על ישר אחד", vectors: [[1, 2], [2, 4]], relation: [2, -1] },
+      { label: "שלושה במישור", vectors: [[2, 0], [0, 1], [1, 1]], relation: [1, 2, -2] },
+      { label: "עם וקטור האפס", vectors: [[0, 0], [1, 1]], relation: [1, 0] }
+    ];
+    const CLASSES = ["pc-blue", "pc-red", "pc-purple"];
+    const nameOf = (i) => `a${sub(i + 1)}`;
+    const state = { index: 0, coefficients: [1, 1, 1] };
+    const current = () => CASES[state.index];
+    const controls = [0, 1, 2].map((i) => {
+      const control = slider({ label: `המקדם של ${nameOf(i)}`, min: -3, max: 3, step: 0.5, value: 1, onInput(v) { state.coefficients[i] = v; update(); } });
+      ui.controls.append(control.el);
+      return control;
+    });
+    const setCoefficients = (values) => {
+      state.coefficients = [0, 1, 2].map((i) => values[i] ?? 0);
+      controls.forEach((control, i) => {
+        control.set(state.coefficients[i]);
+        control.el.style.display = i < current().vectors.length ? "" : "none";
+      });
+      update();
+    };
+    ui.buttons.append(
+      ...CASES.map((item, index) => button(item.label, () => { state.index = index; setCoefficients([1, 1, 1]); }, "is-quiet")),
+      button("הראו קשר", () => {
+        const { relation, vectors } = current();
+        setCoefficients(relation || vectors.map(() => 0));
+      })
+    );
+
+    // Isolates one vector from a relation, as in the proof of theorem 2.6.3.
+    function isolate(coefficients, count) {
+      const pivot = coefficients.findIndex((c, i) => i < count && c !== 0);
+      const terms = [];
+      for (let j = 0; j < count; j += 1) {
+        if (j === pivot) continue;
+        terms.push(`(${minusSign(fraction(-Math.round(coefficients[j] * 2), Math.round(coefficients[pivot] * 2)))})${nameOf(j)}`);
+      }
+      return `${nameOf(pivot)} = ${terms.join(" + ")}`;
+    }
+
+    function draw() {
+      plot.clear();
+      plot.drawAxes();
+      const { vectors } = current();
+      vectors.forEach((vector, i) => vectorArrow(plot, [0, 0], vector, CLASSES[i], nameOf(i)));
+      drawTarget(plot, [0, 0], "בית");
+      const end = drawWalk(plot, state.coefficients, vectors, CLASSES);
+      plot.dot(end[0], end[1], { cls: "pc-green", r: plot.cell * 0.32 });
+    }
+
+    function update() {
+      draw();
+      const { vectors, relation } = current();
+      const used = state.coefficients.slice(0, vectors.length);
+      const end = combine(used, vectors);
+      const allZero = used.every((c) => c === 0);
+      const shown = m(`${used.map((c, i) => term(c, nameOf(i))).join(" + ")} = ${pair(end)}`);
+      if (same(end, [0, 0]) && allZero) ui.say(`${shown}. חזרתם הביתה כי לא זזתם: זה <strong>הצירוף הטריוויאלי</strong>, והוא עובד לכל וקטורים. ${relation ? "בדקו אם יש דרך אחרת לחזור." : "בזוג הזה אין דרך אחרת, ולכן הווקטורים <strong>בלתי תלויים</strong>."}`);
+      else if (same(end, [0, 0])) ui.say(`${shown}. חזרתם הביתה עם מקדמים שלא כולם אפס, ולכן הווקטורים <strong>תלויים</strong>. מעבירים אגף ומבודדים וקטור אחד: ${m(isolate(used, vectors.length))}.`);
+      else if (relation && vectors.length > 2) ui.say(`${shown}. שלושה וקטורים ב-${m("ℝ²")} תמיד תלויים, לפי משפט 2.6.6, ולכן יש דרך לחזור הביתה. נסו למצוא אותה.`);
+      else if (relation) ui.say(`${shown}. בזוג הזה יש דרך לחזור הביתה בלי לאפס את כל המקדמים. נסו למצוא אותה.`);
+      else ui.say(`${shown}. הכיוונים שונים, ולכן כל עוד מקדם אחד אינו אפס לא תחזרו הביתה. אפסו את שני המקדמים כדי לראות את המקרה היחיד שעובד.`);
+    }
+
+    setCoefficients([1, 1, 1]);
+    return { render() { plot.layout(); draw(); } };
+  };
+
+  // 2.7: the unique coordinates of a target in an ordered basis.
+  DEMOS["basis-coordinates"] = (fig) => {
+    const { classify } = window.Linalg;
+    const ui = frame(fig, "אותו יעד, מתכון לפי בסיס");
+    const plot = new Plot(ui.plotHost, { view: { xmin: -8, xmax: 8, ymin: -7, ymax: 7 }, rows: 16 });
+    const BASES = [
+      { label: "הבסיס הסטנדרטי", vectors: [[1, 0], [0, 1]] },
+      { label: "בסיס (1,1), (1,2)", vectors: [[1, 1], [1, 2]] },
+      { label: "בסיס (2,1), (−1,1)", vectors: [[2, 1], [-1, 1]] },
+      { label: "לא בסיס: (1,2), (2,4)", vectors: [[1, 2], [2, 4]] }
+    ];
+    const state = { index: 1, swapped: false, x: 4, y: 5 };
+    const ordered = () => {
+      const [first, second] = BASES[state.index].vectors;
+      return state.swapped ? [second, first] : [first, second];
+    };
+    for (const key of ["x", "y"]) {
+      const control = slider({ label: `רכיב ${key} של היעד`, min: -5, max: 5, step: 0.5, value: state[key], onInput(v) { state[key] = v; update(); } });
+      ui.controls.append(control.el);
+    }
+    ui.buttons.append(
+      ...BASES.map((item, index) => button(item.label, () => { state.index = index; state.swapped = false; update(); }, "is-quiet")),
+      button("החלפת הסדר", () => { state.swapped = !state.swapped; update(); })
+    );
+
+    function draw() {
+      plot.clear();
+      plot.drawAxes();
+      const [a, b] = ordered();
+      const target = [state.x, state.y];
+      const result = classify(columnsSystem(a, b, target));
+      const independent = a[0] * b[1] - a[1] * b[0] !== 0;
+      if (independent) {
+        // Two axes marked in whole steps: a full skew grid reads as hatching on a phone.
+        drawSpanLine(plot, a);
+        drawSpanLine(plot, b);
+        for (let k = -12; k <= 12; k += 1) {
+          plot.dot(k * a[0], k * a[1], { cls: "pc-gray", r: 2 });
+          plot.dot(k * b[0], k * b[1], { cls: "pc-gray", r: 2 });
+        }
+      } else drawSpanLine(plot, a);
+      vectorArrow(plot, [0, 0], a, "pc-blue", "a₁");
+      vectorArrow(plot, [0, 0], b, "pc-red", "a₂");
+      if (result.kind === "one") drawWalk(plot, result.solution.map(value), [a, b], ["pc-blue", "pc-red"]);
+      plot.dot(target[0], target[1], { cls: "pc-green", r: plot.cell * 0.32 });
+    }
+
+    function update() {
+      draw();
+      const [a, b] = ordered();
+      const target = [state.x, state.y];
+      const result = classify(columnsSystem(a, b, target));
+      const order = `${m(`a₁ = ${pair(a)}, a₂ = ${pair(b)}`)}`;
+      if (result.kind === "one") {
+        const [cs, t] = result.solution.map((c) => minusSign(c));
+        const wrap = (text) => (/[−/]/.test(text) ? `(${text})` : text);
+        ui.say(`${order}. ${m(`${pair(target)} = ${wrap(cs)}a₁ + ${wrap(t)}a₂`)}. סדרת המקדמים היא ${m(`(${cs}, ${t})`)}, וזה <strong>המתכון היחיד</strong> בסדר הזה (משפט 2.7.9). החליפו את הסדר: הווקטור לא זז, רק המקדמים מתחלפים.`);
+      } else if (result.kind === "none") ui.say(`${order}. הווקטורים תלויים, ולכן כל צירוף שלהם נשאר על הישר המקווקו. היעד מחוץ לישר, ו<strong>אין לו מתכון</strong>. זה לא בסיס: אין פרישה.`);
+      else ui.say(`${order}. הווקטורים תלויים. היעד על הישר המקווקו, ולכן יש לו <strong>הרבה מתכונים</strong>, ואין יחידות. גם כאן זה לא בסיס.`);
+    }
+
+    update();
+    return { render() { plot.layout(); draw(); } };
   };
 
   // ---------------------------------------------------------------------------

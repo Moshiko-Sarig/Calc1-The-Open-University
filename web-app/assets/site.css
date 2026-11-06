@@ -2616,6 +2616,8 @@ bdi {
 .pc-blue-text { fill: var(--pencil-blue); }
 .pc-red-text { fill: var(--pencil-red); }
 .pc-green-text { fill: var(--pencil-green); }
+.pc-orange-text { fill: var(--pencil-orange); }
+.pc-purple-text { fill: var(--pencil-purple); }
 
 .demo-band.band-red { fill: var(--band-red); }
 .demo-band.band-blue { fill: var(--band-blue); }
