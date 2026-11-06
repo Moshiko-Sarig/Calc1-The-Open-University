@@ -31,9 +31,19 @@ const sha = (file) => crypto.createHash("sha256").update(fs.readFileSync(file)).
 // What a course publishes. A course with no figures of its own has no reason to hold
 // any raster image, so one there is treated as a page of the book, however it was encoded.
 export function publishedPaths(course) {
+  // Only the exact user-supplied exam crops are allowed, never book pages or
+  // arbitrary new images. Source-book hash checks below still take precedence.
+  const imageAllowlist = new Map();
+  if (course.archiveDir) {
+    const report = JSON.parse(fs.readFileSync(path.join(root, course.archiveDir, "import-report.json"), "utf8"));
+    for (const image of report.images) {
+      imageAllowlist.set(path.resolve(root, course.outDir, "assets/archive", image.path), image.sha256);
+    }
+  }
   return {
     paths: [path.resolve(root, course.vaultDir), path.resolve(root, course.outDir)],
-    forbidImages: !course.figuresDir
+    forbidImages: !course.figuresDir,
+    imageAllowlist
   };
 }
 
@@ -47,14 +57,15 @@ export function trackedTextFiles() {
     .filter((file) => fs.existsSync(file));
 }
 
-export function findLeaks(paths, { sourceDir, forbidImages = false } = {}) {
+export function findLeaks(paths, { sourceDir, forbidImages = false, imageAllowlist = new Map() } = {}) {
   const sourceImages = new Set(sourceDir && fs.existsSync(sourceDir) ? walk(sourceDir).filter((file) => IMAGE_FILE.test(file)).map(sha) : []);
   const leaks = [];
   for (const file of paths.flatMap(walk)) {
     if (/\.pdf$/i.test(file)) leaks.push(`${file}: PDF file`);
     else if (IMAGE_FILE.test(file)) {
-      if (forbidImages) leaks.push(`${file}: raster image in a course with no figures`);
-      else if (sourceImages.has(sha(file))) leaks.push(`${file}: page image from the source`);
+      const digest = sha(file);
+      if (sourceImages.has(digest)) leaks.push(`${file}: page image from the source`);
+      else if (forbidImages && imageAllowlist.get(path.resolve(file)) !== digest) leaks.push(`${file}: raster image in a course with no figures`);
     } else if (!BINARY_FILE.test(file)) {
       const text = fs.readFileSync(file, "utf8");
       const pattern = FORBIDDEN_TEXT.find((candidate) => candidate.test(text));

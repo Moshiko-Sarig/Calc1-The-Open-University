@@ -218,12 +218,13 @@ function saveExpanded() {
 const DRAWER_LINKS = [
   ["home", "#/", "בית"],
   ["index", "#/index", "כל הפתקים"],
-  ["exams", "#/exams", "מבחנים"],
+  ["exams", "#/exams", course.features.questionArchive ? "מבחנים ומטלות" : "מבחנים"],
   ["graph", "#/graph", "גרף קשרים"]
 ].filter(([view]) => view !== "exams" || course.features.exams);
 
 // The template's header lists every view; a course without exams drops that link.
 if (!course.features.exams) document.querySelectorAll('[data-nav="exams"]').forEach((link) => link.remove());
+if (course.features.questionArchive) document.querySelectorAll('[data-nav="exams"]').forEach((link) => { link.textContent = "מבחנים ומטלות"; });
 document.querySelector(".primary-nav")?.insertAdjacentHTML("beforeend", courseSwitchLink("course-switch"));
 
 // Two guides the course leans on in every exam: what may be cited from the
@@ -967,14 +968,14 @@ function renderHome() {
           <div class="home-intro-actions">
             ${firstUnit ? `<a class="button button-primary" href="${pageHref(firstUnit)}">להתחלת הלימוד <span aria-hidden="true">←</span></a>` : ""}
             ${exam ? `<a class="home-quick-link" href="${pageHref(exam)}">${escapeHtml(words.theTheorems)}</a>` : ""}
-            ${exam && course.features.exams ? `<a class="home-quick-link" href="#/exams">מבחני עבר</a>` : ""}
+            ${course.features.exams ? `<a class="home-quick-link" href="#/exams">${course.features.questionArchive ? "מבחנים ומטלות" : "מבחני עבר"}</a>` : ""}
             ${game ? `<a class="home-quick-link" href="${game.href}">משחק ε‑δ</a>` : ""}
             ${courseSwitchLink("home-quick-link")}
           </div>
           <p class="home-intro-meta">${[
             countOf(units.length, words.oneUnit, words.studyUnits),
             data.examTheorems?.length ? `${data.examTheorems.length} ${escapeHtml(words.theorems)}` : "",
-            course.features.exams ? `${(data.exams || []).length} מבחני עבר` : ""
+            data.archiveSummary ? `${data.archiveSummary.exams} מבחנים ו-${data.archiveSummary.assignments} מטלות` : course.features.exams ? `${(data.exams || []).length} מבחני עבר` : ""
           ]
             .filter(Boolean)
             .join(' <span aria-hidden="true">·</span> ')}</p>

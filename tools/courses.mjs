@@ -136,11 +136,12 @@ export const COURSES = [
     // Notes sort by name, so without this definition cards would not follow the book.
     sortStatementsByNumber: true,
     storagePrefix: "linear1",
-    scripts: ["linalg.js"],
+    scripts: ["linalg.js", "linear-archive.js"],
+    archiveDir: "linear1-archive",
     figuresDir: null,
     examsDir: null,
     theoremListTitle: "משפטי מפתח",
     theoremListLabel: "שברשימת משפטי המפתח",
-    features: { exams: false }
+    features: { exams: true, questionArchive: true }
   }
 ];

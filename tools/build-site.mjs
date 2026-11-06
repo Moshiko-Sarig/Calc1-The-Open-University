@@ -1309,6 +1309,7 @@ export function buildCourse(nextCourse) {
   };
 
   const payload = {
+    archiveSummary: course.archiveDir ? JSON.parse(fs.readFileSync(path.join(root, course.archiveDir, "questions.json"), "utf8")).summary : null,
     generatedAt: new Date().toISOString(),
     notice: course.notice,
     course: publicCourseInfo(),
@@ -1336,6 +1337,13 @@ export function buildCourse(nextCourse) {
   writeGeneratedContent(payload);
   copyFigures();
   copyExams();
+  if (course.archiveDir) {
+    const source = path.join(root, course.archiveDir);
+    const output = path.join(outDir, "assets", "archive");
+    fs.mkdirSync(output, { recursive: true });
+    fs.copyFileSync(path.join(source, "questions.json"), path.join(output, "questions.json"));
+    fs.cpSync(path.join(source, "images"), path.join(output, "images"), { recursive: true });
+  }
   console.log(`Built ${course.id}: ${pages.length} pages, ${edges.length} graph edges -> ${path.relative(root, outDir)}`);
   return payload;
 }
@@ -1352,7 +1360,7 @@ function courseStats(item, payload) {
     units === 1 ? item.words.oneUnit : `${units} ${item.words.units}`,
     `${payload.pages.length} פתקים`,
     theorems ? `${theorems} ${item.words.theorems}` : "",
-    item.features.exams && exams ? `${exams} מבחני עבר` : ""
+    payload.archiveSummary ? `${payload.archiveSummary.exams} מבחנים ו-${payload.archiveSummary.assignments} מטלות` : item.features.exams && exams ? `${exams} מבחני עבר` : ""
   ].filter(Boolean);
 }
 

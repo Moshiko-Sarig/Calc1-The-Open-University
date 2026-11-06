@@ -5542,3 +5542,58 @@ details.callout > summary.callout-title { min-height: 32px; }
   background: var(--accent);
   color: var(--on-accent);
 }
+
+/* Course archive: the course's existing paper, type and navigation. */
+.archive { max-width: 960px; margin-inline: auto; padding-block: 24px; }
+.archive h1 { font-size: 28px; }
+.archive h2 { font-size: 20px; }
+.archive-meta, .archive-row > p { color: var(--ink-2); }
+.archive-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-block: 24px 16px; }
+.archive-filters label { display: grid; gap: 6px; font-size: 14px; min-width: 100px; }
+.archive-filters select, .archive-filters input { min-height: 44px; max-width: 100%; width: 100%; font: inherit; color: inherit; background: var(--surface, transparent); border: 1px solid currentColor; border-radius: 4px; padding: 8px; }
+.archive-search { flex: 1; }
+.archive-row { padding-block: 16px; border-bottom: 1px solid var(--line, #bbb); }
+.archive-row h2, .archive-row p { margin-block: 4px; }
+.archive-question {
+  /* Isolate the scan blending to its own sheet, including expanded solutions. */
+  isolation: isolate;
+  margin-block: 32px 48px;
+  padding: 20px 24px;
+  scroll-margin-top: 100px;
+  border: 1px solid var(--paper-edge);
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--sheet-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--sheet-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.archive-question > h2 { margin-block-start: 0; }
+.archive-question-nav { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-block: 20px; }
+.archive-question-nav a { display: inline-flex; align-items: center; min-height: 44px; }
+.archive-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-block: 12px;
+  mix-blend-mode: multiply;
+}
+:root[data-theme="dark"] .archive-image {
+  /* White paper becomes black (neutral for screen); dark ink becomes light. */
+  filter: invert(1) hue-rotate(180deg) brightness(.88);
+  mix-blend-mode: screen;
+}
+.archive-solution { margin-block: 16px; }
+.archive summary { cursor: pointer; min-height: 44px; padding-block: 10px; }
+.archive-solution > summary { font-weight: 600; }
+.archive-missing { font-style: italic; }
+@media (max-width: 600px) {
+  .archive h1 { font-size: 24px; }
+  .archive-filters label { flex: 1 1 40%; min-width: 0; }
+  .archive-filters .archive-search { flex-basis: 100%; }
+  .archive-question { padding: 16px 12px; }
+}
+@media print {
+  .archive-question { background: white; border-color: #ccc; color: black; }
+  :root .archive-image,
+  :root[data-theme] .archive-image { filter: none; mix-blend-mode: normal; }
+}

@@ -309,6 +309,7 @@
   }
 
   function render(root, route) {
+    if (course.features.questionArchive && window.LinearArchive) return window.LinearArchive.render(root, route);
     if (!course.features.exams) renderNoExams(root);
     else if (route.id) renderExam(root, route.id, route.section);
     else renderList(root, route);

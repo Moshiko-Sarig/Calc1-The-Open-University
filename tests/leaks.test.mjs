@@ -92,8 +92,8 @@ test("publishedPaths covers every course's vault and output, and they all exist"
 
 test("every course that has no figures publishes no images and no stamps", () => {
   for (const course of COURSES.filter((item) => !item.figuresDir)) {
-    const { paths, forbidImages } = publishedPaths(course);
-    assert.deepEqual(findLeaks(paths, { forbidImages, sourceDir: SOURCE_DIR }), []);
+    const { paths, forbidImages, imageAllowlist } = publishedPaths(course);
+    assert.deepEqual(findLeaks(paths, { forbidImages, imageAllowlist, sourceDir: SOURCE_DIR }), []);
   }
 });
 
