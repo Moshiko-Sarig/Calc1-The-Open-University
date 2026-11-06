@@ -24,9 +24,8 @@ test("linear1 gets its own index.html with its own course identity", () => {
 const landing = (...parts) => fs.readFileSync(path.join(root, ...parts), "utf8");
 
 test("the calculus vault's mark is the infinity sign, on its site and on its card", () => {
-  const mark = /<span class="brand-mark" aria-hidden="true">∞<\/span>/;
-  assert.match(fs.readFileSync(path.join(root, "docs", "infi", "index.html"), "utf8"), mark);
-  assert.match(landing("docs", "index.html"), mark);
+  assert.match(fs.readFileSync(path.join(root, "docs", "infi", "index.html"), "utf8"), /<span class="brand-mark" aria-hidden="true">∞<\/span>/);
+  assert.match(landing("docs", "index.html"), /<span class="course-cover-mark" aria-hidden="true">∞<\/span>/);
   assert.match(fs.readFileSync(out("index.html"), "utf8"), /<span class="brand-mark" aria-hidden="true">λ<\/span>/);
 });
 
@@ -49,6 +48,24 @@ test("each card counts what that course really has", () => {
   assert.match(html, new RegExp(`${infi.pages.length} פתקים`));
   assert.match(html, new RegExp(`${infi.exams.length} מבחני עבר`));
   assert.match(html, new RegExp(`${readPayload("docs/linear1").pages.length} פתקים`));
+});
+
+test("every course is a notebook with its own cover colour", () => {
+  const html = landing("docs", "index.html");
+  for (const course of COURSES) {
+    assert.match(course.coverColor, /^#[0-9a-f]{6}$/i, course.id);
+    assert.ok(html.includes(`style="--cover:${course.coverColor}"`), course.id);
+  }
+  assert.equal(new Set(COURSES.map((course) => course.coverColor)).size, COURSES.length);
+});
+
+test("a returning reader can continue, through a link that stays hidden until the script fills it", () => {
+  const html = landing("docs", "index.html");
+  for (const course of COURSES) {
+    assert.ok(html.includes(`data-resume="${course.storagePrefix}"`), course.id);
+  }
+  assert.equal(html.match(/class="course-resume"[^>]*\bhidden\b/g).length, COURSES.length);
+  assert.match(html, /-recent/);
 });
 
 test("a new course in the configuration gets a card without touching the page", () => {

@@ -65,9 +65,9 @@
         <h1>באיזה קורס לומדים היום?</h1>
         <p>{{SITE_INTRO}}</p>
       </div>
-      <div class="course-grid">
+      <ul class="course-grid">
 {{COURSE_CARDS}}
-      </div>
+      </ul>
     </main>
 
     <footer class="site-footer">
@@ -83,6 +83,18 @@
       (function () {
         var root = document.documentElement;
         var button = document.querySelector("[data-theme-toggle]");
+        // A reader who has been here before can go straight back to their last note.
+        document.querySelectorAll("[data-resume]").forEach(function (link) {
+          try {
+            var last = JSON.parse(localStorage.getItem(link.dataset.resume + "-recent") || "[]")[0];
+            if (/^p-[\w-]+$/.test(last)) {
+              link.href += "#/page/" + last;
+              link.hidden = false;
+            }
+          } catch (error) {
+            /* nothing saved: the link stays hidden */
+          }
+        });
         function sync() {
           button.setAttribute("aria-pressed", String(root.dataset.theme === "dark"));
         }

@@ -4759,87 +4759,222 @@ details.callout > summary.callout-title { min-height: 32px; }
 }
 .home-quick-link:hover, .home-start-link:hover { text-decoration: underline; }
 
-/* The home page: one card per course. */
+/* The home page: every course is a notebook lying on squared paper. */
 .landing {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(to right, var(--sheet-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--sheet-grid) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell);
+  background-position: right 0 top 0;
 }
 .landing-main {
   flex: 1;
   width: 100%;
-  max-width: 1040px;
+  max-width: 1240px;
   margin-inline: auto;
-  padding: 56px 24px 72px;
+  padding: clamp(32px, 5vw, 64px) 24px clamp(48px, 7vw, 96px);
 }
 .landing-intro h1 {
-  margin: 0 0 10px;
+  margin: 0 0 14px;
   font-family: var(--font-display);
-  font-size: clamp(2rem, 1.5rem + 2.2vw, 3rem);
-  line-height: 1.15;
+  font-size: clamp(2.3rem, 0.9rem + 5.6vw, 5.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
 }
 .landing-intro p {
-  max-width: 44rem;
+  max-width: 46rem;
   margin: 0;
-  color: var(--ink-2);
-  font-size: 1.125rem;
-  line-height: 1.7;
+  color: var(--ink);
+  font-size: clamp(1.0625rem, 1rem + 0.4vw, 1.3125rem);
+  line-height: 1.6;
 }
 .landing .header-actions {
   margin-inline-start: auto;
 }
 .course-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
-  gap: 16px;
-  margin-top: 36px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
+  gap: 32px;
+  margin: clamp(28px, 4vw, 48px) 0 0;
+  padding: 0;
+  list-style: none;
 }
 .course-card {
+  --label-paper: #faf8f2;
+  --label-ink: #202329;
+  --label-ink-2: #464c57;
+  --spine: 46px;
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 24px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--ink);
+  align-items: flex-end;
+  min-height: clamp(430px, 58vh, 580px);
+  padding: clamp(190px, 16vw, 230px) 28px 22px 22px;
+  padding-inline-start: calc(var(--spine) + 22px);
+  overflow: hidden;
+  border-radius: 4px 12px 12px 4px;
+  background: var(--cover);
+  color: var(--label-ink);
   text-decoration: none;
-  transition: border-color .15s ease, background .15s ease;
+  transition: transform .22s ease;
+}
+[dir="rtl"] .course-card {
+  border-radius: 12px 4px 4px 12px;
+}
+/* The block of pages showing at the open edge; it widens as the notebook is about to open. */
+.course-card::after {
+  content: "";
+  position: absolute;
+  inset-block: 12px;
+  inset-inline-end: 0;
+  width: 6px;
+  background: #e6e1d5;
+  transform-origin: left center;
+  transition: transform .22s ease;
 }
 .course-card:hover {
-  border-color: var(--accent-line);
-  background: var(--surface-2);
+  transform: translateY(-6px) rotate(-0.5deg);
 }
-.course-card-top {
+.course-card:hover::after {
+  transform: scaleX(1.9);
+}
+.course-card:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 4px;
+}
+.course-cover-spine {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  justify-content: space-evenly;
+  width: var(--spine);
+  background: color-mix(in srgb, black 24%, var(--cover));
 }
-.course-card-code,
+.course-cover-spine i {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--paper);
+}
+.course-cover-mark {
+  position: absolute;
+  inset-block-start: -0.16em;
+  inset-inline-end: 0.08em;
+  color: color-mix(in srgb, white 18%, var(--cover));
+  font-family: var(--font-display);
+  font-size: clamp(13rem, 25vw, 25rem);
+  line-height: 1;
+  pointer-events: none;
+}
+.course-label {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 20px 22px;
+  border-radius: 3px;
+  background: var(--label-paper);
+}
 .course-card-stats {
-  color: var(--ink-3);
-  font-size: var(--fs-s);
-  line-height: 1.6;
+  color: var(--label-ink-2);
+  font-size: var(--fs-sm);
+  line-height: 1.55;
 }
 .course-card-stat {
   white-space: nowrap;
 }
 .course-card h2 {
-  margin: 6px 0 0;
+  margin: 0;
+  color: var(--label-ink);
   font-family: var(--font-display);
-  font-size: 1.5rem;
-  line-height: 1.25;
+  font-size: clamp(1.625rem, 1.3rem + 1.1vw, 2.25rem);
+  line-height: 1.15;
 }
 .course-card p {
   margin: 0;
-  color: var(--ink-2);
-  line-height: 1.65;
+  color: var(--label-ink);
+  line-height: 1.6;
 }
 .course-card-go {
-  margin-top: auto;
-  padding-top: 8px;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 0 18px;
+  border-radius: 6px;
+  background: var(--cover);
+  color: #fff;
+  font-weight: 700;
+}
+.course-card-go > span {
+  display: inline-block;
+  transition: transform .22s ease;
+}
+.course-card:hover .course-card-go > span {
+  transform: translateX(-5px);
+}
+.course-resume {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  margin-top: 8px;
   color: var(--accent);
   font-weight: 600;
+}
+.course-resume[hidden] {
+  display: none;
+}
+@media (max-width: 480px) {
+  .landing-main {
+    padding-inline: 16px;
+  }
+  .course-card {
+    --spine: 34px;
+    padding-inline: calc(var(--spine) + 14px) 18px;
+  }
+  .course-cover-spine i {
+    width: 12px;
+    height: 12px;
+  }
+  .course-label {
+    padding: 18px;
+  }
+}
+@keyframes notebook-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .landing-intro h1,
+  .landing-intro p,
+  .course-grid > li {
+    animation: notebook-in .5s ease both;
+  }
+  .landing-intro p { animation-delay: 70ms; }
+  .course-grid > li { animation-delay: 140ms; }
+  .course-grid > li:nth-child(2) { animation-delay: 220ms; }
+  .course-grid > li:nth-child(n + 3) { animation-delay: 300ms; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .course-card,
+  .course-card::after,
+  .course-card-go > span {
+    transition: none;
+  }
+  .course-card:hover {
+    transform: none;
+  }
 }
 
 /* A matrix and its system on the notebook grid: each row is two squares high. */

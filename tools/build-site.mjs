@@ -1355,18 +1355,23 @@ const hrefFromHome = (item) => `${toPosix(path.relative(docsDir, path.resolve(ro
 
 export function renderCourseCards(results) {
   return results
-    .map(
-      ({ course: item, payload }) => `        <a class="course-card" href="${hrefFromHome(item)}">
-          <span class="course-card-top">
-            <span class="brand-mark" aria-hidden="true">${escapeHtml(item.brandMark)}</span>
-            <span class="course-card-code">קורס ${escapeHtml(item.courseCode)}</span>
-          </span>
-          <h2>${escapeHtml(item.fullName)}</h2>
-          <p>${escapeHtml(item.summary)}</p>
-          <span class="course-card-stats">${courseStats(item, payload).map((stat) => `<span class="course-card-stat">${escapeHtml(stat)}</span>`).join(" · ")}</span>
-          <span class="course-card-go">לכניסה לקורס <span aria-hidden="true">←</span></span>
-        </a>`
-    )
+    .map(({ course: item, payload }) => {
+      const href = hrefFromHome(item);
+      const stats = [`קורס ${item.courseCode}`, ...courseStats(item, payload)].map((stat) => `<span class="course-card-stat">${escapeHtml(stat)}</span>`).join(" · ");
+      return `        <li>
+          <a class="course-card" href="${href}" style="--cover:${item.coverColor}">
+            <span class="course-cover-spine" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="course-cover-mark" aria-hidden="true">${escapeHtml(item.brandMark)}</span>
+            <div class="course-label">
+              <h2>${escapeHtml(item.fullName)}</h2>
+              <p>${escapeHtml(item.summary)}</p>
+              <span class="course-card-stats">${stats}</span>
+              <span class="course-card-go">לכניסה לקורס <span aria-hidden="true">←</span></span>
+            </div>
+          </a>
+          <a class="course-resume" href="${href}" data-resume="${item.storagePrefix}" hidden>להמשיך מהמקום שעצרתם <span aria-hidden="true">←</span></a>
+        </li>`;
+    })
     .join("\n");
 }
 

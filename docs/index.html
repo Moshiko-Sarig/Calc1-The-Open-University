@@ -65,28 +65,34 @@
         <h1>באיזה קורס לומדים היום?</h1>
         <p>סיכומים במילים פשוטות, הוכחות, המחשות ותרגול לקורסים של האוניברסיטה הפתוחה. בחרו קורס כדי להתחיל.</p>
       </div>
-      <div class="course-grid">
-        <a class="course-card" href="infi/">
-          <span class="course-card-top">
-            <span class="brand-mark" aria-hidden="true">∞</span>
-            <span class="course-card-code">קורס 20474</span>
-          </span>
-          <h2>חשבון אינפיניטסימלי 1</h2>
-          <p>מהמספרים הממשיים ועד תכונות של פונקציות גזירות: סיכומים, הוכחות, המחשות ומבחני עבר.</p>
-          <span class="course-card-stats"><span class="course-card-stat">8 יחידות</span> · <span class="course-card-stat">82 פתקים</span> · <span class="course-card-stat">33 משפטים לבחינה</span> · <span class="course-card-stat">45 מבחני עבר</span></span>
-          <span class="course-card-go">לכניסה לקורס <span aria-hidden="true">←</span></span>
-        </a>
-        <a class="course-card" href="linear1/">
-          <span class="course-card-top">
-            <span class="brand-mark" aria-hidden="true">λ</span>
-            <span class="course-card-code">קורס 20109</span>
-          </span>
-          <h2>אלגברה לינארית 1</h2>
-          <p>מערכות משוואות, שדות ודירוג מטריצות. פרק 1 מוכן, והשאר בכתיבה.</p>
-          <span class="course-card-stats"><span class="course-card-stat">פרק אחד</span> · <span class="course-card-stat">16 פתקים</span> · <span class="course-card-stat">15 משפטי מפתח</span></span>
-          <span class="course-card-go">לכניסה לקורס <span aria-hidden="true">←</span></span>
-        </a>
-      </div>
+      <ul class="course-grid">
+        <li>
+          <a class="course-card" href="infi/" style="--cover:#1f4e79">
+            <span class="course-cover-spine" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="course-cover-mark" aria-hidden="true">∞</span>
+            <div class="course-label">
+              <h2>חשבון אינפיניטסימלי 1</h2>
+              <p>מהמספרים הממשיים ועד תכונות של פונקציות גזירות: סיכומים, הוכחות, המחשות ומבחני עבר.</p>
+              <span class="course-card-stats"><span class="course-card-stat">קורס 20474</span> · <span class="course-card-stat">8 יחידות</span> · <span class="course-card-stat">82 פתקים</span> · <span class="course-card-stat">33 משפטים לבחינה</span> · <span class="course-card-stat">45 מבחני עבר</span></span>
+              <span class="course-card-go">לכניסה לקורס <span aria-hidden="true">←</span></span>
+            </div>
+          </a>
+          <a class="course-resume" href="infi/" data-resume="infi" hidden>להמשיך מהמקום שעצרתם <span aria-hidden="true">←</span></a>
+        </li>
+        <li>
+          <a class="course-card" href="linear1/" style="--cover:#2f5a4b">
+            <span class="course-cover-spine" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="course-cover-mark" aria-hidden="true">λ</span>
+            <div class="course-label">
+              <h2>אלגברה לינארית 1</h2>
+              <p>מערכות משוואות, שדות ודירוג מטריצות. פרק 1 מוכן, והשאר בכתיבה.</p>
+              <span class="course-card-stats"><span class="course-card-stat">קורס 20109</span> · <span class="course-card-stat">פרק אחד</span> · <span class="course-card-stat">16 פתקים</span> · <span class="course-card-stat">15 משפטי מפתח</span></span>
+              <span class="course-card-go">לכניסה לקורס <span aria-hidden="true">←</span></span>
+            </div>
+          </a>
+          <a class="course-resume" href="linear1/" data-resume="linear1" hidden>להמשיך מהמקום שעצרתם <span aria-hidden="true">←</span></a>
+        </li>
+      </ul>
     </main>
 
     <footer class="site-footer">
@@ -102,6 +108,18 @@
       (function () {
         var root = document.documentElement;
         var button = document.querySelector("[data-theme-toggle]");
+        // A reader who has been here before can go straight back to their last note.
+        document.querySelectorAll("[data-resume]").forEach(function (link) {
+          try {
+            var last = JSON.parse(localStorage.getItem(link.dataset.resume + "-recent") || "[]")[0];
+            if (/^p-[\w-]+$/.test(last)) {
+              link.href += "#/page/" + last;
+              link.hidden = false;
+            }
+          } catch (error) {
+            /* nothing saved: the link stays hidden */
+          }
+        });
         function sync() {
           button.setAttribute("aria-pressed", String(root.dataset.theme === "dark"));
         }
