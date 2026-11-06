@@ -70,7 +70,7 @@ test("the chapter states all 50 numbered items of the book", () => {
 });
 
 test("statements reach the client in the book's order, so definition cards do too", () => {
-  assert.deepEqual(Object.keys(payload.statements), ALL_STATEMENTS);
+  assert.deepEqual(Object.keys(payload.statements).filter((number) => number.startsWith("1.")), ALL_STATEMENTS);
   assert.deepEqual([...ALL_STATEMENTS].sort(compareNumbers), ALL_STATEMENTS);
 });
 

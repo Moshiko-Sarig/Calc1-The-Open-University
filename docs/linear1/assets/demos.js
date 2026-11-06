@@ -1648,6 +1648,97 @@
     };
   };
 
+  // Chapter 2: vectors over R, using the same accessible notebook controls.
+  function vectorArrow(plot, from, to, cls, label = "", dash = null) {
+    const x = plot.X(to[0]), y = plot.Y(to[1]);
+    const dx = x - plot.X(from[0]), dy = y - plot.Y(from[1]);
+    const length = Math.hypot(dx, dy);
+    plot.line(...from, ...to, { cls, width: 2.5, dash });
+    if (length > 0.5) {
+      const ux = dx / length, uy = dy / length, k = Math.min(9, length / 2);
+      plot.ink.append(s("path", { d: `M${x-k*ux+k*uy/2},${y-k*uy-k*ux/2} L${x},${y} L${x-k*ux-k*uy/2},${y-k*uy+k*ux/2}`, class: `demo-line ${cls}`, fill: "none", "stroke-width": 2 }));
+    } else plot.dot(...to, { cls });
+    if (label) plot.text(...to, label, { dy: -0.65, cls: `${cls}-text` });
+  }
+  const pair = (v) => `(${v.map(x => fmt(x)).join(", ")})`;
+
+  DEMOS["vector-sum"] = (fig) => {
+    const ui = frame(fig, "מחברים חיצים: ראש לעקב");
+    const plot = new Plot(ui.plotHost, { view: { xmin: -7, xmax: 7, ymin: -5, ymax: 5 }, rows: 16 });
+    let t = 1;
+    const control = slider({ label: "כמה פעמים לקחת את a?", min: -2, max: 2, step: 0.25, value: t, onInput(v) { t = v; update(); } });
+    ui.controls.append(control.el);
+    ui.buttons.append(button("היפוך כיוון", () => { t = -1; control.set(t); update(); }), button("וקטור האפס", () => { t = 0; control.set(t); update(); }, "is-quiet"));
+    function draw() {
+      plot.clear(); plot.drawAxes();
+      const a = [2*t,t], b = [1,2], result = [2*t+1,t+2];
+      vectorArrow(plot, [0,0], b, "pc-gray", "b", "4 4");
+      vectorArrow(plot, [0,0], a, "pc-blue", "ta");
+      vectorArrow(plot, a, result, "pc-red", "b", "5 4");
+      vectorArrow(plot, [0,0], result, "pc-green", "ta+b");
+    }
+    function update() {
+      draw();
+      ui.say(`${m("a = (2, 1), b = (1, 2)")}. ${m(`${fmt(t)}a + b = ${pair([2*t+1,t+2])}`)}. החץ הכחול הוא ${m("ta")}; האדום מוסיף את ${m("b")} מראשו; הירוק מוביל ישר לתוצאה. ${t === 0 ? "כשכופלים באפס, החץ הכחול מתכווץ לנקודה והתוצאה היא b." : t < 0 ? "המקדם שלילי, לכן כיוון a התהפך." : "שנו את המקדם וראו איך אורך החץ משתנה."}`);
+    }
+    update(); return { render() { plot.layout(); draw(); } };
+  };
+
+  DEMOS["parametric-line"] = (fig) => {
+    const ui = frame(fig, "נקודה מטיילת על ישר");
+    const plot = new Plot(ui.plotHost, { view: { xmin: -6, xmax: 6, ymin: -6, ymax: 8 }, rows: 16 });
+    const state = { t: 1, ax: 1, ay: 2 };
+    const controls = {};
+    for (const [key, label, min, max] of [["t", "הפרמטר t", -3, 3], ["ax", "רכיב x של הכיוון a", -2, 2], ["ay", "רכיב y של הכיוון a", -2, 2]]) {
+      controls[key] = slider({ label, min, max, step: 0.5, value: state[key], onInput(v) { state[key] = v; update(); } });
+      ui.controls.append(controls[key].el);
+    }
+    function preset(ax, ay) { state.ax=ax; state.ay=ay; controls.ax.set(ax); controls.ay.set(ay); update(); }
+    ui.buttons.append(button("ישר אנכי", () => preset(0,1), "is-quiet"), button("כיוון אפס", () => preset(0,0), "is-quiet"), button("איפוס", () => { state.t=1; controls.t.set(1); preset(1,2); }, "is-quiet"));
+    function draw() {
+      plot.clear(); plot.drawAxes();
+      const {t,ax,ay} = state;
+      if (ax !== 0) plot.curve(x => 1 + ay*x/ax, { cls: "pc-gray", dash: "5 5" });
+      else if (ay !== 0) plot.vline(0, { cls: "pc-gray", dash: "5 5" });
+      vectorArrow(plot, [0,1], [t*ax,1+t*ay], "pc-blue");
+      plot.dot(0,1, {cls:"pc-red"}); plot.text(0,1,"b",{dy:1.3});
+      plot.dot(t*ax,1+t*ay,{cls:"pc-green"}); plot.text(t*ax,1+t*ay,"p(t)",{dy:-0.65});
+    }
+    function update() {
+      draw(); const {t,ax,ay}=state;
+      ui.say(`${m(`b = (0, 1), a = ${pair([ax,ay])}`)}. ${m(`p(t) = b + ta = ${pair([t*ax,1+t*ay])}`)}. ${ax===0 && ay===0 ? "אין כיוון תנועה: לכל ערך של t נשארים ב-b. זו נקודה אחת, לא ישר." : "הקו המקווקו מראה את הישר; הנקודה הירוקה היא הבחירה הנוכחית של t. המחוון מציג רק חלק מהערכים, אבל הישר כולל את כל t הממשיים."}`);
+    }
+    update(); return { render() { plot.layout(); draw(); } };
+  };
+
+  DEMOS["span-basis"] = (fig) => {
+    const ui = frame(fig, "שתי הוראות: ישר או כל המישור?");
+    const plot = new Plot(ui.plotHost, { view: { xmin: -6, xmax: 6, ymin: -6, ymax: 6 }, rows: 16 });
+    const state = {s:1,t:1,h:1}; const controls={};
+    for(const [key,label] of [["s","המקדם s של a"],["t","המקדם t של b"],["h","הגובה h של b"]]) {
+      controls[key]=slider({label,min:-2,max:2,step:0.25,value:state[key],onInput(v){state[key]=v;update();}});
+      ui.controls.append(controls[key].el);
+    }
+    function set(values){Object.assign(state,values);for(const key of Object.keys(values))controls[key].set(state[key]);update();}
+    ui.buttons.append(button("תלויים: אותו ישר",()=>set({h:0}),"is-quiet"),button("בסיס: שני כיוונים",()=>set({h:1}),"is-quiet"),button("עוד מתכון לאותה נקודה",()=>set({s:state.s===1?0:1,t:state.s===1?1:0,h:0}),"is-quiet"));
+    function draw(){
+      plot.clear();plot.drawAxes();const {s:cs,t,h}=state;
+      // A finite sample of coefficients, not the whole real span.
+      for(let i=-2;i<=2;i++)for(let j=-2;j<=2;j++)plot.dot(i+j,j*h,{cls:"pc-gray",r:2});
+      if(h===0)plot.hline(0,{cls:"pc-gray",dash:"5 4"});
+      vectorArrow(plot,[0,0],[1,0],"pc-blue",h===0?"a=b":"a");
+      vectorArrow(plot,[0,0],[1,h],"pc-red",h===0?"":"b",h===0?"4 4":null);
+      vectorArrow(plot,[0,0],[cs,0],"pc-blue","","4 4");
+      vectorArrow(plot,[cs,0],[cs+t,t*h],"pc-red","","4 4");
+      plot.dot(cs+t,t*h,{cls:"pc-green",r:plot.cell*0.35});plot.text(cs+t,t*h,"sa+tb",{dy:1.25,cls:"pc-green-text"});
+    }
+    function update(){
+      draw();const {s:cs,t,h}=state;
+      ui.say(`${m(`a = (1, 0), b = (1, ${fmt(h)})`)}. ${m(`sa + tb = ${pair([cs+t,t*h])}`)}. ${h===0 ? `הווקטורים זהים ולכן הסדרה תלויה: ${m("a − b = 0")}. כל צירוף נשאר על ציר x; אי אפשר להגיע ל-${m("(0, 1)")}. נסו עוד מתכון לאותה נקודה.` : `הווקטורים בלתי תלויים ומהווים בסיס של ℝ². לכל יעד ${m("(x, y)")} יש מתכון יחיד: ${m("t = y/h, s = x − y/h")}.`} הנקודות האפורות הן דוגמאות עם מקדמים שלמים בין ‎−2 ל-2; הפרישה כוללת את כל המקדמים הממשיים, גם מחוץ לטווח המחוונים.`);
+    }
+    update();return {render(){plot.layout();draw();}};
+  };
+
   // ---------------------------------------------------------------------------
   // Mounting
   // ---------------------------------------------------------------------------
