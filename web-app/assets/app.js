@@ -1,4 +1,4 @@
-/* כספת אינפי 1 — client app.
+/* Course vault — client app. Everything course-specific comes from COURSE_DATA.course.
    Hash routes: #/  #/page/<id>[/<section>]  #/index  #/graph  #/about
    #/practice[...]  #/exams[/<n>[/q<k>]] */
 
@@ -11,10 +11,29 @@ if (!data) {
   throw new Error("COURSE_DATA missing");
 }
 
+// Right after a deploy the browser can pair this file with a cached older content.js.
+if (!data.course) {
+  app.innerHTML = `<section class="empty-state"><h1>האתר התעדכן</h1><p>רעננו את הדף כדי לטעון את הגרסה החדשה.</p></section>`;
+  throw new Error("COURSE_DATA is older than app.js");
+}
+
 const pages = new Map(data.pages.map((page) => [page.id, page]));
 const groups = data.navGroups || [];
 const groupById = new Map(groups.map((group) => [group.id, group]));
-const SITE_NAME = "כספת אינפי 1";
+const course = data.course;
+const words = course.words;
+const SITE_NAME = course.siteName;
+// Progress is per course. Theme and text size are shared, and keep their old keys.
+const storageKey = (name) => `${course.storagePrefix}-${name}`;
+
+// The way back to the home page, where the reader picks another course.
+function courseSwitchLink(className) {
+  return `<a class="${className}" href="${data.homeHref}" title="כל הקורסים" data-course-switch><span class="course-switch-mark" aria-hidden="true">⇄</span><span class="course-switch-name">כל הקורסים</span></a>`;
+}
+
+function countOf(count, one, many) {
+  return count === 1 ? one : `${count} ${many}`;
+}
 
 const ICONS = {
   chevron: '<path d="M15 6l-6 6 6 6" />',
@@ -63,12 +82,12 @@ function groupColor(groupId) {
 }
 
 function pageLabel(page) {
-  return /^שער /.test(page.title) ? "סקירת היחידה" : page.navTitle;
+  return /^שער /.test(page.title) ? `סקירת ${words.theUnit}` : page.navTitle;
 }
 
 function groupHeading(group) {
   if (!group) return "";
-  return group.number ? `יחידה ${group.number} · ${group.subtitle}` : group.title;
+  return group.number ? `${words.unit} ${group.number} · ${group.subtitle}` : group.title;
 }
 
 function pageHref(page, section = "") {
@@ -157,7 +176,7 @@ syncPreferenceControls();
 
 function recentPages() {
   try {
-    return (JSON.parse(store.get("infi-recent") || "[]") || []).filter((id) => pages.has(id));
+    return (JSON.parse(store.get(storageKey("recent")) || "[]") || []).filter((id) => pages.has(id));
   } catch {
     return [];
   }
@@ -165,7 +184,7 @@ function recentPages() {
 
 function rememberPage(id) {
   const list = [id, ...recentPages().filter((item) => item !== id)].slice(0, 6);
-  store.set("infi-recent", JSON.stringify(list));
+  store.set(storageKey("recent"), JSON.stringify(list));
 }
 
 // ---------------------------------------------------------------------------
@@ -177,7 +196,7 @@ const menuToggle = document.querySelector("[data-menu-toggle]");
 const menuClose = document.querySelector("[data-menu-close]");
 const backdrop = document.querySelector("[data-nav-backdrop]");
 const courseNav = document.querySelector("#courseNav");
-const expanded = new Set(JSON.parse(sessionStorageGet("infi-expanded") || "[]"));
+const expanded = new Set(JSON.parse(sessionStorageGet(storageKey("expanded")) || "[]"));
 
 function sessionStorageGet(key) {
   try {
@@ -189,7 +208,7 @@ function sessionStorageGet(key) {
 
 function saveExpanded() {
   try {
-    sessionStorage.setItem("infi-expanded", JSON.stringify(Array.from(expanded)));
+    sessionStorage.setItem(storageKey("expanded"), JSON.stringify(Array.from(expanded)));
   } catch {
     /* ignore */
   }
@@ -201,7 +220,11 @@ const DRAWER_LINKS = [
   ["index", "#/index", "כל הפתקים"],
   ["exams", "#/exams", "מבחנים"],
   ["graph", "#/graph", "גרף קשרים"]
-];
+].filter(([view]) => view !== "exams" || course.features.exams);
+
+// The template's header lists every view; a course without exams drops that link.
+if (!course.features.exams) document.querySelectorAll('[data-nav="exams"]').forEach((link) => link.remove());
+document.querySelector(".primary-nav")?.insertAdjacentHTML("beforeend", courseSwitchLink("course-switch"));
 
 // Two guides the course leans on in every exam: what may be cited from the
 // book, and how the lecturer chooses a method. They are pinned in the drawer,
@@ -233,7 +256,7 @@ function renderTree() {
     saveExpanded();
   }
   tree.innerHTML =
-    `<nav class="tree-primary" aria-label="ניווט ראשי">${DRAWER_LINKS.map(([view, href, label]) => `<a href="${href}" data-nav="${view}">${label}</a>`).join("")}</nav>` +
+    `<nav class="tree-primary" aria-label="ניווט ראשי">${DRAWER_LINKS.map(([view, href, label]) => `<a href="${href}" data-nav="${view}">${label}</a>`).join("")}${courseSwitchLink("tree-course-switch")}</nav>` +
     `<a class="tree-practice" href="#/practice" data-nav="practice">${icon("star")}<span><strong>תרגול</strong><small>כרטיסי חזרה ופאזלי הוכחה</small></span></a>` +
     `<div class="tree-guides">${keyGuides().map((g) => `<a class="tree-guide" href="${pageHref(g.page)}" data-id="${g.page.id}"><strong>${escapeHtml(g.match)}</strong><small>${escapeHtml(g.short)}</small></a>`).join("")}</div>` +
     groups
@@ -247,7 +270,7 @@ function renderTree() {
           .map(
             (page) => `<li><a href="${pageHref(page)}" data-id="${page.id}">
               <span>${escapeHtml(pageLabel(page))}</span>
-              ${page.hasExamTheorem ? `${icon("star", "icon tree-star")}<span class="visually-hidden">(כולל משפט מהרשימה לבחינה)</span>` : ""}
+              ${page.hasExamTheorem ? `${icon("star", "icon tree-star")}<span class="visually-hidden">(כולל ${escapeHtml(words.theoremFromList)})</span>` : ""}
             </a></li>`
           )
           .join("");
@@ -260,7 +283,7 @@ function renderTree() {
           <ul class="tree-list" id="${listId}" ${open ? "" : "hidden"}>${items}</ul>
         </div>`;
       })
-      .join("") + `<p class="tree-legend">${icon("star", "icon tree-star")} כולל משפט מהרשימה לבחינה</p>`;
+      .join("") + `<p class="tree-legend">${icon("star", "icon tree-star")} כולל ${escapeHtml(words.theoremFromList)}</p>`;
 }
 
 tree.addEventListener("click", (event) => {
@@ -324,12 +347,12 @@ function syncTree(activeId) {
 
 const drawerQuery = window.matchMedia("(max-width: 1060px)");
 let lastFocusBeforeDrawer = null;
-let desktopNavCollapsed = store.get("infi-nav-collapsed") === "true";
+let desktopNavCollapsed = store.get(storageKey("nav-collapsed")) === "true";
 
 function syncMenuButton() {
   const open = drawerQuery.matches ? drawerOpen() : !desktopNavCollapsed;
   menuToggle.setAttribute("aria-expanded", String(open));
-  const label = open ? "סגירת תפריט היחידות" : "פתיחת תפריט היחידות";
+  const label = `${open ? "סגירת" : "פתיחת"} תפריט ${words.theUnits}`;
   menuToggle.querySelector(".visually-hidden").textContent = label;
   menuToggle.title = label;
 }
@@ -382,7 +405,7 @@ menuToggle.addEventListener("click", () => {
     return;
   }
   desktopNavCollapsed = !desktopNavCollapsed;
-  store.set("infi-nav-collapsed", String(desktopNavCollapsed));
+  store.set(storageKey("nav-collapsed"), String(desktopNavCollapsed));
   syncDesktopNav();
 });
 menuClose.addEventListener("click", () => closeDrawer());
@@ -527,7 +550,7 @@ function renderSearch() {
   searchResults = runSearch(query);
   activeResult = -1;
   if (!searchResults.length) {
-    searchPanel.innerHTML = `<div class="search-empty" role="presentation"><strong>לא נמצאו תוצאות</strong>נסו מילה אחרת, או חפשו לפי מספר משפט, למשל 5.29.</div>`;
+    searchPanel.innerHTML = `<div class="search-empty" role="presentation"><strong>לא נמצאו תוצאות</strong>נסו מילה אחרת, או חפשו לפי מספר משפט, למשל ${escapeHtml(course.searchExample)}.</div>`;
   } else {
     searchPanel.innerHTML =
       searchResults
@@ -678,7 +701,7 @@ function parseRoute() {
 }
 
 function setTitle(text) {
-  document.title = text ? `${text} · ${SITE_NAME}` : `${SITE_NAME} · חשבון אינפיניטסימלי 1`;
+  document.title = text ? `${text} · ${SITE_NAME}` : `${SITE_NAME} · ${course.fullName}`;
 }
 
 function updatePrimaryNav(view) {
@@ -759,6 +782,18 @@ document.querySelector("[data-skip]").addEventListener("click", (event) => {
 
 // The interactive demos (assets/demos.js), each linked to the note it lives in.
 const DEMO_GALLERY = [
+  {
+    name: "row-reduction",
+    title: "דירוג צעד אחר צעד",
+    text: "בוחרים פעולת שורה ורואים את המטריצה והמערכת משתנות יחד, והפתרונות לא.",
+    sketch: `<path class="sk sk-graphite" d="M34 10 H24 V80 H34 M126 10 H136 V80 H126"/><path class="sk sk-gray sk-thin" d="M104 12 V78"/><path class="sk sk-blue sk-bold" d="M38 24 h12"/><path class="sk sk-blue sk-bold" d="M62 46 h12"/><path class="sk sk-blue sk-bold" d="M84 68 h12"/><path class="sk sk-gray" d="M62 24 h12 M84 24 h12 M112 24 h10 M84 46 h12 M112 46 h10 M112 68 h10"/>`
+  },
+  {
+    name: "solution-count",
+    title: "שני ישרים, שלוש אפשרויות",
+    text: "משנים מקדמים ורואים מתי יש פתרון יחיד, אין פתרון או אינסוף פתרונות.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M4 80 H156 M16 86 V4"/><path class="sk sk-blue" d="M10 78 L150 12"/><path class="sk sk-red" d="M12 16 L148 76"/><circle class="sk-dot-green" cx="80" cy="45" r="4"/>`
+  },
   {
     name: "epsilon-delta",
     title: "משחק ε‑δ",
@@ -842,19 +877,19 @@ function renderHome() {
       const gateway = pages.get(group.gatewayId);
       const theorems = group.pageIds.filter((id) => pages.get(id)?.hasExamTheorem).length;
       return `<a class="unit-card" href="${pageHref(gateway)}" style="--c:${groupColor(group.id)}">
-        <span class="unit-card-top"><span class="unit-card-num">יחידה ${group.number}</span><span>${escapeHtml(group.volume || "")}</span></span>
+        <span class="unit-card-top"><span class="unit-card-num">${escapeHtml(words.unit)} ${group.number}</span><span>${escapeHtml(group.volume || "")}</span></span>
         <h3>${escapeHtml(group.number ? group.subtitle : group.title)}</h3>
         <p>${gateway?.summaryHtml || ""}</p>
         <span class="unit-card-foot">
           <span>${icon("list")} ${group.pageIds.length} פתקים</span>
-          ${theorems ? `<span>${icon("star")} ${theorems} עם משפטים לבחינה</span>` : ""}
+          ${theorems ? `<span>${icon("star")} ${theorems} עם ${escapeHtml(words.theorems)}</span>` : ""}
         </span>
       </a>`;
     })
     .join("");
 
   const toolDescriptions = {
-    "מפת הקורס": "כל היחידות והפתקים בעמוד אחד, לפי סדר הספרים.",
+    "מפת הקורס": `כל ${words.theUnits} והפתקים בעמוד אחד, לפי סדר הספרים.`,
     "תיקונים לספרי הקורס": "התיקונים הרשמיים לכרכים א–ג.",
     "תבניות הוכחה": "המהלכים שחוזרים בהוכחות: ε, sup, קטע סגור ונגזרת.",
     "מפת תלות משפטים": "איזה משפט נשען על איזה, מהשלמות ועד משפטי הנגזרת.",
@@ -862,7 +897,7 @@ function renderHome() {
     "כרטיסי חזרה": "שאלות ותשובות קצרות לחזרה לפני הבחינה.",
     "מפת מוח": "מבט על הקורס כולו כמפה אחת.",
     "מסקנות משאלות הספר": "שאלות מהספר שמותר לצטט במבחן, ומתי שולפים כל אחת.",
-    "שיטות המרצה": "דרכי העבודה שהמרצה הדגיש במפגשים, לפי יחידות.",
+    "שיטות המרצה": `דרכי העבודה שהמרצה הדגיש במפגשים, לפי ${words.units}.`,
     "גרפים והמחשות": "כל הגרפים החיים של הקורס במקום אחד.",
     "מקורות וחומרי גלם": "מאיפה כל פרט באתר מגיע."
   };
@@ -880,8 +915,8 @@ function renderHome() {
        <a class="home-resume-link" href="${pageHref(last)}"><small>${escapeHtml(groupHeading(groupById.get(last.groupId)))}</small><strong>${escapeHtml(last.navTitle)}</strong><span aria-hidden="true">←</span></a>
        ${recent.length > 1 ? `<p class="home-recent-label">ביקרתם לאחרונה</p><ul class="home-recent-list">${recent.slice(1, 4).map((page) => `<li><a href="${pageHref(page)}">${escapeHtml(page.navTitle)}</a></li>`).join("")}</ul>` : ""}`
     : `<p class="home-resume-label">מאיפה מתחילים?</p>
-       <p class="home-start-text">מתחילים ביחידה 1 ומתקדמים לפי הסדר. בכל פתק יש קודם הסבר במילים פשוטות, ואז ההגדרה, הדוגמאות והתרגול.</p>
-       ${firstUnit ? `<a class="home-start-link" href="${pageHref(firstUnit)}">ליחידה 1: המספרים הממשיים <span aria-hidden="true">←</span></a>` : ""}`;
+       <p class="home-start-text">מתחילים ${escapeHtml(words.inUnit)} 1 ומתקדמים לפי הסדר. בכל פתק יש קודם הסבר במילים פשוטות, ואז ההגדרה, הדוגמאות והתרגול.</p>
+       ${firstUnit ? `<a class="home-start-link" href="${pageHref(firstUnit)}">${escapeHtml(words.toUnit)} 1: ${escapeHtml(unitGroups[0].subtitle)} <span aria-hidden="true">←</span></a>` : ""}`;
 
   const demos = demoGallery();
   const game = demos.find((item) => item.name === "epsilon-delta");
@@ -890,15 +925,23 @@ function renderHome() {
     <div class="home">
       <section class="home-intro" aria-labelledby="homeTitle">
         <div class="home-intro-main">
-          <p class="home-intro-kicker">האוניברסיטה הפתוחה <span aria-hidden="true"> / </span> קורס 20474</p>
-          <h1 id="homeTitle">חשבון אינפיניטסימלי 1</h1>
+          <p class="home-intro-kicker">האוניברסיטה הפתוחה <span aria-hidden="true"> / </span> קורס ${escapeHtml(course.courseCode)}</p>
+          <h1 id="homeTitle">${escapeHtml(course.fullName)}</h1>
           <p class="home-intro-subtitle">הסברים, הוכחות ותרגול לקראת הבחינה.</p>
           <div class="home-intro-actions">
             ${firstUnit ? `<a class="button button-primary" href="${pageHref(firstUnit)}">להתחלת הלימוד <span aria-hidden="true">←</span></a>` : ""}
-            ${exam ? `<a class="home-quick-link" href="${pageHref(exam)}">המשפטים לבחינה</a><a class="home-quick-link" href="#/exams">מבחני עבר</a>` : ""}
+            ${exam ? `<a class="home-quick-link" href="${pageHref(exam)}">${escapeHtml(words.theTheorems)}</a>` : ""}
+            ${exam && course.features.exams ? `<a class="home-quick-link" href="#/exams">מבחני עבר</a>` : ""}
             ${game ? `<a class="home-quick-link" href="${game.href}">משחק ε‑δ</a>` : ""}
+            ${courseSwitchLink("home-quick-link")}
           </div>
-          <p class="home-intro-meta">${units.length} יחידות לימוד <span aria-hidden="true">·</span> ${(data.examTheorems || []).length} משפטים לבחינה <span aria-hidden="true">·</span> ${(data.exams || []).length} מבחני עבר</p>
+          <p class="home-intro-meta">${[
+            countOf(units.length, words.oneUnit, words.studyUnits),
+            data.examTheorems?.length ? `${data.examTheorems.length} ${escapeHtml(words.theorems)}` : "",
+            course.features.exams ? `${(data.exams || []).length} מבחני עבר` : ""
+          ]
+            .filter(Boolean)
+            .join(' <span aria-hidden="true">·</span> ')}</p>
         </div>
         <aside class="home-resume" aria-label="${last ? "המשך קריאה" : "תחילת הלימוד"}">${panel}</aside>
       </section>
@@ -918,8 +961,8 @@ function renderHome() {
 
       <section aria-labelledby="unitsTitle">
         <div class="section-head">
-          <h2 id="unitsTitle">יחידות הקורס</h2>
-          <p>${new Set(unitGroups.map((g) => g.volume).filter(Boolean)).size} כרכים, ${unitGroups.length} יחידות</p>
+          <h2 id="unitsTitle">${escapeHtml(words.unitsOf)}</h2>
+          <p>${countOf(new Set(unitGroups.map((g) => g.volume).filter(Boolean)).size, "כרך אחד", "כרכים")}, ${countOf(unitGroups.length, words.oneUnit, words.units)}</p>
         </div>
         <div class="unit-grid">${unitCards}</div>
       </section>
@@ -930,7 +973,7 @@ function renderHome() {
           ? `<section aria-labelledby="demosTitle">
               <div class="section-head">
                 <h2 id="demosTitle">המחשות על המשבצות</h2>
-                <p>גוררים, משנים את ε ורואים את ההגדרה עובדת</p>
+                <p>${escapeHtml(course.demosLead)}</p>
               </div>
               <div class="demo-gallery">${demos
                 .map(
@@ -955,8 +998,8 @@ function renderHome() {
           ? `<section class="exam-band" aria-labelledby="examTitle">
               <span class="exam-band-icon" aria-hidden="true">${icon("star")}</span>
               <div>
-                <h2 id="examTitle">${(data.examTheorems || []).length} המשפטים לבחינה</h2>
-                <p>בבחינה מבקשים להוכיח 2–3 משפטים מהרשימה הרשמית. לכל משפט יש בכספת הוכחה מלאה עם כל הנימוקים, וליד כל הוכחה כתוב באילו מבחנים היא נשאלה.</p>
+                <h2 id="examTitle">${(data.examTheorems || []).length} ${escapeHtml(words.theTheorems)}</h2>
+                <p>${escapeHtml(course.theoremBand)}</p>
               </div>
               <a class="button" href="${pageHref(exam)}">לרשימה המלאה</a>
             </section>`
@@ -966,7 +1009,7 @@ function renderHome() {
       <section aria-labelledby="toolsTitle">
         <div class="section-head">
           <h2 id="toolsTitle">כלי לימוד וחזרה</h2>
-          <p>מפות, תבניות ודוגמאות שחוצות את היחידות</p>
+          <p>מפות, תבניות ודוגמאות שחוצות את ${escapeHtml(words.theUnits)}</p>
         </div>
         <div class="tool-grid">${tools}</div>
       </section>
@@ -980,10 +1023,10 @@ function unitTabs(page) {
     .filter((group) => group.number && group.gatewayId && pages.get(group.gatewayId))
     .map((group) => {
       const current = group.id === page.groupId;
-      return `<a class="unit-tab${current ? " is-current" : ""}" href="${pageHref(pages.get(group.gatewayId))}" style="--c:${groupColor(group.id)}"${current ? ' aria-current="true"' : ""} title="${escapeHtml(group.subtitle || "")}"><span class="visually-hidden">יחידה </span>${group.number}<span class="visually-hidden">: ${escapeHtml(group.subtitle || "")}</span></a>`;
+      return `<a class="unit-tab${current ? " is-current" : ""}" href="${pageHref(pages.get(group.gatewayId))}" style="--c:${groupColor(group.id)}"${current ? ' aria-current="true"' : ""} title="${escapeHtml(group.subtitle || "")}"><span class="visually-hidden">${escapeHtml(words.unit)} </span>${group.number}<span class="visually-hidden">: ${escapeHtml(group.subtitle || "")}</span></a>`;
     })
     .join("");
-  return tabs ? `<nav class="unit-tabs" aria-label="חוצצי היחידות"><div class="unit-tabs-rail">${tabs}</div></nav>` : "";
+  return tabs ? `<nav class="unit-tabs" aria-label="חוצצי ${escapeHtml(words.theUnits)}"><div class="unit-tabs-rail">${tabs}</div></nav>` : "";
 }
 
 function renderPage(page, section) {
@@ -1005,10 +1048,10 @@ function renderPage(page, section) {
   crumbs.push(`<li aria-current="page">${escapeHtml(pageLabel(page))}</li>`);
 
   const meta = [
-    group ? `<span class="chip" style="--c:${groupColor(group.id)}"><span class="chip-dot" aria-hidden="true"></span>${escapeHtml(group.number ? `יחידה ${group.number}` : group.title)}</span>` : "",
+    group ? `<span class="chip" style="--c:${groupColor(group.id)}"><span class="chip-dot" aria-hidden="true"></span>${escapeHtml(group.number ? `${words.unit} ${group.number}` : group.title)}</span>` : "",
     page.unitVolume ? `<span class="chip">${icon("book")} ${escapeHtml(page.unitVolume)}</span>` : "",
     `<span class="chip">${icon("clock")} כ־${page.readMinutes} דקות קריאה</span>`,
-    page.hasExamTheorem && data.examListPageId ? `<a class="chip chip-exam" href="${pageHref(pages.get(data.examListPageId))}">${icon("star")} כולל משפט מהרשימה לבחינה</a>` : ""
+    page.hasExamTheorem && data.examListPageId ? `<a class="chip chip-exam" href="${pageHref(pages.get(data.examListPageId))}">${icon("star")} כולל ${escapeHtml(words.theoremFromList)}</a>` : ""
   ].join("");
 
   app.innerHTML = `
@@ -1108,7 +1151,7 @@ function mountLearningPath(page, group, gateway) {
   const practice = findHeading(/תרגול קצר|תרגול מודרך|בדיקת שליטה|בדיקה עצמית|כרטיס דיוק/);
   const exam = prose.querySelector(".callout-exam") || findHeading(/סוגי שאלות במבחן|במבחן/);
   const items = [["אינטואיציה", intuition], ["דוגמה במספרים", example], ["הגדרה ומשפטים", formal], ["תרגול", practice], ["במבחן", exam]].filter(([, target]) => target);
-  if (!exam && gateway && gateway.id !== page.id) items.push(["שאלות מבחן ביחידה", null]);
+  if (course.features.exams && !exam && gateway && gateway.id !== page.id) items.push([`שאלות מבחן ${words.inUnit}`, null]);
   if (items.length < 2) return;
   const nav = document.createElement("nav");
   nav.className = "learning-path";
@@ -1424,7 +1467,7 @@ function renderIndex() {
     <div class="index-page">
       <header class="page-intro">
         <h1>כל הפתקים</h1>
-        <p>${total} פתקים, מסודרים לפי יחידות הקורס ובסדר הלימוד שלהן. ${icon("star", "icon tree-star")} מסמן פתק שיש בו משפט מהרשימה לבחינה.</p>
+        <p>${total} פתקים, מסודרים לפי ${escapeHtml(words.unitsOf)} ובסדר הלימוד. ${icon("star", "icon tree-star")} מסמן פתק שיש בו ${escapeHtml(words.theoremFromList)}.</p>
       </header>
       <label class="visually-hidden" for="indexFilter">סינון פתקים לפי שם</label>
       <div class="filter-field">
@@ -1441,14 +1484,14 @@ function renderIndex() {
               (page) => `<li data-filter-text="${escapeHtml(normalize(`${page.navTitle} ${page.title} ${(page.aliases || []).join(" ")}`))}">
                 <a href="${pageHref(page)}">
                   <span>${escapeHtml(pageLabel(page))}</span>
-                  ${page.hasExamTheorem ? `${icon("star", "icon tree-star")}<span class="visually-hidden">(כולל משפט מהרשימה לבחינה)</span>` : ""}
+                  ${page.hasExamTheorem ? `${icon("star", "icon tree-star")}<span class="visually-hidden">(כולל ${escapeHtml(words.theoremFromList)})</span>` : ""}
                   <span class="index-meta">${page.readMinutes} דק'</span>
                 </a>
               </li>`
             )
             .join("");
           return `<section class="index-group" data-index-group style="--c:${groupColor(group.id)}">
-            <h2>${escapeHtml(group.number ? `יחידה ${group.number} · ${group.subtitle}` : group.title)}<small>${escapeHtml(group.number ? group.volume : group.subtitle || "")} · ${group.pageIds.length} פתקים</small></h2>
+            <h2>${escapeHtml(group.number ? `${words.unit} ${group.number} · ${group.subtitle}` : group.title)}<small>${escapeHtml(group.number ? group.volume : group.subtitle || "")} · ${group.pageIds.length} פתקים</small></h2>
             <ul class="index-list">${items}</ul>
           </section>`;
         })
@@ -1487,18 +1530,14 @@ function renderAbout() {
       <div class="prose">
         <h2 id="about-sources">מקורות</h2>
         <ul>
-          <li>ספרי הקורס 20474 חשבון אינפיניטסימלי 1 של האוניברסיטה הפתוחה (ד"ר גיל אלון): כרך א (יחידות 1–3), כרך ב (יחידות 4–6), כרך ג (יחידות 7–8).</li>
-          <li>חוברת ההגדרות והמשפטים של הקורס. מספרי ההגדרות והמשפטים בפתקים אומתו מולה.</li>
-          <li>רשימת המשפטים לבחינה, וקובץ התיקונים הרשמי לספרים (עדכון 19.2.2024)${corrections ? ` — <a href="${pageHref(corrections)}">בפתק התיקונים</a>` : ""}.</li>
-          <li>סיכום מצגות המרצה במפגשי ההנחיה, ומסקנות משאלות הספר שהמרצה הפנה אליהן.</li>
-          <li>טפסי המבחנים הרשמיים 2019–2026 (סריקות, בלי פתרונות), בעמוד המבחנים.</li>
+          ${course.sources.map((source) => `<li>${escapeHtml(source)}${source.includes("התיקונים") && corrections ? ` — <a href="${pageHref(corrections)}">בפתק התיקונים</a>` : ""}.</li>`).join("")}
         </ul>
         ${sources ? `<p>פירוט מלא: <a href="${pageHref(sources)}">מקורות וחומרי גלם</a>.</p>` : ""}
         <h2 id="about-rights">זכויות</h2>
         <p>${escapeHtml(data.notice)}</p>
         <p>זה אינו אתר רשמי של האוניברסיטה הפתוחה.</p>
         <h2 id="about-exam">שימוש בבחינה</h2>
-        <p>בבחינה מצטטים רק משפטים, טענות, דוגמאות ושאלות מהספר. סיכומים חיצוניים, כולל הכספת הזו, אינם מקור שמותר לצטט בלי הוכחה.</p>
+        <p>${escapeHtml(course.examUseNote)}</p>
         <h2 id="about-build">עדכון אחרון</h2>
         <p>האתר נבנה מהכספת ב־${escapeHtml(new Date(data.generatedAt).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" }))}.</p>
       </div>
@@ -1530,7 +1569,7 @@ function renderGraph() {
             <h2>${data.graph.nodes.length} פתקים, ${data.graph.edges.length} קשרים</h2>
             <p>העבירו את העכבר מעל פתק כדי לראות את שמו ואת מספר הקישורים שלו.</p>
           </div>
-          <ul class="legend">${groups.map((group) => `<li style="--c:${groupColor(group.id)}"><i></i>${escapeHtml(group.number ? `יחידה ${group.number} · ${group.subtitle}` : group.title)}</li>`).join("")}</ul>
+          <ul class="legend">${groups.map((group) => `<li style="--c:${groupColor(group.id)}"><i></i>${escapeHtml(group.number ? `${words.unit} ${group.number} · ${group.subtitle}` : group.title)}</li>`).join("")}</ul>
         </aside>
       </div>
     </div>`;
@@ -1944,7 +1983,7 @@ function sectionPreview(page, slug) {
     statement.innerHTML = target.innerHTML;
     const parts = [statement];
     for (let node = target.nextElementSibling; node?.matches(".math-display") && parts.length < 3; node = node.nextElementSibling) parts.push(node.cloneNode(true));
-    const number = slug.replace(/^stmt-/, "").replace("-", ".");
+    const number = slug.replace(/^stmt-/, "").replace(/-/g, ".");
     return { title: `${escapeHtml(target.dataset.kind || "")} ${number}`.trim(), parts };
   }
   if (!/^H[2-4]$/.test(target.tagName)) return null;

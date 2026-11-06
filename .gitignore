@@ -3,6 +3,7 @@ node_modules/
 Thumbs.db
 .agents/
 tmp/
+plans/
 output/
 guides/
 *.log

@@ -27,9 +27,16 @@ createServer((request, response) => {
     response.end("Forbidden");
     return;
   }
-  if (!existsSync(target) || statSync(target).isDirectory()) {
-    target = path.join(docs, "index.html");
+  const isDirectory = existsSync(target) && statSync(target).isDirectory();
+  const hasIndex = isDirectory && existsSync(path.join(target, "index.html"));
+  // A course in a subfolder needs the slash, or its relative assets resolve one level too high.
+  if (hasIndex && !url.pathname.endsWith("/")) {
+    response.writeHead(301, { Location: `${url.pathname}/` });
+    response.end();
+    return;
   }
+  if (hasIndex) target = path.join(target, "index.html");
+  else if (!existsSync(target) || isDirectory) target = path.join(docs, "index.html");
   const ext = path.extname(target).toLowerCase();
   response.writeHead(200, { "Content-Type": types[ext] || "application/octet-stream" });
   createReadStream(target).pipe(response);

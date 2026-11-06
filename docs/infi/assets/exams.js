@@ -14,16 +14,9 @@
   const theorems = () => [...(app().data.examTheorems || []), ...(app().data.pastTheorems || [])];
   const examLabel = (exam) => `${exam.semester} · מועד ${exam.moed}`;
   const examHref = (n, q) => `#/exams/${n}${q ? `/q${q}` : ""}`;
-  const UNIT_NAMES = {
-    1: "המספרים הממשיים",
-    2: "סדרות וגבולות",
-    3: "קבוצות וסדרות חסומות",
-    4: "גבולות של פונקציות",
-    5: "פונקציות רציפות",
-    6: "פונקציות מעריכיות",
-    7: "הנגזרת",
-    8: "תכונות של פונקציות גזירות"
-  };
+  const course = window.COURSE_DATA.course;
+  const words = course.words;
+  const unitNames = () => Object.fromEntries(app().groups.filter((group) => group.number).map((group) => [group.number, group.subtitle]));
 
   function theoremByNumber(number) {
     return theorems().find((row) => row.number === number);
@@ -42,7 +35,7 @@
   }
 
   function questionRow(exam, q, withExam) {
-    const units = (q.units || []).map((u) => `<span class="exam-chip" style="--c:var(--c-unit-${u})">יחידה ${u}</span>`).join("");
+    const units = (q.units || []).map((u) => `<span class="exam-chip" style="--c:var(--c-unit-${u})">${esc(words.unit)} ${u}</span>`).join("");
     const proves = (q.prove || []).map(theoremChip).join("");
     const head = withExam
       ? `<a href="${examHref(exam.n, q.q)}">${esc(examLabel(exam))} · שאלה ${q.q}</a>`
@@ -104,21 +97,21 @@
       }
     }
     const head = years.map((y) => `<th scope="col">${y}</th>`).join("");
-    const body = Object.keys(UNIT_NAMES)
-      .map((u) => {
+    const body = Object.entries(unitNames())
+      .map(([u, name]) => {
         const cells = years
           .map((y) => {
             const n = counts[`${u}-${y}`] || 0;
             return `<td style="--heat:${(n / max).toFixed(2)}">${n || ""}</td>`;
           })
           .join("");
-        return `<tr><th scope="row">${u}. ${UNIT_NAMES[u]}</th>${cells}</tr>`;
+        return `<tr><th scope="row">${u}. ${name}</th>${cells}</tr>`;
       })
       .join("");
     return `<section class="exam-section" aria-labelledby="heatTitle">
-      <h2 id="heatTitle">איזו יחידה נשאלת כל שנה</h2>
-      <p>מספר השאלות שנוגעות בכל יחידה, לפי שנה. ככל שהמשבצת כהה יותר, היחידה נשאלה יותר.</p>
-      <div class="table-wrap"><table class="heatmap"><thead><tr><th scope="col">יחידה</th>${head}</tr></thead><tbody>${body}</tbody></table></div>
+      <h2 id="heatTitle">איזו ${esc(words.unit)} נשאלת כל שנה</h2>
+      <p>מספר השאלות שנוגעות בכל ${esc(words.unit)}, לפי שנה. ככל שהמשבצת כהה יותר, ${esc(words.theUnit)} נשאלה יותר.</p>
+      <div class="table-wrap"><table class="heatmap"><thead><tr><th scope="col">${esc(words.unit)}</th>${head}</tr></thead><tbody>${body}</tbody></table></div>
     </section>`;
   }
 
@@ -145,14 +138,14 @@
       <div class="exams-page">
         <header class="page-intro">
           <h1>מבחנים 2019–2026</h1>
-          <p>${list.length} טפסי מבחן רשמיים של הקורס, כסריקות. לכל שאלה סימנו את היחידה, הנושא, סוג השאלה ואת המשפט שמבקשים להוכיח, כדי שתוכלו לתרגל לפי נושא. אין כאן פתרונות: פותרים לבד, ובודקים מול ההוכחות שבפתקים.</p>
+          <p>${list.length} טפסי מבחן רשמיים של הקורס, כסריקות. לכל שאלה סימנו את ${esc(words.theUnit)}, הנושא, סוג השאלה ואת המשפט שמבקשים להוכיח, כדי שתוכלו לתרגל לפי נושא. אין כאן פתרונות: פותרים לבד, ובודקים מול ההוכחות שבפתקים.</p>
         </header>
         ${frequencyBoard()}
         ${heatmap()}
         <section class="exam-section" aria-labelledby="findTitle">
           <h2 id="findTitle">חיפוש שאלות לפי נושא</h2>
           <div class="exam-filters">
-            <label>יחידה<select data-f="unit"><option value="">הכול</option>${Object.entries(UNIT_NAMES).map(([u, n]) => `<option value="${u}">${u}. ${n}</option>`).join("")}</select></label>
+            <label>${esc(words.unit)}<select data-f="unit"><option value="">הכול</option>${Object.entries(unitNames()).map(([u, n]) => `<option value="${u}">${u}. ${n}</option>`).join("")}</select></label>
             <label>משפט להוכחה<select data-f="thm"><option value="">הכול</option>${nums.map((n) => `<option>${n}</option>`).join("")}</select></label>
             <label>סוג שאלה<select data-f="kind"><option value="">הכול</option>${kinds.map((k) => `<option>${esc(k)}</option>`).join("")}</select></label>
             <label class="exam-filter-text">מילה<input type="search" data-f="text" autocomplete="off" placeholder="למשל: במידה שווה" /></label>
@@ -177,7 +170,7 @@
       const text = norm(field("text"));
       if (!unit && !thm && !kind && !text) {
         results.innerHTML = "";
-        status.textContent = "בחרו יחידה, משפט, סוג או מילה כדי לראות את כל השאלות המתאימות.";
+        status.textContent = `בחרו ${words.unit}, משפט, סוג או מילה כדי לראות את כל השאלות המתאימות.`;
         return;
       }
       const hits = [];
@@ -305,8 +298,19 @@
     });
   }
 
+  function renderNoExams(root) {
+    app().setTitle("מבחנים");
+    root.innerHTML = `
+      <section class="empty-state">
+        <h1>אין עדיין מבחנים לקורס הזה</h1>
+        <p>נוסיף אותם כשיהיו לנו טפסי מבחן לתייג. בינתיים אפשר ללמוד מהפתקים ולתרגל.</p>
+        <p><a class="button button-primary" href="#/">לדף הבית</a> <a class="button" href="#/practice">לתרגול</a></p>
+      </section>`;
+  }
+
   function render(root, route) {
-    if (route.id) renderExam(root, route.id, route.section);
+    if (!course.features.exams) renderNoExams(root);
+    else if (route.id) renderExam(root, route.id, route.section);
     else renderList(root, route);
   }
 

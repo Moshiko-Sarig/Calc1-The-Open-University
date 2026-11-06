@@ -4758,6 +4758,155 @@ details.callout > summary.callout-title { min-height: 32px; }
   text-underline-offset: .2em;
 }
 .home-quick-link:hover, .home-start-link:hover { text-decoration: underline; }
+
+/* The home page: one card per course. */
+.landing {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.landing-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1040px;
+  margin-inline: auto;
+  padding: 56px 24px 72px;
+}
+.landing-intro h1 {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 1.5rem + 2.2vw, 3rem);
+  line-height: 1.15;
+}
+.landing-intro p {
+  max-width: 44rem;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 1.125rem;
+  line-height: 1.7;
+}
+.landing .header-actions {
+  margin-inline-start: auto;
+}
+.course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 16px;
+  margin-top: 36px;
+}
+.course-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color .15s ease, background .15s ease;
+}
+.course-card:hover {
+  border-color: var(--accent-line);
+  background: var(--surface-2);
+}
+.course-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.course-card-code,
+.course-card-stats {
+  color: var(--ink-3);
+  font-size: var(--fs-s);
+  line-height: 1.6;
+}
+.course-card-stat {
+  white-space: nowrap;
+}
+.course-card h2 {
+  margin: 6px 0 0;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+.course-card p {
+  margin: 0;
+  color: var(--ink-2);
+  line-height: 1.65;
+}
+.course-card-go {
+  margin-top: auto;
+  padding-top: 8px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* A matrix and its system on the notebook grid: each row is two squares high. */
+.demo-rows {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--cell) calc(var(--cell) * 2);
+  padding-block: var(--cell);
+  overflow-x: auto;
+}
+.demo-matrix {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(calc(var(--cell) * 2), auto));
+  grid-auto-rows: calc(var(--cell) * 2);
+  padding-inline: 4px;
+  border-inline: 2px solid var(--ink);
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.demo-matrix span {
+  display: grid;
+  place-items: center;
+  padding-inline: 4px;
+}
+.demo-matrix .is-free {
+  border-inline-start: 1.5px solid var(--ink-2);
+}
+.demo-matrix .is-pivot {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.demo-system {
+  display: grid;
+  grid-auto-rows: calc(var(--cell) * 2);
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* The link to the other course: set apart from this course's own views. */
+.primary-nav .course-switch {
+  margin-inline-start: 6px;
+  border-inline-start: 1px solid var(--line);
+  border-radius: 0;
+  color: var(--accent);
+}
+.course-switch-mark {
+  margin-inline-end: 6px;
+}
+
+/* The header has no room for the course's name here, and the search field must not pay for it. */
+@media (max-width: 1240px) {
+  .primary-nav .course-switch-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .primary-nav .course-switch-mark {
+    margin-inline-end: 0;
+  }
+}
 .home-start-link { gap: .45rem; }
 .home-intro-meta {
   margin: 27px 0 0;
@@ -4836,6 +4985,11 @@ details.callout > summary.callout-title { min-height: 32px; }
   .tree-primary a[aria-current="page"] {
     border-color: var(--accent-line);
     background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .tree-primary .tree-course-switch {
+    grid-column: 1 / -1;
     color: var(--accent);
   }
 }

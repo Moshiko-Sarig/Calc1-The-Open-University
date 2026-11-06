@@ -3,20 +3,20 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { COURSES, SITE } from "./courses.mjs";
+import { compareNumbers, NUMBER_KEY_SOURCE, NUMBER_SOURCE, numberFromKey, numberKey } from "./lib/numbers.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const vaultDir = path.join(root, "חשבון אינפיסימטלי 1");
 const webAppDir = path.join(root, "web-app");
 const docsDir = path.join(root, "docs");
-const webAssetsDir = path.join(webAppDir, "assets");
-const docsAssetsDir = path.join(docsDir, "assets");
-const figuresDir = path.join(root, "figures");
-const examsDir = path.join(root, "exams");
-const generatedAssetDirs = [webAssetsDir, docsAssetsDir];
+
+// The course being built, and the directories derived from it.
+let course = null;
+let vaultDir = "";
+let outDir = "";
+let generatedAssetDirs = [];
 
 const collator = new Intl.Collator("he", { numeric: true, sensitivity: "base" });
-
-const notice =
-  "אתר לימודי לא רשמי. הפתקים מבוססים על חומרי הקורס 20474 של האוניברסיטה הפתוחה. כל הזכויות בחומרי המקור שמורות לבעליהן.";
 
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -132,31 +132,16 @@ function stripInline(value) {
     .replace(/<[^>]+>/g, "");
 }
 
-// Unit titles exactly as printed in the course books (20474, volumes A–C).
-// Vault folder names are kept for Obsidian links; the site shows these.
-const officialUnitTitles = {
-  1: "המספרים הממשיים",
-  2: "סדרות וגבולות",
-  3: "קבוצות וסדרות חסומות",
-  4: "גבולות של פונקציות",
-  5: "פונקציות רציפות",
-  6: "פונקציות מעריכיות",
-  7: "הנגזרת",
-  8: "תכונות של פונקציות גזירות"
-};
-
-const unitVolumes = { 1: "כרך א", 2: "כרך א", 3: "כרך א", 4: "כרך ב", 5: "כרך ב", 6: "כרך ב", 7: "כרך ג", 8: "כרך ג" };
-
 function unitInfo(relPath) {
   const first = relPath.split("/")[0];
-  const unitMatch = first.match(/^יחידה\s+(\d+)/);
+  const unitMatch = first.match(new RegExp(`^${course.unitWord}\\s+(\\d+)`));
   if (unitMatch) {
     const number = Number(unitMatch[1]);
-    const title = officialUnitTitles[number];
+    const title = course.unitTitles[number];
     return {
       unitId: `unit-${number}`,
-      unitName: title ? `יחידה ${number} - ${title}` : first,
-      unitVolume: unitVolumes[number] || "",
+      unitName: title ? `${course.unitWord} ${number} - ${title}` : first,
+      unitVolume: course.unitVolumes[number] || "",
       unitOrder: number + 10
     };
   }
@@ -446,7 +431,7 @@ function renderMarkdown(body, resolveLink) {
     if (comment) {
       const directive = comment[1].trim();
       const demo = directive.match(/^infi-demo:\s*([\w-]+)\s*$/);
-      const proof = directive.match(/^infi-proof:\s*(\d+\.\d+)\s*$/);
+      const proof = directive.match(new RegExp(`^infi-proof:\\s*(${NUMBER_SOURCE})\\s*$`));
       if (demo) html.push(renderDemo(demo[1]));
       else if (proof) {
         html.push(`<div class="proof" id="${proofAnchor(proof[1])}" data-proof="${proof[1]}">`);
@@ -774,10 +759,9 @@ function renderDataview(code) {
 // ---------------------------------------------------------------------------
 
 const STATEMENT_KINDS = ["משפט", "טענה", "למה", "הגדרה", "מסקנה", "אקסיומה"];
-const STATEMENT_LEAD = new RegExp(`^\\*\\*(${STATEMENT_KINDS.join("|")})\\s+(\\d+\\.\\d+)`);
+const STATEMENT_LEAD = new RegExp(`^\\*\\*(${STATEMENT_KINDS.join("|")})\\s+(${NUMBER_SOURCE})`);
 const FLASHCARD_LINE = /^\s*(?:[-*]\s+)?([^:\n][^\n]*?)::([^\n]+)$/;
 
-const numberKey = (number) => number.replace(/\./g, "-");
 const proofAnchor = (number) => `proof-${numberKey(number)}`;
 
 // A paragraph or list item that opens with "**משפט 4.42**" gets an anchor,
@@ -799,8 +783,9 @@ const stripTags = (html) => html.replace(/<[^>]+>/g, "").replace(/&quot;/g, '"')
 function buildStatements(pages) {
   const index = {};
   const kindWord = new RegExp(`(?:^|[\\s(])ה?(${STATEMENT_KINDS.join("|")})(?=[\\s(:,]|$)`);
-  const named = new RegExp(`(${STATEMENT_KINDS.join("|")})\\s+(\\d+\\.\\d+)(?![\\d.–-])`, "g");
-  const bare = /\((\d+\.\d+)\)/g;
+  const named = new RegExp(`(${STATEMENT_KINDS.join("|")})\\s+(${NUMBER_SOURCE})(?![\\d.–-])`, "g");
+  const bare = new RegExp(`\\((${NUMBER_SOURCE})\\)`, "g");
+  const stmtAnchor = new RegExp(` id="stmt-(${NUMBER_KEY_SOURCE})" data-kind="([^"]+)"`, "g");
   for (const page of pages) {
     if (!/^unit-/.test(page.groupId || "")) continue;
     const headings = page.html.matchAll(/<h([2-4]) id="([^"]+)">([\s\S]*?)<\/h\1>/g);
@@ -817,12 +802,13 @@ function buildStatements(pages) {
   }
   for (const page of pages) {
     if (!/^unit-/.test(page.groupId || "")) continue;
-    for (const [, number, kind] of page.html.matchAll(/ id="stmt-(\d+-\d+)" data-kind="([^"]+)"/g)) {
-      const key = number.replace("-", ".");
+    for (const [, number, kind] of page.html.matchAll(stmtAnchor)) {
+      const key = numberFromKey(number);
       if (!index[key]) index[key] = { number: key, kind, pageId: page.id, anchor: `stmt-${number}`, titleHtml: "" };
     }
   }
-  return index;
+  if (!course.sortStatementsByNumber) return index;
+  return Object.fromEntries(Object.entries(index).sort(([a], [b]) => compareNumbers(a, b)));
 }
 
 // The 35 theorems of the official exam list, from the table rows of the
@@ -830,12 +816,15 @@ function buildStatements(pages) {
 function buildExamTheorems(examPage, resolver, pages) {
   if (!examPage?.body) return [];
   const proofPage = new Map();
-  for (const page of pages) for (const [, number] of page.html.matchAll(/data-proof="(\d+\.\d+)"/g)) proofPage.set(number, page.id);
+  const proofMark = new RegExp(`data-proof="(${NUMBER_SOURCE})"`, "g");
+  const rowNumber = new RegExp(`^(${NUMBER_SOURCE})\\s*(\\([^)]*\\))?`);
+  for (const page of pages) for (const [, number] of page.html.matchAll(proofMark)) proofPage.set(number, page.id);
   const rows = [];
   for (const line of examPage.body.split("\n")) {
     const cells = splitTableRow(line);
-    if (cells.length < 4 || !/^\d+\.\d+/.test(cells[0])) continue;
-    const [, number, part = ""] = cells[0].match(/^(\d+\.\d+)\s*(\([^)]*\))?/);
+    const row = cells.length < 4 ? null : cells[0].match(rowNumber);
+    if (!row) continue;
+    const [, number, part = ""] = row;
     const target = cells[3].match(/\[\[([^\]|#]+)/)?.[1];
     const note = target ? resolver(target.trim()) : null;
     rows.push({
@@ -872,7 +861,7 @@ function collectFlashcards(page, body, resolver) {
     if (/^```/.test(line)) fence = !fence;
     if (fence) continue;
     const heading = line.match(/^#{1,6}\s+(.+)$/);
-    if (heading) unit = heading[1].match(/יחידה\s*(\d+)/)?.[1] || "";
+    if (heading) unit = heading[1].match(new RegExp(`${course.unitWord}\\s*(\\d+)`))?.[1] || "";
     const card = line.match(FLASHCARD_LINE);
     if (!card) continue;
     cards.push({
@@ -886,7 +875,7 @@ function collectFlashcards(page, body, resolver) {
   return cards;
 }
 
-const DEMO_NAMES = new Set(["sup", "epsilon-n", "nested-intervals", "epsilon-delta", "bisection", "uniform", "secant", "mvt"]);
+const DEMO_NAMES = new Set(["sup", "epsilon-n", "nested-intervals", "epsilon-delta", "bisection", "uniform", "secant", "mvt", "row-reduction", "solution-count"]);
 
 function renderDemo(name) {
   if (!DEMO_NAMES.has(name)) throw new Error(`Unknown infi-demo "${name}"`);
@@ -1015,13 +1004,30 @@ function copyStaticApp() {
   if (!fs.existsSync(webAppDir)) {
     throw new Error(`Web app source not found: ${webAppDir}`);
   }
-  copyDirectory(webAppDir, docsDir, (rel) => rel === "assets/content.js" || rel.startsWith("assets/figures/"));
+  // Generated per course: never carry another course's content or scans along.
+  copyDirectory(webAppDir, outDir, (rel) => rel === "landing.html" || /^assets\/(?:content\.js$|figures(?:\/|$)|exams(?:\/|$))/.test(rel));
 }
 
-function writeRootIndex() {
-  const source = path.join(webAppDir, "index.html");
-  if (!fs.existsSync(source)) return;
-  const html = fs.readFileSync(source, "utf8");
+// web-app/index.html is a template; each course fills in its own identity.
+function renderIndexHtml() {
+  const tokens = {
+    SITE_TITLE: `${course.siteName} · ${course.fullName}`,
+    SITE_DESCRIPTION: course.description,
+    SITE_NAME: course.siteName,
+    SITE_TAGLINE: course.tagline,
+    BRAND_MARK: course.brandMark,
+    THE_UNITS: course.words.theUnits,
+    THE_UNITS_AND_NOTES: `${course.words.units} ופתקים`,
+    FOOTER_NOTICE: course.footerNotice
+  };
+  const scripts = course.scripts.map((name) => `    <script defer src="./assets/${name}"></script>\n`).join("");
+  return fs
+    .readFileSync(path.join(webAppDir, "index.html"), "utf8")
+    .replace(/^[ \t]*\{\{COURSE_SCRIPTS\}\}\r?\n/m, scripts)
+    .replace(/\{\{([A-Z_]+)\}\}/g, (_, name) => tokens[name]);
+}
+
+function writeRootIndex(html) {
   const withBase = html.includes("<base ")
     ? html
     : html.replace("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />", "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n    <base href=\"./docs/\" />");
@@ -1040,7 +1046,8 @@ function writeGeneratedContent(payload) {
 // An exam lists its pages in reading order; a few photographed exams were
 // bound out of order.
 function loadExams() {
-  const file = path.join(examsDir, "exams.json");
+  if (!course.examsDir) return [];
+  const file = path.join(path.resolve(root, course.examsDir), "exams.json");
   if (!fs.existsSync(file)) return [];
   const exams = JSON.parse(fs.readFileSync(file, "utf8"));
   for (const exam of exams) {
@@ -1050,6 +1057,8 @@ function loadExams() {
 }
 
 function copyExams() {
+  if (!course.examsDir) return;
+  const examsDir = path.resolve(root, course.examsDir);
   if (!fs.existsSync(examsDir)) return;
   for (const assetDir of generatedAssetDirs) {
     const out = path.join(assetDir, "exams");
@@ -1062,6 +1071,8 @@ function copyExams() {
 }
 
 function copyFigures() {
+  if (!course.figuresDir) return;
+  const figuresDir = path.resolve(root, course.figuresDir);
   if (!fs.existsSync(figuresDir)) return;
   for (const assetDir of generatedAssetDirs) {
     const outputFiguresDir = path.join(assetDir, "figures");
@@ -1086,13 +1097,12 @@ function navTitleFor(page) {
   if (/מפת הקורס/.test(title)) return "מפת הקורס";
   return title
     .replace(/\s+\(עדכון[^)]*\)\s*$/, "")
-    .replace(/\s+-\s+אינפי 1$/, "")
-    .replace(/\s+(ב|בכספת )אינפי 1$/, "")
+    .replace(course.titleSuffix, "")
     .trim();
 }
 
-const startOrder = [
-  "רשימת המשפטים לבחינה",
+const startOrder = () => [
+  course.theoremListTitle,
   "מסקנות משאלות הספר",
   "שיטות המרצה",
   "מפת הקורס",
@@ -1133,7 +1143,7 @@ function buildNavGroups(pages, resolver) {
 
   const groups = [];
   const start = (byUnit.get("start") || []).sort(
-    (a, b) => rankBy(startOrder, a.title) - rankBy(startOrder, b.title) || collator.compare(a.title, b.title)
+    (a, b) => rankBy(startOrder(), a.title) - rankBy(startOrder(), b.title) || collator.compare(a.title, b.title)
   );
   groups.push({ id: "start", title: "מרכז הלימוד", subtitle: "מפות, רשימות וכלי חזרה", pageIds: start.map((p) => p.id) });
 
@@ -1157,8 +1167,8 @@ function buildNavGroups(pages, resolver) {
     groups.push({
       id,
       number,
-      title: `יחידה ${number}`,
-      subtitle: officialUnitTitles[number],
+      title: `${course.unitWord} ${number}`,
+      subtitle: course.unitTitles[number],
       volume: sample.unitVolume || "",
       gatewayId: gateway?.id || ordered[0],
       pageIds: ordered
@@ -1193,13 +1203,27 @@ function findByTitle(pages, includes) {
   return pages.find((page) => includes.some((value) => page.title.includes(value)))?.id || "";
 }
 
-function main() {
+// What the client needs to know about the course (no build paths or RegExps).
+function publicCourseInfo() {
+  const { id, siteName, fullName, courseCode, tagline, unitWord, words, storagePrefix, theoremListTitle, theoremListLabel, demosLead, theoremBand, sources, examUseNote, searchExample, features } = course;
+  return { id, siteName, fullName, courseCode, tagline, unitWord, words, storagePrefix, theoremListTitle, theoremListLabel, demosLead, theoremBand, sources, examUseNote, searchExample, features };
+}
+
+export function buildCourse(nextCourse) {
+  course = nextCourse;
+  vaultDir = path.resolve(root, course.vaultDir);
+  outDir = path.resolve(root, course.outDir);
+  generatedAssetDirs = [path.join(outDir, "assets")];
+  Object.assign(renderContext, { pages: [], current: null, slugs: new Set(), openedSimple: false });
+
   if (!fs.existsSync(vaultDir)) {
     throw new Error(`Vault not found: ${vaultDir}`);
   }
 
+  // A course's folder is entirely generated, so it starts clean.
+  fs.rmSync(outDir, { recursive: true, force: true });
   copyStaticApp();
-  writeRootIndex();
+  fs.writeFileSync(path.join(outDir, "index.html"), renderIndexHtml(), "utf8");
 
   const pages = collectPages();
   const aliases = buildAliases(pages);
@@ -1219,7 +1243,7 @@ function main() {
   const navGroups = buildNavGroups(pages, resolver);
   linkSequence(navGroups, pagesById);
 
-  const examList = pages.find((page) => page.title.includes("רשימת המשפטים לבחינה"));
+  const examList = pages.find((page) => page.title.includes(course.theoremListTitle));
   // Only unit notes count: the exam list also links to hub pages in its footer.
   const examLinked = new Set(
     (examList ? examList.links : []).filter((id) => /^unit-/.test(pagesById.get(id)?.groupId || ""))
@@ -1281,12 +1305,14 @@ function main() {
 
   const payload = {
     generatedAt: new Date().toISOString(),
-    notice,
+    notice: course.notice,
+    course: publicCourseInfo(),
+    homeHref: `${toPosix(path.relative(outDir, docsDir))}/`,
     homePageId: findByTitle(pages, ["כספת העל", "Central Note"]) || pages[0]?.id,
     mapPageId: findByTitle(pages, ["מפת הקורס"]),
     dependencyPageId: findByTitle(pages, ["מפת תלות"]),
     proofPageId: findByTitle(pages, ["תבניות הוכחה"]),
-    examListPageId: findByTitle(pages, ["רשימת המשפטים לבחינה"]),
+    examListPageId: findByTitle(pages, [course.theoremListTitle]),
     counterPageId: findByTitle(pages, ["דוגמאות נגד"]),
     units,
     navGroups,
@@ -1303,10 +1329,76 @@ function main() {
   };
 
   writeGeneratedContent(payload);
-  fs.writeFileSync(path.join(docsDir, ".nojekyll"), "", "utf8");
   copyFigures();
   copyExams();
-  console.log(`Built ${pages.length} pages, ${edges.length} graph edges -> ${path.relative(root, docsDir)}`);
+  console.log(`Built ${course.id}: ${pages.length} pages, ${edges.length} graph edges -> ${path.relative(root, outDir)}`);
+  return payload;
 }
 
-main();
+// ---------------------------------------------------------------------------
+// The home page: one card per course
+// ---------------------------------------------------------------------------
+
+function courseStats(item, payload) {
+  const units = payload.navGroups.filter((group) => group.number).length;
+  const theorems = payload.examTheorems.length;
+  const exams = payload.exams.length;
+  return [
+    units === 1 ? item.words.oneUnit : `${units} ${item.words.units}`,
+    `${payload.pages.length} פתקים`,
+    theorems ? `${theorems} ${item.words.theorems}` : "",
+    item.features.exams && exams ? `${exams} מבחני עבר` : ""
+  ].filter(Boolean);
+}
+
+const hrefFromHome = (item) => `${toPosix(path.relative(docsDir, path.resolve(root, item.outDir)))}/`;
+
+export function renderCourseCards(results) {
+  return results
+    .map(
+      ({ course: item, payload }) => `        <a class="course-card" href="${hrefFromHome(item)}">
+          <span class="course-card-top">
+            <span class="brand-mark" aria-hidden="true">${escapeHtml(item.brandMark)}</span>
+            <span class="course-card-code">קורס ${escapeHtml(item.courseCode)}</span>
+          </span>
+          <h2>${escapeHtml(item.fullName)}</h2>
+          <p>${escapeHtml(item.summary)}</p>
+          <span class="course-card-stats">${courseStats(item, payload).map((stat) => `<span class="course-card-stat">${escapeHtml(stat)}</span>`).join(" · ")}</span>
+          <span class="course-card-go">לכניסה לקורס <span aria-hidden="true">←</span></span>
+        </a>`
+    )
+    .join("\n");
+}
+
+function writeHomePage(results) {
+  const legacy = results.find(({ course: item }) => item.legacyRoot)?.course;
+  const tokens = {
+    SITE_NAME: SITE.name,
+    SITE_MARK: SITE.mark,
+    SITE_TAGLINE: SITE.tagline,
+    SITE_INTRO: SITE.intro,
+    SITE_DESCRIPTION: SITE.description,
+    FOOTER_NOTICE: SITE.footerNotice,
+    LEGACY_HREF: legacy ? hrefFromHome(legacy) : "",
+    COURSE_CARDS: renderCourseCards(results)
+  };
+  const html = fs
+    .readFileSync(path.join(webAppDir, "landing.html"), "utf8")
+    .replace(/\{\{([A-Z_]+)\}\}/g, (_, name) => tokens[name]);
+  fs.mkdirSync(path.join(docsDir, "assets"), { recursive: true });
+  fs.copyFileSync(path.join(webAppDir, "assets", "site.css"), path.join(docsDir, "assets", "site.css"));
+  fs.writeFileSync(path.join(docsDir, "index.html"), html, "utf8");
+  fs.writeFileSync(path.join(docsDir, ".nojekyll"), "", "utf8");
+  writeRootIndex(html);
+}
+
+export function buildSite(courses = COURSES) {
+  for (const item of courses) {
+    if (!fs.existsSync(path.resolve(root, item.vaultDir))) throw new Error(`Vault not found: ${item.vaultDir}`);
+  }
+  // Everything under docs/ is generated, so a course that moves leaves nothing behind.
+  fs.rmSync(docsDir, { recursive: true, force: true });
+  writeHomePage(courses.map((item) => ({ course: item, payload: buildCourse(item) })));
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) buildSite();

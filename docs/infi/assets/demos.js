@@ -1430,6 +1430,225 @@
   };
 
   // ---------------------------------------------------------------------------
+  // Linear algebra: exact arithmetic comes from assets/linalg.js
+  // ---------------------------------------------------------------------------
+
+  const minusSign = (text) => String(text).replace(/-/g, "−");
+  const rowName = (i) => `R${sub(i + 1)}`;
+
+  // One row of an augmented matrix as an equation, the way it is written by hand.
+  function equationOf(row, names = (column) => `x${sub(column + 1)}`) {
+    const terms = [];
+    row.slice(0, -1).forEach((value, column) => {
+      if (value.isZero()) return;
+      const size = value.n < 0 ? value.neg() : value;
+      const coefficient = size.isOne() ? "" : size.d === 1 ? String(size) : `(${size})`;
+      const name = `${coefficient}${names(column)}`;
+      if (!terms.length) terms.push(value.n < 0 ? `−${name}` : name);
+      else terms.push(`${value.n < 0 ? "−" : "+"} ${name}`);
+    });
+    return `${terms.join(" ") || "0"} = ${minusSign(row.at(-1))}`;
+  }
+
+  function operationText(op) {
+    if (op.type === "swap") return `${rowName(op.i)} ↔ ${rowName(op.j)}`;
+    if (op.type === "scale") return `${rowName(op.i)} → ${minusSign(op.k.d === 1 ? op.k : `(${op.k})`)}·${rowName(op.i)}`;
+    const size = op.k.n < 0 ? op.k.neg() : op.k;
+    return `${rowName(op.i)} → ${rowName(op.i)} ${op.k.n < 0 ? "−" : "+"} ${size.isOne() ? "" : size.d === 1 ? `${size}·` : `(${size})·`}${rowName(op.j)}`;
+  }
+
+  const OPERATION_NAMES = { swap: "החלפת שתי שורות", scale: "כפל שורה בסקלר שונה מאפס", add: "הוספת כפולה של שורה לשורה אחרת" };
+
+  // An augmented matrix on the grid. Pivots are marked, and the bar separates the
+  // free coefficients. The picture is one image to a screen reader; the status says it in words.
+  function matrixNode(matrix) {
+    const node = h("div", { class: "demo-matrix", dir: "ltr", role: "img", style: `--cols:${matrix[0].length}` });
+    const pivotOf = matrix.map((row) => row.findIndex((value) => !value.isZero()));
+    node.setAttribute("aria-label", `מטריצה: ${matrix.map((row, i) => `שורה ${i + 1}: ${row.map(String).join(", ")}`).join("; ")}`);
+    matrix.forEach((row, i) => {
+      row.forEach((value, column) => {
+        const classes = [column === row.length - 1 ? "is-free" : "", column === pivotOf[i] && column < row.length - 1 ? "is-pivot" : ""].filter(Boolean).join(" ");
+        node.append(h("span", { class: classes || null, text: minusSign(value) }));
+      });
+    });
+    return node;
+  }
+
+  function solutionWords(result) {
+    if (result.kind === "none") return `יש שורה מהצורה ${m("0 = a")} עם ${m("a ≠ 0")}, ולכן <strong>אין פתרון</strong>.`;
+    if (result.kind === "one") {
+      const values = result.solution.map((value, column) => `x${sub(column + 1)} = ${minusSign(value)}`).join(", ");
+      return `כל המשתנים קשורים, ולכן יש <strong>פתרון יחיד</strong>: ${m(values)}.`;
+    }
+    const names = result.free.map((column) => `x${sub(column + 1)}`).join(", ");
+    return `${m(names)} ${result.free.length > 1 ? "חופשיים" : "חופשי"}, ולכן יש <strong>אינסוף פתרונות</strong> מעל ${m("ℝ")}.`;
+  }
+
+  // Chapter 1: row reduction, one elementary operation at a time.
+  DEMOS["row-reduction"] = (fig) => {
+    const { toFractions, applyOp, nextStep, classify, fraction } = window.Linalg;
+    const examples = [
+      { name: "פתרון יחיד", matrix: [[1, 1, 1, 6], [2, -1, 1, 3], [1, 2, -1, 2]] },
+      { name: "אינסוף פתרונות", matrix: [[1, 2, -1, 3], [2, 4, 1, 9], [1, 2, 2, 6]] },
+      { name: "אין פתרון", matrix: [[1, -1, 2, 1], [2, -2, 5, 4], [3, -3, 7, 2]] }
+    ];
+    const multipliers = [[2, 1], [3, 1], [-1, 1], [-2, 1], [-3, 1], [1, 2], [1, 3], [-1, 2]];
+    const ui = frame(fig, "דירוג מטריצה, פעולה אחת בכל פעם");
+    const board = h("div", { class: "demo-rows" });
+    ui.plotHost.append(board);
+    let history = [];
+
+    const example = choice("מערכת", examples.map((item) => item.name), () => restart());
+    const type = choice("פעולה", Object.values(OPERATION_NAMES), () => syncChoices());
+    const target = choice("שורה", [0, 1, 2].map(rowName), () => {});
+    const other = choice("עם שורה", [0, 1, 2].map(rowName), () => {});
+    const factor = choice("סקלר", multipliers.map(([n, d]) => minusSign(fraction(n, d))), () => {});
+    other.select.value = "1";
+    ui.controls.append(example.el, type.el, target.el, other.el, factor.el);
+
+    const nextButton = button("הצעד הבא", () => {
+      const op = nextStep(current());
+      if (op) apply(op);
+    });
+    const backButton = button("אחורה", () => {
+      history = history.slice(0, -1);
+      update("חזרנו צעד אחד אחורה.");
+    }, "is-quiet");
+    ui.buttons.append(
+      nextButton,
+      button("בצעו את הפעולה שבחרתם", () => applyChosen(), "is-quiet"),
+      backButton,
+      button("מההתחלה", () => restart(), "is-quiet")
+    );
+
+    const current = () => history.at(-1);
+    const kinds = Object.keys(OPERATION_NAMES);
+
+    function syncChoices() {
+      const kind = kinds[Number(type.select.value)];
+      other.select.disabled = kind === "scale";
+      factor.select.disabled = kind === "swap";
+    }
+
+    function applyChosen() {
+      const kind = kinds[Number(type.select.value)];
+      const i = Number(target.select.value);
+      const j = Number(other.select.value);
+      if (kind !== "scale" && i === j) {
+        ui.say("בחרו שתי שורות שונות. פעולה על שורה עם עצמה אינה פעולה אלמנטרית.");
+        return;
+      }
+      const [n, d] = multipliers[Number(factor.select.value)];
+      apply(kind === "swap" ? { type: "swap", i, j } : kind === "scale" ? { type: "scale", i, k: fraction(n, d) } : { type: "add", i, j, k: fraction(n, d) });
+    }
+
+    function apply(op) {
+      history = [...history, applyOp(current(), op)];
+      update(`${m(operationText(op))}: ${OPERATION_NAMES[op.type]}. המערכת שקולה לקודמת, ולכן יש לה בדיוק אותם פתרונות.`);
+    }
+
+    function restart() {
+      history = [toFractions(examples[Number(example.select.value)].matrix)];
+      update("זו המערכת ההתחלתית. לחצו על \"הצעד הבא\", או בחרו פעולה בעצמכם.");
+    }
+
+    function draw() {
+      const matrix = current();
+      board.replaceChildren(matrixNode(matrix), h("div", { class: "demo-system", dir: "ltr" }, matrix.map((row) => h("span", { text: equationOf(row) }))));
+    }
+
+    function update(message) {
+      draw();
+      const done = !nextStep(current());
+      nextButton.disabled = done;
+      backButton.disabled = history.length === 1;
+      ui.say(done ? `${message} הגענו לצורה הקנונית. ${solutionWords(classify(current()))}` : message);
+    }
+
+    syncChoices();
+    restart();
+    return { render: draw };
+  };
+
+  // Chapter 1: two equations in two unknowns, seen as two lines.
+  DEMOS["solution-count"] = (fig) => {
+    const { toFractions, classify, fraction } = window.Linalg;
+    const names = (column) => "xy"[column];
+    const ui = frame(fig, "שני ישרים, שלוש אפשרויות");
+    const plot = new Plot(ui.plotHost, { view: { xmin: -6, xmax: 6, ymin: -5, ymax: 5 }, rows: 14 });
+    const state = { a: 1, b: -1, c: 0 };
+    const LINE = { a: 1, b: 1, c: 2 };
+    const sliders = {};
+    const add = (key, label) => {
+      sliders[key] = slider({
+        label,
+        min: -4,
+        max: 4,
+        step: 0.5,
+        value: state[key],
+        onInput: (value) => {
+          state[key] = value;
+          update();
+        }
+      });
+      ui.controls.append(sliders[key].el);
+    };
+    add("a", "מקדם \\(a\\)");
+    add("b", "מקדם \\(b\\)");
+    add("c", "מקדם חופשי \\(c\\)");
+    const setTo = (a, b, c) => {
+      Object.assign(state, { a, b, c });
+      for (const key of ["a", "b", "c"]) sliders[key].set(state[key]);
+      update();
+    };
+    ui.buttons.append(
+      button("נחתכים", () => setTo(1, -1, 0), "is-quiet"),
+      button("מקבילים", () => setTo(2, 2, 1), "is-quiet"),
+      button("מתלכדים", () => setTo(2, 2, 4), "is-quiet")
+    );
+    const reduced = h("div", { class: "demo-rows" });
+    ui.panel.prepend(reduced);
+
+    const half = (value) => fraction(Math.round(value * 2), 2);
+    const augmented = () => toFractions([[1, 1, 2], [half(state.a), half(state.b), half(state.c)]]);
+
+    function drawLine({ a, b, c }, options) {
+      if (b !== 0) plot.curve((x) => (c - a * x) / b, options);
+      else if (a !== 0) plot.vline(c / a, options);
+    }
+
+    function draw() {
+      plot.clear();
+      plot.drawAxes();
+      const result = classify(augmented());
+      drawLine(LINE, { cls: "pc-blue", width: 2.6 });
+      drawLine(state, { cls: "pc-red", width: 2.2, dash: result.kind === "infinite" ? "7 6" : null });
+      if (result.kind === "one") plot.dot(result.solution[0].n / result.solution[0].d, result.solution[1].n / result.solution[1].d, { cls: "pc-green", r: plot.cell * 0.32 });
+    }
+
+    function update() {
+      draw();
+      const start = augmented();
+      const result = classify(start);
+      reduced.replaceChildren(matrixNode(result.result), h("div", { class: "demo-system", dir: "ltr" }, start.map((row) => h("span", { text: equationOf(row, names) }))));
+      const emptyEquation = state.a === 0 && state.b === 0;
+      if (result.kind === "one") ui.say(`הישרים נחתכים בנקודה אחת, ולכן יש <strong>פתרון יחיד</strong>: ${m(`(x, y) = (${minusSign(result.solution[0])}, ${minusSign(result.solution[1])})`)}.`);
+      else if (result.kind === "none" && emptyEquation) ui.say(`המשוואה השנייה היא ${m(`0 = ${fmt(state.c)}`)}, ושום נקודה לא מקיימת אותה. לכן <strong>אין פתרון</strong>.`);
+      else if (result.kind === "none") ui.say(`הישרים מקבילים ולא נפגשים. בדירוג מתקבלת שורה ${m("0 = a")} עם ${m("a ≠ 0")}, ולכן <strong>אין פתרון</strong>.`);
+      else if (emptyEquation) ui.say(`המשוואה השנייה היא ${m("0 = 0")} ואינה מגבילה דבר, ולכן כל נקודה על הישר הכחול היא פתרון: <strong>אינסוף פתרונות</strong>.`);
+      else ui.say(`שתי המשוואות מתארות אותו ישר, אז כל נקודה עליו היא פתרון: <strong>אינסוף פתרונות</strong>. ${m("y")} משתנה חופשי.`);
+    }
+
+    update();
+    return {
+      render() {
+        plot.layout();
+        draw();
+      }
+    };
+  };
+
+  // ---------------------------------------------------------------------------
   // Mounting
   // ---------------------------------------------------------------------------
 

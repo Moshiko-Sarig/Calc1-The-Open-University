@@ -10,12 +10,14 @@
 (() => {
   "use strict";
 
-  const SRS_KEY = "infi-srs-v1";
-  const PUZZLE_KEY = "infi-puzzle-v1";
+  const course = window.COURSE_DATA.course;
+  const words = course.words;
+  const SRS_KEY = `${course.storagePrefix}-srs-v1`;
+  const PUZZLE_KEY = `${course.storagePrefix}-puzzle-v1`;
   const NEW_PER_DAY = 12;
   const KINDS = "משפט|טענה|למה|הגדרה|מסקנה|אקסיומה";
-  const NAMED_REF = new RegExp(`(?:^|[^\\u05d0-\\u05ea])[בלמהו]?(${KINDS})\\s+(\\d+\\.\\d+)(?![\\d])`, "g");
-  const BARE_REF = /\((\d+\.\d+)\)/g;
+  const NAMED_REF = new RegExp(`(?:^|[^\\u05d0-\\u05ea])[בלמהו]?(${KINDS})\\s+(\\d+(?:\\.\\d+){1,2})(?![\\d])`, "g");
+  const BARE_REF = /\((\d+(?:\.\d+){1,2})\)/g;
 
   const app = () => window.InfiApp;
   const esc = (text) => app().escapeHtml(text);
@@ -58,8 +60,8 @@
     const text = (html || "")
       .replace(/<span class="badge[\s\S]*?<\/span>/g, "")
       .replace(/<[^>]+>/g, "")
-      .replace(new RegExp(`\\((?:[^()]*?(?:${KINDS})[^()]*?|\\s*\\d+\\.\\d+[^()]*)\\)`, "g"), "")
-      .replace(new RegExp(`^(?:${KINDS})\\s+\\d+\\.\\d+\\s*[—–:-]?\\s*`), "")
+      .replace(new RegExp(`\\((?:[^()]*?(?:${KINDS})[^()]*?|\\s*\\d+(?:\\.\\d+){1,2}[^()]*)\\)`, "g"), "")
+      .replace(new RegExp(`^(?:${KINDS})\\s+\\d+(?:\\.\\d+){1,2}\\s*[—–:-]?\\s*`), "")
       .replace(/^דוגמה(?:\s+מלאה)?\s+\d+\s*[—–:-]\s*/, "")
       .replace(/\s+/g, " ")
       .trim();
@@ -719,8 +721,8 @@
           <h1 id="pageTitle" tabindex="-1">כרטיסי חזרה</h1>
           <p class="practice-lead">כרטיס שעונים עליו נכון חוזר אחרי מרווח שהולך וגדל; כרטיס ששוכחים חוזר מהר. ההתקדמות נשמרת בדפדפן הזה.</p>
           <div class="practice-filter">
-            <label for="cardUnit">יחידה</label>
-            <select id="cardUnit" class="demo-select"><option value="">כל היחידות</option>${units.map((group) => `<option value="${group.id}">יחידה ${group.number} · ${esc(group.subtitle || "")}</option>`).join("")}</select>
+            <label for="cardUnit">${esc(words.unit)}</label>
+            <select id="cardUnit" class="demo-select"><option value="">כל ${esc(words.theUnits)}</option>${units.map((group) => `<option value="${group.id}">${esc(words.unit)} ${group.number} · ${esc(group.subtitle || "")}</option>`).join("")}</select>
           </div>
         </header>
         <section class="review" aria-label="כרטיס">
@@ -860,7 +862,7 @@
       .map(
         (group) => `
         <section class="hub-unit" aria-labelledby="hub-${group.id}">
-          <h3 id="hub-${group.id}">יחידה ${group.number} · ${esc(group.subtitle || "")}</h3>
+          <h3 id="hub-${group.id}">${esc(words.unit)} ${group.number} · ${esc(group.subtitle || "")}</h3>
           <ul class="hub-theorems">${byUnit
             .get(group.id)
             .map((t) => {
@@ -884,7 +886,7 @@
         <header class="practice-head">
           <p class="practice-kicker">לפני הבחינה</p>
           <h1 id="pageTitle" tabindex="-1">תרגול</h1>
-          <p class="practice-lead">כרטיסי חזרה עם חזרה מרווחת, ופאזל הוכחה לכל אחד מ־${theorems().length} המשפטים שברשימה לבחינה. בכל הוכחה בפתקים יש גם כפתור "שלב אחר שלב". ההתקדמות נשמרת בדפדפן הזה.</p>
+          <p class="practice-lead">כרטיסי חזרה עם חזרה מרווחת${list.length ? `, ופאזל הוכחה לכל אחד מ־${list.length} המשפטים ${esc(course.theoremListLabel)}` : ""}. בכל הוכחה בפתקים יש גם כפתור "שלב אחר שלב". ההתקדמות נשמרת בדפדפן הזה.</p>
         </header>
         <div class="hub-cards">
           ${(app().keyGuides?.() || [])
@@ -896,16 +898,16 @@
             <p>${summary.due} לחזרה · ${summary.fresh} חדשים · ${summary.learned} מתוך ${summary.total} כבר נלמדו</p>
             <a class="demo-btn" href="#/practice/cards">להתחיל חזרה</a>
           </article>
-          <article class="hub-card">
+          ${list.length ? `<article class="hub-card">
             <h2>פאזלי הוכחה</h2>
             <p class="hub-big"><strong>${solved}</strong> מתוך ${list.length}</p>
             <p>מסדרים את שלבי ההוכחה לפי הסדר. כל טעות נספרת, ויש רמז כשנתקעים.</p>
             ${randomTheorem ? `<a class="demo-btn" href="#/practice/proof/${encodeURIComponent(randomTheorem.number)}">פאזל אקראי</a>` : ""}
-          </article>
+          </article>` : ""}
         </div>
         <section aria-labelledby="hubListTitle">
-          <h2 id="hubListTitle" class="hub-list-title">${theorems().length} המשפטים לבחינה</h2>
-          ${rows}
+          <h2 id="hubListTitle" class="hub-list-title">${list.length ? `${list.length} ${esc(words.theTheorems)}` : esc(words.theTheorems)}</h2>
+          ${rows || `<p>עדיין אין כאן משפטים. הם יתווספו יחד עם הפתקים.</p>`}
         </section>
       </div>`;
     queueTypeset([root]);
@@ -931,13 +933,13 @@
         <a class="hub-card hub-card-link" href="#/practice/cards">
           <h3>כרטיסי חזרה</h3>
           <p class="hub-big"><strong>${summary.due + summary.fresh}</strong> להיום</p>
-          <p>${summary.total} כרטיסים: שאלות, ניסוחי המשפטים לבחינה והגדרות, בחזרה מרווחת.</p>
+          <p>${summary.total} כרטיסים: שאלות, ניסוחי ${esc(words.theTheorems)} והגדרות, בחזרה מרווחת.</p>
         </a>
-        <a class="hub-card hub-card-link" href="#/practice">
+        ${theorems().length ? `<a class="hub-card hub-card-link" href="#/practice">
           <h3>פאזלי הוכחה</h3>
           <p class="hub-big"><strong>${solved}</strong> מתוך ${theorems().length}</p>
-          <p>מסדרים את שלבי ההוכחה של כל משפט מהרשימה לבחינה, עם רמזים כשנתקעים.</p>
-        </a>
+          <p>מסדרים את שלבי ההוכחה של כל ${esc(words.theoremFromList)}, עם רמזים כשנתקעים.</p>
+        </a>` : ""}
       </div>
     </section>`;
   }

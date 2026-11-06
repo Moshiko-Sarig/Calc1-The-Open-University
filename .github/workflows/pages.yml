@@ -29,6 +29,9 @@ jobs:
       - name: Build static site
         run: npm run build
 
+      - name: Test the site and check for source leaks
+        run: npm test
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 

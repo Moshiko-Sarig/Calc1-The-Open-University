@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="he" dir="rtl" data-theme="light" data-text-size="m">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f3f1eb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <title>{{SITE_NAME}} · {{SITE_TAGLINE}}</title>
+    <meta name="description" content="{{SITE_DESCRIPTION}}" />
+    <script>
+      // Links from when calculus lived at the root of the site carry its routes in the hash.
+      // Pasting one while already on this page changes only the hash, so listen for that too.
+      function forwardOldLink() {
+        if (location.hash.indexOf("#/") === 0) location.replace("{{LEGACY_HREF}}" + location.hash);
+      }
+      forwardOldLink();
+      window.addEventListener("hashchange", forwardOldLink);
+    </script>
+    <script>
+      // The same saved theme the courses use, applied before first paint.
+      (function () {
+        var theme;
+        try {
+          theme = localStorage.getItem("infi-theme");
+        } catch (error) {
+          /* storage blocked: follow the system */
+        }
+        if (theme !== "light" && theme !== "dark") {
+          theme = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@400;500;600;700&display=swap"
+    />
+    <link rel="stylesheet" href="./assets/site.css" />
+  </head>
+  <body class="landing">
+    <header class="site-header">
+      <div class="header-inner">
+        <span class="brand">
+          <span class="brand-mark" aria-hidden="true">{{SITE_MARK}}</span>
+          <span class="brand-text">
+            <strong>{{SITE_NAME}}</strong>
+            <small>{{SITE_TAGLINE}}</small>
+          </span>
+        </span>
+        <div class="header-actions">
+          <button class="icon-button" type="button" data-theme-toggle aria-pressed="false">
+            <svg class="icon theme-icon-dark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></svg>
+            <svg class="icon theme-icon-light" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
+            <span class="visually-hidden">החלפת מצב תצוגה</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main id="main" class="landing-main">
+      <div class="landing-intro">
+        <h1>באיזה קורס לומדים היום?</h1>
+        <p>{{SITE_INTRO}}</p>
+      </div>
+      <div class="course-grid">
+{{COURSE_CARDS}}
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <p>{{FOOTER_NOTICE}}</p>
+        <nav aria-label="קישורי סיום">
+          <a href="https://github.com/Moshiko-Sarig/Calc1-The-Open-University" rel="noreferrer">קוד המקור</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script>
+      (function () {
+        var root = document.documentElement;
+        var button = document.querySelector("[data-theme-toggle]");
+        function sync() {
+          button.setAttribute("aria-pressed", String(root.dataset.theme === "dark"));
+        }
+        button.addEventListener("click", function () {
+          root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+          try {
+            localStorage.setItem("infi-theme", root.dataset.theme);
+          } catch (error) {
+            /* storage blocked: the choice lasts for this visit */
+          }
+          sync();
+        });
+        sync();
+      })();
+    </script>
+  </body>
+</html>

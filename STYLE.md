@@ -56,6 +56,16 @@ Exam data: /Users/moshiko/Calc1-The-Open-University/exams/exams.json (45 exams; 
 - bookq.txt: "conclusions from book questions" with a "בפשטות" style worth borrowing.
 Do NOT copy paragraphs from the books; write in your own words. Course rule: only results from the course may be cited; Taylor and Technion material are out of scope.
 
+## Linear Algebra 1 (20109) notes
+
+Same tone and boxes. In addition:
+- Notes live in "אלגברה לינארית 1/פרק N - .../*.md". The unit word is "פרק", as in the book. Numbers have three levels: `## משפט 1.10.5: משפט הדירוג`.
+- Every note opens with `> מקור: כרך א, סעיף 1.x (...)`.
+- The book is private. Its text and page images stay in `tmp/linear1-source/`, which git ignores. Never commit them, and never copy paragraphs, exercises, answers or figures. Use new numbers in examples. On a machine that has `tmp/linear1-source/`, `npm test` fails on a run of 12 words from the book. Run it before every push.
+- Compute every example with `web-app/assets/linalg.js`, and check every statement against the page image, because extracted text loses math symbols.
+- In this book "מטריצת המקדמים" includes the free-coefficient column, and "המצומצמת" excludes it.
+- Keep one matrix per display line where possible, so examples fit a phone: `$$\xrightarrow{op}\begin{bmatrix}...\end{bmatrix}$$`.
+
 ## Do not
 - Do not run git, do not commit, do not run the build (the lead will). Do not edit files outside your assigned folders.
 - Do not touch the two pilot pages.

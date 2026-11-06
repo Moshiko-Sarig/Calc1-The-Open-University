@@ -7,27 +7,30 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#f3f1eb" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
-    <title>כספת אינפי 1 · חשבון אינפיניטסימלי 1</title>
-    <meta
-      name="description"
-      content="אתר לימודי לא רשמי לקורס 20474 חשבון אינפיניטסימלי 1 של האוניברסיטה הפתוחה: סיכומים לפי יחידות, 33 המשפטים לבחינה עם הוכחות מלאות, הסברים במילים פשוטות ו-45 מבחני עבר מתויגים."
-    />
+    <title>כספות הקורסים · אתר לימודי לא רשמי</title>
+    <meta name="description" content="אתר לימודי לא רשמי לקורסים של האוניברסיטה הפתוחה: סיכומים במילים פשוטות, הוכחות, המחשות ותרגול." />
     <script>
-      // Apply saved reading preferences before first paint, so the page never
-      // flashes in the wrong theme or text size.
+      // Links from when calculus lived at the root of the site carry its routes in the hash.
+      // Pasting one while already on this page changes only the hash, so listen for that too.
+      function forwardOldLink() {
+        if (location.hash.indexOf("#/") === 0) location.replace("infi/" + location.hash);
+      }
+      forwardOldLink();
+      window.addEventListener("hashchange", forwardOldLink);
+    </script>
+    <script>
+      // The same saved theme the courses use, applied before first paint.
       (function () {
-        var root = document.documentElement;
+        var theme;
         try {
-          var theme = localStorage.getItem("infi-theme");
-          var size = localStorage.getItem("infi-text-size");
-          if (theme !== "light" && theme !== "dark") {
-            theme = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-          }
-          root.dataset.theme = theme;
-          if (size === "s" || size === "m" || size === "l") root.dataset.textSize = size;
+          theme = localStorage.getItem("infi-theme");
         } catch (error) {
-          /* storage blocked: keep defaults */
+          /* storage blocked: follow the system */
         }
+        if (theme !== "light" && theme !== "dark") {
+          theme = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.dataset.theme = theme;
       })();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -37,157 +40,83 @@
       href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@400;500;600;700&display=swap"
     />
     <link rel="stylesheet" href="./assets/site.css" />
-    <script>
-      window.MathJax = {
-        tex: {
-          inlineMath: [["\\(", "\\)"]],
-          displayMath: [["\\[", "\\]"]],
-          processEscapes: true
-        },
-        chtml: {
-          // Hebrew inside \text{...} is drawn as one text run, so the browser
-          // keeps it right-to-left instead of laying letters out one by one.
-          mtextInheritFont: true,
-          displayAlign: "center"
-        },
-        options: {
-          skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"],
-          // Formulas are not controls: keep them out of the Tab order (screen
-          // readers still read the hidden MathML; right-click opens the menu).
-          menuOptions: { settings: { inTabOrder: false } }
-        },
-        // MathJax loads after the page is drawn; app.js typesets the current
-        // view once it is ready instead of MathJax scanning the document.
-        startup: {
-          typeset: false,
-          ready() {
-            MathJax.startup.defaultReady();
-            MathJax.startup.promise.then(() => window.dispatchEvent(new Event("infi:mathjax-ready")));
-          }
-        }
-      };
-    </script>
-    <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
-    <script defer src="./assets/content.js"></script>
-    <script defer src="./assets/demos.js"></script>
-    <script defer src="./assets/study.js"></script>
-    <script defer src="./assets/exams.js"></script>
-    <script defer src="./assets/app.js"></script>
   </head>
-  <body>
-    
-    <a class="skip-link" href="#main" data-skip>דלג לתוכן הראשי</a>
-    <div class="progress-bar" aria-hidden="true"><span></span></div>
-
+  <body class="landing">
     <header class="site-header">
       <div class="header-inner">
-        <button class="icon-button menu-button" type="button" aria-controls="courseNav" aria-expanded="false" data-menu-toggle>
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
-          <span class="visually-hidden">תפריט היחידות</span>
-        </button>
-
-        <a class="brand" href="#/">
-          <span class="brand-mark" aria-hidden="true">∫</span>
+        <span class="brand">
+          <span class="brand-mark" aria-hidden="true">Σ</span>
           <span class="brand-text">
-            <strong>כספת אינפי 1</strong>
-            <small>20474 · אתר לימודי לא רשמי</small>
+            <strong>כספות הקורסים</strong>
+            <small>אתר לימודי לא רשמי</small>
           </span>
-        </a>
-
-        <div class="search" data-search>
-          <label class="visually-hidden" for="siteSearch">חיפוש באתר</label>
-          <div class="search-field">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4.2-4.2" /></svg>
-            <input
-              id="siteSearch"
-              type="search"
-              autocomplete="off"
-              spellcheck="false"
-              placeholder="חיפוש משפט, מושג או דוגמה"
-              role="combobox"
-              aria-autocomplete="list"
-              aria-expanded="false"
-              aria-controls="searchResults"
-              aria-describedby="searchHint"
-            />
-            <kbd class="search-kbd" aria-hidden="true">/</kbd>
-            <button class="icon-button search-close" type="button" data-search-close>
-              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg>
-              <span class="visually-hidden">סגירת החיפוש</span>
-            </button>
-          </div>
-          <p id="searchHint" class="visually-hidden">הקלידו לפחות שתי אותיות. חצים למעבר בין התוצאות, Enter לפתיחה, Escape לסגירה.</p>
-          <div id="searchResults" class="search-panel" role="listbox" aria-label="תוצאות החיפוש" hidden></div>
-          <p class="visually-hidden" aria-live="polite" data-search-status></p>
-        </div>
-
-        <nav class="primary-nav" aria-label="ניווט ראשי">
-          <a href="#/" data-nav="home">בית</a>
-          <a href="#/index" data-nav="index">כל הפתקים</a>
-          <a href="#/practice" data-nav="practice">תרגול</a>
-          <a href="#/exams" data-nav="exams">מבחנים</a>
-          <a href="#/graph" data-nav="graph">גרף קשרים</a>
-        </nav>
-
+        </span>
         <div class="header-actions">
-          <button class="icon-button search-open" type="button" data-search-open>
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4.2-4.2" /></svg>
-            <span class="visually-hidden">פתיחת החיפוש</span>
-          </button>
-          <button class="icon-button" type="button" data-text-size-toggle aria-describedby="textSizeLabel">
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 19l5-13h1l5 13M5 14h7M15 19l3-8h.6l3 8M16 16.5h4.6" /></svg>
-            <span id="textSizeLabel" class="visually-hidden">גודל טקסט: רגיל</span>
-          </button>
           <button class="icon-button" type="button" data-theme-toggle aria-pressed="false">
             <svg class="icon theme-icon-dark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" /></svg>
-            <svg class="icon theme-icon-light" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" /></svg>
-            <span class="visually-hidden">מצב כהה</span>
+            <svg class="icon theme-icon-light" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
+            <span class="visually-hidden">החלפת מצב תצוגה</span>
           </button>
         </div>
       </div>
     </header>
 
-    <div class="layout">
-      <div class="nav-backdrop" data-nav-backdrop hidden></div>
-      <aside id="courseNav" class="course-nav" aria-label="ניווט בקורס">
-        <div class="course-nav-head">
-          <strong>תוכן הקורס</strong>
-          <button class="icon-button nav-close" type="button" data-menu-close>
-            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg>
-            <span class="visually-hidden">סגירת התפריט</span>
-          </button>
-        </div>
-        <nav class="course-tree" aria-label="יחידות ופתקים" data-course-tree></nav>
-      </aside>
-
-      <main id="main" class="main" tabindex="-1">
-        <div id="app" class="app" aria-live="off">
-          <section class="loading-state" aria-busy="true">
-            <span class="spinner" aria-hidden="true"></span>
-            <p>טוען את הכספת…</p>
-          </section>
-          <noscript>
-            <p class="noscript">האתר צריך JavaScript כדי להציג את הפתקים.</p>
-          </noscript>
-        </div>
-      </main>
-    </div>
+    <main id="main" class="landing-main">
+      <div class="landing-intro">
+        <h1>באיזה קורס לומדים היום?</h1>
+        <p>סיכומים במילים פשוטות, הוכחות, המחשות ותרגול לקורסים של האוניברסיטה הפתוחה. בחרו קורס כדי להתחיל.</p>
+      </div>
+      <div class="course-grid">
+        <a class="course-card" href="infi/">
+          <span class="course-card-top">
+            <span class="brand-mark" aria-hidden="true">∞</span>
+            <span class="course-card-code">קורס 20474</span>
+          </span>
+          <h2>חשבון אינפיניטסימלי 1</h2>
+          <p>מהמספרים הממשיים ועד תכונות של פונקציות גזירות: סיכומים, הוכחות, המחשות ומבחני עבר.</p>
+          <span class="course-card-stats"><span class="course-card-stat">8 יחידות</span> · <span class="course-card-stat">82 פתקים</span> · <span class="course-card-stat">33 משפטים לבחינה</span> · <span class="course-card-stat">45 מבחני עבר</span></span>
+          <span class="course-card-go">לכניסה לקורס <span aria-hidden="true">←</span></span>
+        </a>
+        <a class="course-card" href="linear1/">
+          <span class="course-card-top">
+            <span class="brand-mark" aria-hidden="true">λ</span>
+            <span class="course-card-code">קורס 20109</span>
+          </span>
+          <h2>אלגברה לינארית 1</h2>
+          <p>מערכות משוואות, שדות ודירוג מטריצות. פרק 1 מוכן, והשאר בכתיבה.</p>
+          <span class="course-card-stats"><span class="course-card-stat">פרק אחד</span> · <span class="course-card-stat">16 פתקים</span> · <span class="course-card-stat">15 משפטי מפתח</span></span>
+          <span class="course-card-go">לכניסה לקורס <span aria-hidden="true">←</span></span>
+        </a>
+      </div>
+    </main>
 
     <footer class="site-footer">
       <div class="footer-inner">
-        <p>
-          אתר לימודי לא רשמי לקורס 20474 חשבון אינפיניטסימלי 1. מבוסס על ספרי הקורס של האוניברסיטה הפתוחה. כל הזכויות בחומרי המקור שמורות לבעליהן.
-        </p>
+        <p>אתר לימודי לא רשמי, ואינו של האוניברסיטה הפתוחה. כל הזכויות בחומרי המקור שמורות לבעליהן.</p>
         <nav aria-label="קישורי סיום">
-          <a href="#/about">מקורות וקרדיט</a>
           <a href="https://github.com/Moshiko-Sarig/Calc1-The-Open-University" rel="noreferrer">קוד המקור</a>
         </nav>
       </div>
     </footer>
 
-    <button class="back-to-top" type="button" data-back-to-top hidden>
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 19V5M6 11l6-6 6 6" /></svg>
-      <span class="visually-hidden">חזרה לראש הדף</span>
-    </button>
+    <script>
+      (function () {
+        var root = document.documentElement;
+        var button = document.querySelector("[data-theme-toggle]");
+        function sync() {
+          button.setAttribute("aria-pressed", String(root.dataset.theme === "dark"));
+        }
+        button.addEventListener("click", function () {
+          root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+          try {
+            localStorage.setItem("infi-theme", root.dataset.theme);
+          } catch (error) {
+            /* storage blocked: the choice lasts for this visit */
+          }
+          sync();
+        });
+        sync();
+      })();
+    </script>
   </body>
 </html>
