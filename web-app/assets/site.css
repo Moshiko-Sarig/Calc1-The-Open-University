@@ -1807,93 +1807,100 @@ bdi {
   font-size: var(--fs-sm);
 }
 
-.unit-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 14px;
+/* The course's units as a book's table of contents: one quiet page, with dotted
+   leaders that carry the eye from each title to its note count. */
+.book-toc {
+  max-width: 46rem;
+  margin: 44px auto 0;
+  padding: clamp(24px, 5vw, 44px) clamp(16px, 6vw, 56px);
+  border: 1px solid var(--paper-edge);
+  background: var(--paper);
 }
 
-.unit-card {
-  position: relative;
-  display: grid;
-  grid-template-rows: auto auto 1fr auto;
-  gap: 8px;
-  padding: 18px 18px 16px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-l);
-  background: var(--surface);
-  color: var(--ink);
-  text-decoration: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+.book-toc-head {
+  margin-block-end: 24px;
+  text-align: center;
 }
 
-.unit-card::before {
-  content: "";
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline: 18px;
-  height: 3px;
-  border-radius: 0 0 3px 3px;
-  background: var(--c);
-}
-
-.unit-card:hover {
-  border-color: color-mix(in srgb, var(--c) 45%, var(--line));
-  box-shadow: var(--shadow-2);
-  color: var(--ink);
-  transform: translateY(-2px);
-}
-
-.unit-card-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  color: var(--ink-3);
-  font-size: var(--fs-xs);
-}
-
-.unit-card-num {
-  color: var(--c);
-  font-weight: 700;
-}
-
-.unit-card h3 {
+.book-toc-head h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.28rem;
-  font-weight: 700;
-  line-height: 1.3;
+  font-size: 1.75rem;
 }
 
-.unit-card p {
-  display: -webkit-box;
-  margin: 0;
-  overflow: hidden;
-  color: var(--ink-2);
-  font-size: var(--fs-sm);
-  line-height: 1.6;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-}
-
-.unit-card-foot {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
+.book-toc-head p {
+  margin: 4px 0 0;
   color: var(--ink-3);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
 }
 
-.unit-card-foot span {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+.book-toc-volume + .book-toc-volume {
+  margin-block-start: 20px;
 }
 
-.unit-card-foot .icon {
-  width: 14px;
-  height: 14px;
+.book-toc-volume h3 {
+  margin: 0 0 2px;
+  color: var(--ink-3);
+  font-size: var(--fs-s);
+  font-weight: 600;
+}
+
+.book-toc ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.book-toc-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-height: 44px;
+  padding-block: 9px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.book-toc-num {
+  flex: none;
+  min-width: 1.25rem;
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.book-toc-title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 500;
+  line-height: 1.35;
+  transition: color .15s ease;
+}
+
+.book-toc-leader {
+  flex: 1 1 16px;
+  min-width: 16px;
+  border-block-end: 2px dotted color-mix(in srgb, var(--ink-3) 45%, transparent);
+  transition: border-color .15s ease;
+}
+
+.book-toc-count {
+  flex: none;
+  color: var(--ink-3);
+  font-size: var(--fs-s);
+}
+
+.book-toc-row:hover {
+  color: var(--ink);
+}
+
+.book-toc-row:hover .book-toc-title {
+  color: var(--accent);
+}
+
+.book-toc-row:hover .book-toc-leader {
+  border-color: var(--accent);
 }
 
 .exam-band {
@@ -3015,69 +3022,146 @@ bdi {
 
 /* ---------- Home: demo gallery --------------------------------------------- */
 
-.demo-gallery {
+/* One demo leads on a large squared sheet; the others are a quiet list beside it. */
+.demo-showcase {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 16px;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  align-items: start;
+  gap: 16px 32px;
 }
 
-.demo-card {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-l);
-  background: var(--surface);
+.demo-feature {
+  display: block;
+  border: 1px solid var(--paper-edge);
+  background: var(--paper);
   color: var(--ink);
   text-decoration: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
-.demo-card:hover {
-  border-color: var(--accent-line);
-  box-shadow: var(--shadow-2);
+.demo-feature:hover {
   color: var(--ink);
-  transform: translateY(-2px);
 }
 
-.demo-card-art {
+.demo-feature-art,
+.demo-row-art {
   display: block;
   aspect-ratio: 16 / 9;
-  border-bottom: 1px solid var(--paper-edge);
   background-color: var(--paper);
   background-image:
     linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
     linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
-  background-size: 11px 11px;
   background-position: right 0 top 0;
 }
 
-.demo-card-art svg {
+.demo-feature-art {
+  border-block-end: 1px solid var(--paper-edge);
+  background-size: var(--cell) var(--cell);
+}
+
+.demo-feature-art svg,
+.demo-row-art svg {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-.demo-card-body {
+/* The sketches are drawn small; at this size their lines keep a pencil's weight. */
+.demo-feature-art svg * {
+  vector-effect: non-scaling-stroke;
+}
+
+.demo-feature-art .sk { stroke-width: 3.5; }
+.demo-feature-art .sk-thin { stroke-width: 2; }
+.demo-feature-art .sk-bold { stroke-width: 6; }
+
+.demo-feature-body {
   display: grid;
   gap: 4px;
-  padding: 12px 16px 16px;
+  padding: 16px 20px 20px;
 }
 
-.demo-card-body small {
+.demo-feature-body small {
   color: var(--ink-3);
   font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.demo-feature-body strong {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
   font-weight: 700;
+  line-height: 1.3;
 }
 
-.demo-card-body strong {
-  font-size: 1.04rem;
-}
-
-.demo-card-body span {
+.demo-feature-body > span {
   color: var(--ink-2);
   font-size: var(--fs-sm);
   line-height: 1.6;
+}
+
+.demo-feature-body > .demo-feature-go {
+  margin-block-start: 6px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.demo-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.demo-list li + li {
+  border-block-start: 1px solid var(--line);
+}
+
+.demo-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-block: 10px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.demo-row:hover {
+  color: var(--ink);
+}
+
+.demo-row-art {
+  flex: none;
+  width: 88px;
+  border: 1px solid var(--paper-edge);
+  background-size: 8px 8px;
+}
+
+.demo-row-body {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.demo-row-body strong {
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  font-weight: 500;
+  line-height: 1.35;
+  transition: color .15s ease;
+}
+
+.demo-row-body small {
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+}
+
+.demo-row:hover strong {
+  color: var(--accent);
+}
+
+@media (max-width: 860px) {
+  .demo-showcase {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .sk {
@@ -3109,71 +3193,7 @@ bdi {
   stroke-width: 2;
 }
 
-/* Unit cards are binder dividers with a tab on top. */
-.home .unit-grid {
-  gap: 34px 16px;
-  padding-top: 18px;
-}
-
-.home .unit-card {
-  border-top: 3px solid var(--c);
-  border-start-start-radius: 0;
-}
-
-.home .unit-card::before {
-  display: none;
-}
-
-.home .unit-card-num {
-  position: absolute;
-  inset-block-start: -27px;
-  inset-inline-start: -1px;
-  padding: 3px 14px 1px;
-  border-radius: 9px 9px 0 0;
-  background: var(--c);
-  color: var(--surface);
-  font-size: var(--fs-xs);
-  line-height: 1.7;
-}
-
 /* ---------- Note pages: unit divider tabs on the sheet's free edge --------- */
-
-.unit-tabs {
-  position: absolute;
-  inset-block: calc(var(--cell) * 5) calc(var(--cell) * 3);
-  inset-inline-end: -31px;
-  width: 30px;
-}
-
-.unit-tabs-rail {
-  position: sticky;
-  top: calc(var(--header-h) + 20px);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.unit-tab {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 38px;
-  border: 1px solid color-mix(in srgb, var(--c) 45%, var(--paper-edge));
-  border-inline-start: 0;
-  border-start-end-radius: 8px;
-  border-end-end-radius: 8px;
-  background: color-mix(in srgb, var(--c) 16%, var(--paper));
-  color: var(--ink);
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  text-decoration: none;
-  transition: background-color 0.12s ease, color 0.12s ease;
-}
-
-.unit-tab:hover {
-  background: color-mix(in srgb, var(--c) 30%, var(--paper));
-  color: var(--ink);
-}
 
 .unit-tab.is-current {
   width: 31px;
@@ -3183,15 +3203,9 @@ bdi {
 }
 
 @media (max-width: 1060px) {
-  .unit-tabs {
-    display: none;
-  }
 }
 
 @media print {
-  .unit-tabs {
-    display: none;
-  }
 }
 
 /* ---------- Proofs: toolbar, step by step, "why?" -------------------------- */
@@ -4688,32 +4702,6 @@ bdi {
   }
 }
 
-.home .unit-grid {
-  gap: 12px;
-  padding-top: 0;
-}
-.home .unit-card {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: none;
-  padding: 18px;
-  transition: border-color .15s ease, background .15s ease;
-}
-.home .unit-card:hover {
-  transform: none;
-  border-color: var(--accent-line);
-  background: var(--surface-2);
-  box-shadow: none;
-}
-.home .unit-card-num {
-  position: static;
-  padding: 0;
-  background: transparent;
-  color: var(--accent);
-  font-size: var(--fs-s);
-}
-.home .unit-card-top { justify-content: flex-start; gap: 10px; }
-.demo-card:hover { transform: none; box-shadow: var(--shadow-1); }
 .exam-band {
   border-color: var(--line);
   background: var(--surface-2);
@@ -4784,8 +4772,6 @@ details.callout > summary.callout-title { min-height: 32px; }
 }
 
 @media (max-width: 760px) {
-  .home .unit-grid { grid-template-columns: minmax(0, 1fr); }
-  .home .unit-card { gap: 5px; }
   .learning-path ol { gap: 0 12px; }
   .pager { gap: 8px; }
   .pager a { padding: 12px; }
@@ -5661,17 +5647,6 @@ details.callout > summary.callout-title { min-height: 32px; }
 
 .sheet:not(:has(.demo-plot)) {
   background-image: linear-gradient(to bottom, var(--sheet-rule) 1px, transparent 1px);
-}
-
-.unit-tab {
-  border-color: var(--line);
-  background: var(--paper);
-  color: var(--ink-3);
-}
-
-.unit-tab:hover {
-  background: var(--surface-2);
-  color: var(--ink);
 }
 
 .unit-tab.is-current {

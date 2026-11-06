@@ -893,6 +893,7 @@ function demoGallery() {
       ...item,
       href: pageHref(home, `demo-${item.name}`),
       unit: groupHeading(groupById.get(home.groupId)),
+      unitNumber: Number(groupById.get(home.groupId)?.number),
       sketch: `<svg viewBox="0 0 160 90" focusable="false">${item.sketch}</svg>`
     };
   }).filter(Boolean);
@@ -909,19 +910,22 @@ function renderHome() {
   const recent = recentPages().map((id) => pages.get(id));
   const last = recent[0];
 
-  const unitCards = unitGroups
-    .map((group) => {
-      const gateway = pages.get(group.gatewayId);
-      const theorems = group.pageIds.filter((id) => pages.get(id)?.hasExamTheorem).length;
-      return `<a class="unit-card" href="${pageHref(gateway)}" style="--c:${groupColor(group.id)}">
-        <span class="unit-card-top"><span class="unit-card-num">${escapeHtml(words.unit)} ${group.number}</span><span>${escapeHtml(group.volume || "")}</span></span>
-        <h3>${escapeHtml(group.number ? group.subtitle : group.title)}</h3>
-        <p>${gateway?.summaryHtml || ""}</p>
-        <span class="unit-card-foot">
-          <span>${icon("list")} ${group.pageIds.length} פתקים</span>
-          ${theorems ? `<span>${icon("star")} ${theorems} עם ${escapeHtml(words.theorems)}</span>` : ""}
-        </span>
-      </a>`;
+  // The units as a book's table of contents, one list per volume.
+  const volumes = [...new Set(unitGroups.map((group) => group.volume || ""))];
+  const unitContents = volumes
+    .map((volume) => {
+      const rows = unitGroups
+        .filter((group) => (group.volume || "") === volume)
+        .map(
+          (group) => `<li><a class="book-toc-row" href="${pageHref(pages.get(group.gatewayId))}">
+            <span class="book-toc-num">${group.number}</span>
+            <span class="book-toc-title">${escapeHtml(group.subtitle)}</span>
+            <span class="book-toc-leader" aria-hidden="true"></span>
+            <span class="book-toc-count">${countOf(group.pageIds.length, "פתק אחד", "פתקים")}</span>
+          </a></li>`
+        )
+        .join("");
+      return `<div class="book-toc-volume">${volume && volumes.length > 1 ? `<h3>${escapeHtml(volume)}</h3>` : ""}<ol>${rows}</ol></div>`;
     })
     .join("");
 
@@ -957,6 +961,10 @@ function renderHome() {
 
   const demos = demoGallery();
   const game = demos.find((item) => item.name === "epsilon-delta");
+  // One demo leads the section (the ε‑δ game where a course has it); the rest
+  // follow in the order of the course's units.
+  const mainDemo = game || demos[0];
+  const otherDemos = demos.filter((item) => item !== mainDemo).sort((x, y) => x.unitNumber - y.unitNumber);
 
   app.innerHTML = `
     <div class="home">
@@ -996,14 +1004,13 @@ function renderHome() {
           : ""
       }
 
-      <section aria-labelledby="unitsTitle">
-        <div class="section-head">
-          <h2 id="unitsTitle">${escapeHtml(words.unitsOf)}</h2>
+      <section class="book-toc" aria-labelledby="unitsTitle">
+        <header class="book-toc-head">
+          <h2 id="unitsTitle">תוכן העניינים</h2>
           <p>${countOf(new Set(unitGroups.map((g) => g.volume).filter(Boolean)).size, "כרך אחד", "כרכים")}, ${countOf(unitGroups.length, words.oneUnit, words.units)}</p>
-        </div>
-        <div class="unit-grid">${unitCards}</div>
+        </header>
+        ${unitContents}
       </section>
-
 
       ${
         demos.length
@@ -1012,18 +1019,28 @@ function renderHome() {
                 <h2 id="demosTitle">המחשות על המשבצות</h2>
                 <p>${escapeHtml(course.demosLead)}</p>
               </div>
-              <div class="demo-gallery">${demos
-                .map(
-                  (item) => `<a class="demo-card" href="${item.href}">
-                    <span class="demo-card-art" aria-hidden="true">${item.sketch}</span>
-                    <span class="demo-card-body">
-                      <small>${escapeHtml(item.unit)}</small>
-                      <strong>${escapeHtml(item.title)}</strong>
-                      <span>${escapeHtml(item.text)}</span>
-                    </span>
-                  </a>`
-                )
-                .join("")}</div>
+              <div class="demo-showcase">
+                <a class="demo-feature" href="${mainDemo.href}">
+                  <span class="demo-feature-art" aria-hidden="true">${mainDemo.sketch}</span>
+                  <span class="demo-feature-body">
+                    <small>${escapeHtml(mainDemo.unit)}</small>
+                    <strong>${escapeHtml(mainDemo.title)}</strong>
+                    <span>${escapeHtml(mainDemo.text)}</span>
+                    <span class="demo-feature-go">לפתיחת ההמחשה <span aria-hidden="true">←</span></span>
+                  </span>
+                </a>
+                <ul class="demo-list">${otherDemos
+                  .map(
+                    (item) => `<li><a class="demo-row" href="${item.href}">
+                      <span class="demo-row-art" aria-hidden="true">${item.sketch}</span>
+                      <span class="demo-row-body">
+                        <strong>${escapeHtml(item.title)}</strong>
+                        <small>${escapeHtml(words.unit)} ${item.unitNumber}</small>
+                      </span>
+                    </a></li>`
+                  )
+                  .join("")}</ul>
+              </div>
             </section>`
           : ""
       }
