@@ -137,3 +137,21 @@ test("the new illustrations exist in the client and in the gallery", () => {
   }
   assert.doesNotMatch(demos + app, /span-basis/);
 });
+
+test("the working recipes note comes last in the study order and is complete", () => {
+  const group = payload.navGroups.find((item) => item.number === 2);
+  const titles = group.pageIds.map((id) => path.basename(payload.pages.find((page) => page.id === id).path, ".md"));
+  assert.equal(titles.at(-1), "מתכוני-עבודה-פרק-2");
+  const text = note("מתכוני");
+  for (const number of ["2.5.3", "2.6.5", "2.7.3", "2.7.11", "2.7.9"]) assert.ok(text.includes(number), number);
+  assert.ok(count(text, /^## מתכון /gm) === 4);
+  assert.match(text, /^## טעויות נפוצות/m);
+  assert.match(text, /^## כרטיס דיוק/m);
+  assert.ok(count(text, /^> \[!solution\]- /gm) >= 5);
+});
+
+test("the gateway shows what each note answers, with pages", () => {
+  const text = note("שער");
+  assert.match(text, /^## מה שואל כל פתק/m);
+  assert.match(text, /\| \[\[2\.7-בסיסים-ל-Fn\]\] \|.*עמ׳ 191–201/);
+});
