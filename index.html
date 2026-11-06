@@ -11,9 +11,10 @@
     <meta name="description" content="אתר לימודי לא רשמי לקורסים של האוניברסיטה הפתוחה: סיכומים במילים פשוטות, הוכחות, המחשות ותרגול." />
     <script>
       // Links from when calculus lived at the root of the site carry its routes in the hash.
-      // Pasting one while already on this page changes only the hash, so listen for that too.
+      // A bare "#/" was the old home page, and browsers autocomplete it, so it stays here.
+      // Pasting a link while already on this page changes only the hash, so listen for that too.
       function forwardOldLink() {
-        if (location.hash.indexOf("#/") === 0) location.replace("infi/" + location.hash);
+        if (/^#\/./.test(location.hash)) location.replace("infi/" + location.hash);
       }
       forwardOldLink();
       window.addEventListener("hashchange", forwardOldLink);

@@ -93,8 +93,14 @@ test("card text is escaped", () => {
 test("an old link to a calculus page is sent on to the calculus site, hash and all", () => {
   const html = landing("docs", "index.html");
   const head = html.slice(0, html.indexOf("</head>"));
-  assert.match(head, /location\.hash\.indexOf\("#\/"\) === 0/);
   assert.match(head, /location\.replace\("infi\/" \+ location\.hash\)/);
+});
+
+test("the home page stays the entrance: only a link to a specific calculus page is sent on", () => {
+  const head = landing("docs", "index.html").split("</head>")[0];
+  const oldLink = new RegExp(head.match(/\/\^(#\\\/\.)\/\.test\(location\.hash\)/)[1]);
+  for (const hash of ["", "#", "#/"]) assert.equal(oldLink.test(hash), false, hash);
+  for (const hash of ["#/page/p-1", "#/exams/3/q2", "#/index"]) assert.equal(oldLink.test(hash), true, hash);
 });
 
 test("an old link pasted while already on the home page is sent on too", () => {
