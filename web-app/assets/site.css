@@ -4809,19 +4809,107 @@ details.callout > summary.callout-title { min-height: 32px; }
   margin-inline: auto;
   padding: clamp(32px, 5vw, 64px) 24px clamp(48px, 7vw, 96px);
 }
-.landing-intro h1 {
-  margin: 0 0 14px;
-  font-family: var(--font-display);
-  font-size: clamp(2.3rem, 0.9rem + 5.6vw, 5.5rem);
-  line-height: 1.05;
-  letter-spacing: -0.015em;
+.landing-intro {
+  max-width: 36rem;
+  margin-inline: auto;
+  text-align: center;
 }
-.landing-intro p {
-  max-width: 46rem;
+.landing-kicker {
+  margin: 0 0 12px;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.landing-intro h1 {
   margin: 0;
-  color: var(--ink);
-  font-size: clamp(1.0625rem, 1rem + 0.4vw, 1.3125rem);
+  font-family: var(--font-display);
+  font-size: clamp(2.75rem, 1.5rem + 4vw, 4.5rem);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+.landing-lead {
+  max-width: 34rem;
+  margin: 16px auto 0;
+  color: var(--ink-2);
+  font-size: clamp(1.0625rem, 1rem + 0.25vw, 1.2rem);
+  line-height: 1.65;
+}
+.landing-overview {
+  max-width: 56rem;
+  margin: clamp(28px, 4vw, 40px) auto 0;
+  padding-inline-start: 22px;
+  border-inline-start: 2px solid var(--margin-line);
+}
+.landing-overview h2,
+.landing-courses > h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 1.2rem + 1.2vw, 2.15rem);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.landing-overview ol {
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: overview;
+}
+.landing-overview li {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: start;
+  padding-block: 14px;
+  border-block-end: 1px solid var(--line);
+  counter-increment: overview;
+}
+.landing-overview li:last-of-type {
+  border-block-end: 0;
+}
+@media (min-width: 760px) {
+  .landing-overview ol {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 32px;
+    margin-top: 8px;
+  }
+  .landing-overview li,
+  .landing-overview li:last-of-type {
+    border-block-end: 0;
+    padding-block: 12px 2px;
+  }
+}
+.landing-overview li::before {
+  content: counter(overview);
+  padding-top: 1px;
+  color: var(--ink-3);
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  line-height: 1.15;
+}
+.landing-overview h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.landing-overview li p {
+  margin: 4px 0 0;
+  color: var(--ink-2);
+  line-height: 1.65;
+}
+.landing-note {
+  margin: 6px 0 0;
+  color: var(--ink-3);
+  font-size: var(--fs-sm);
   line-height: 1.6;
+}
+.landing-courses {
+  margin-top: clamp(32px, 4vw, 48px);
+}
+.landing-courses > h2 {
+  text-align: center;
 }
 .landing .header-actions {
   margin-inline-start: auto;
@@ -4925,7 +5013,7 @@ details.callout > summary.callout-title { min-height: 32px; }
 .course-card-stat {
   white-space: nowrap;
 }
-.course-card h2 {
+.course-card h3 {
   margin: 0;
   color: var(--label-ink);
   font-family: var(--font-display);
@@ -4992,15 +5080,21 @@ details.callout > summary.callout-title { min-height: 32px; }
   }
 }
 @media (prefers-reduced-motion: no-preference) {
+  .landing-kicker,
   .landing-intro h1,
-  .landing-intro p,
+  .landing-lead,
+  .landing-overview,
+  .landing-courses > h2,
   .course-grid > li {
     animation: notebook-in .5s ease both;
   }
-  .landing-intro p { animation-delay: 70ms; }
-  .course-grid > li { animation-delay: 140ms; }
-  .course-grid > li:nth-child(2) { animation-delay: 220ms; }
-  .course-grid > li:nth-child(n + 3) { animation-delay: 300ms; }
+  .landing-intro h1 { animation-delay: 60ms; }
+  .landing-lead { animation-delay: 120ms; }
+  .landing-overview { animation-delay: 180ms; }
+  .landing-courses > h2 { animation-delay: 240ms; }
+  .course-grid > li { animation-delay: 300ms; }
+  .course-grid > li:nth-child(2) { animation-delay: 380ms; }
+  .course-grid > li:nth-child(n + 3) { animation-delay: 460ms; }
 }
 @media (prefers-reduced-motion: reduce) {
   .course-card,

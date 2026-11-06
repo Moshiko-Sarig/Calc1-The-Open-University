@@ -64,12 +64,48 @@
 
     <main id="main" class="landing-main">
       <div class="landing-intro">
-        <h1>באיזה קורס לומדים היום?</h1>
-        <p>{{SITE_INTRO}}</p>
+        <p class="landing-kicker">{{SITE_TAGLINE}}</p>
+        <h1>{{SITE_NAME}}</h1>
+        <p class="landing-lead">{{SITE_INTRO}}</p>
       </div>
-      <ul class="course-grid">
+
+      <section class="landing-overview" aria-labelledby="landing-overview-title">
+        <h2 id="landing-overview-title">מה יש באתר</h2>
+        <ol>
+          <li>
+            <div>
+              <h3>סיכום במילים פשוטות</h3>
+              <p>ההגדרה והמשפט מופיעים כמו בספר. מתחת לכל אחד יש הסבר בשפה רגילה: תמונה מהחיים, דוגמה במספרים, ומה נשבר כשמורידים תנאי.</p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <h3>הוכחה שאפשר לעקוב אחריה</h3>
+              <p>ההוכחה נפתחת שלב אחרי שלב. ליד שלב שנשען על משפט או על הגדרה מופיע "למה?", ואפשר גם לסדר את שלבי ההוכחה לבד.</p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <h3>המחשה על דף המשבצות</h3>
+              <p>גוררים, משנים ערך ורואים את ההגדרה זזה על אותו דף: גבול, משיק, או דירוג של מערכת משוואות.</p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <h3>חזרה למבחן</h3>
+              <p>כרטיסיות שנשמרות בדפדפן. בחשבון אינפיניטסימלי יש גם מבחני עבר, מתויגים לפי נושא, בלי פתרונות.</p>
+            </div>
+          </li>
+        </ol>
+        <p class="landing-note">הפתקים נכתבו במילים שלנו. הם עוזרים ללמוד, ולא מחליפים את ספרי הקורס.</p>
+      </section>
+
+      <section class="landing-courses" aria-labelledby="landing-courses-title">
+        <h2 id="landing-courses-title">באיזה קורס לומדים היום?</h2>
+        <ul class="course-grid">
 {{COURSE_CARDS}}
-      </ul>
+        </ul>
+      </section>
     </main>
 
     <footer class="site-footer">

@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#111111" media="(prefers-color-scheme: dark)" />
     <title>שואפים לאינסוף · אתר לימודי לא רשמי</title>
     <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
-    <meta name="description" content="אתר לימודי לא רשמי לקורסים של האוניברסיטה הפתוחה: סיכומים במילים פשוטות, הוכחות, המחשות ותרגול." />
+    <meta name="description" content="שואפים לאינסוף הוא אתר לימודי לא רשמי לקורסי המתמטיקה של האוניברסיטה הפתוחה: סיכומים במילים פשוטות, הוכחות, המחשות ותרגול." />
     <script>
       // Links from when calculus lived at the root of the site carry its routes in the hash.
       // A bare "#/" was the old home page, and browsers autocomplete it, so it stays here.
@@ -64,16 +64,51 @@
 
     <main id="main" class="landing-main">
       <div class="landing-intro">
-        <h1>באיזה קורס לומדים היום?</h1>
-        <p>סיכומים במילים פשוטות, הוכחות, המחשות ותרגול לקורסים של האוניברסיטה הפתוחה. בחרו קורס כדי להתחיל.</p>
+        <p class="landing-kicker">אתר לימודי לא רשמי</p>
+        <h1>שואפים לאינסוף</h1>
+        <p class="landing-lead">מחברות לימוד לקורסי המתמטיקה של האוניברסיטה הפתוחה. הסיכום כתוב במילים שלנו, וההוכחה נשארת מלאה.</p>
       </div>
-      <ul class="course-grid">
+
+      <section class="landing-overview" aria-labelledby="landing-overview-title">
+        <h2 id="landing-overview-title">מה יש באתר</h2>
+        <ol>
+          <li>
+            <div>
+              <h3>סיכום במילים פשוטות</h3>
+              <p>ההגדרה והמשפט מופיעים כמו בספר. מתחת לכל אחד יש הסבר בשפה רגילה: תמונה מהחיים, דוגמה במספרים, ומה נשבר כשמורידים תנאי.</p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <h3>הוכחה שאפשר לעקוב אחריה</h3>
+              <p>ההוכחה נפתחת שלב אחרי שלב. ליד שלב שנשען על משפט או על הגדרה מופיע "למה?", ואפשר גם לסדר את שלבי ההוכחה לבד.</p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <h3>המחשה על דף המשבצות</h3>
+              <p>גוררים, משנים ערך ורואים את ההגדרה זזה על אותו דף: גבול, משיק, או דירוג של מערכת משוואות.</p>
+            </div>
+          </li>
+          <li>
+            <div>
+              <h3>חזרה למבחן</h3>
+              <p>כרטיסיות שנשמרות בדפדפן. בחשבון אינפיניטסימלי יש גם מבחני עבר, מתויגים לפי נושא, בלי פתרונות.</p>
+            </div>
+          </li>
+        </ol>
+        <p class="landing-note">הפתקים נכתבו במילים שלנו. הם עוזרים ללמוד, ולא מחליפים את ספרי הקורס.</p>
+      </section>
+
+      <section class="landing-courses" aria-labelledby="landing-courses-title">
+        <h2 id="landing-courses-title">באיזה קורס לומדים היום?</h2>
+        <ul class="course-grid">
         <li>
           <a class="course-card" href="infi/" style="--cover:#1f4e79">
             <span class="course-cover-spine" aria-hidden="true"><i></i><i></i><i></i></span>
             <span class="course-cover-mark" aria-hidden="true">ε</span>
             <div class="course-label">
-              <h2>חשבון אינפיניטסימלי 1</h2>
+              <h3>חשבון אינפיניטסימלי 1</h3>
               <p>מהמספרים הממשיים ועד תכונות של פונקציות גזירות: סיכומים, הוכחות, המחשות ומבחני עבר.</p>
               <span class="course-card-stats"><span class="course-card-stat">קורס 20474</span> · <span class="course-card-stat">8 יחידות</span> · <span class="course-card-stat">82 פתקים</span> · <span class="course-card-stat">33 משפטים לבחינה</span> · <span class="course-card-stat">45 מבחני עבר</span></span>
               <span class="course-card-go">לכניסה לקורס <span aria-hidden="true">←</span></span>
@@ -86,7 +121,7 @@
             <span class="course-cover-spine" aria-hidden="true"><i></i><i></i><i></i></span>
             <span class="course-cover-mark" aria-hidden="true">λ</span>
             <div class="course-label">
-              <h2>אלגברה לינארית 1</h2>
+              <h3>אלגברה לינארית 1</h3>
               <p>מערכות משוואות, וקטורים, צירופים לינאריים ובסיסים. פרקים 1–2 זמינים ללימוד.</p>
               <span class="course-card-stats"><span class="course-card-stat">קורס 20109</span> · <span class="course-card-stat">2 פרקים</span> · <span class="course-card-stat">24 פתקים</span> · <span class="course-card-stat">15 משפטי מפתח</span></span>
               <span class="course-card-go">לכניסה לקורס <span aria-hidden="true">←</span></span>
@@ -94,7 +129,8 @@
           </a>
           <a class="course-resume" href="linear1/" data-resume="linear1" hidden>להמשיך מהמקום שעצרתם <span aria-hidden="true">←</span></a>
         </li>
-      </ul>
+        </ul>
+      </section>
     </main>
 
     <footer class="site-footer">

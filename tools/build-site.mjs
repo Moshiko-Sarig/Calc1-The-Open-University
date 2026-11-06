@@ -1368,7 +1368,7 @@ export function renderCourseCards(results) {
             <span class="course-cover-spine" aria-hidden="true"><i></i><i></i><i></i></span>
             <span class="course-cover-mark" aria-hidden="true">${escapeHtml(item.brandMark)}</span>
             <div class="course-label">
-              <h2>${escapeHtml(item.fullName)}</h2>
+              <h3>${escapeHtml(item.fullName)}</h3>
               <p>${escapeHtml(item.summary)}</p>
               <span class="course-card-stats">${stats}</span>
               <span class="course-card-go">לכניסה לקורס <span aria-hidden="true">←</span></span>
