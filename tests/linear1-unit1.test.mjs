@@ -151,3 +151,14 @@ test("no box sits inside a proof block", () => {
     }
   }
 });
+
+test("chapter 2 illustrations are drawn on the squared-paper gallery", () => {
+  const app = fs.readFileSync(path.join(root, "web-app/assets/app.js"), "utf8");
+  for (const name of ["vector-sum", "parametric-line", "span-basis"]) {
+    assert.match(app, new RegExp(`name: "${name}"[\\s\\S]*?sketch:`), name);
+    assert.ok(
+      payload.pages.some((page) => page.groupId === "unit-2" && page.html.includes(`data-demo="${name}"`)),
+      name
+    );
+  }
+});

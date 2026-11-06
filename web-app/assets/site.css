@@ -3099,6 +3099,7 @@ bdi {
 .sk-dot-red { fill: var(--pencil-red); }
 .sk-dot-green { fill: var(--pencil-green); }
 .sk-dot-blue { fill: var(--pencil-blue); }
+.sk-dot-gray { fill: var(--pencil-gray); }
 
 .sk-hole {
   fill: var(--paper);

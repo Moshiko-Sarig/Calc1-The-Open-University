@@ -795,6 +795,24 @@ const DEMO_GALLERY = [
     sketch: `<path class="sk sk-graphite sk-thin" d="M4 80 H156 M16 86 V4"/><path class="sk sk-blue" d="M10 78 L150 12"/><path class="sk sk-red" d="M12 16 L148 76"/><circle class="sk-dot-green" cx="80" cy="45" r="4"/>`
   },
   {
+    name: "vector-sum",
+    title: "חיבור של וקטורים",
+    text: "משנים את המקדם של a ורואים את החץ, את b שנוסף מקצהו, ואת הסכום.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M6 74 H154 M30 84 V8"/><path class="sk sk-gray" stroke-dasharray="4 3" d="M42 62 L64 30"/><path class="sk sk-blue sk-bold" d="M42 62 L104 44"/><path class="sk sk-red" d="M104 44 L126 12"/><path class="sk sk-green sk-bold" d="M42 62 L126 12"/><circle class="sk-dot-blue" cx="104" cy="44" r="3.2"/><circle class="sk-dot-green" cx="126" cy="12" r="3.4"/>`
+  },
+  {
+    name: "parametric-line",
+    title: "נקודה על ישר",
+    text: "מזיזים את t ואת הכיוון, ורואים את הנקודה מטיילת על הישר.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M6 74 H154 M28 84 V8"/><path class="sk sk-gray" stroke-dasharray="5 4" d="M16 76 L146 14"/><path class="sk sk-blue sk-bold" d="M50 60 L98 34"/><circle class="sk-dot-red" cx="50" cy="60" r="3.6"/><circle class="sk-dot-green" cx="112" cy="26" r="3.6"/>`
+  },
+  {
+    name: "span-basis",
+    title: "ישר או כל המישור",
+    text: "כשהווקטורים על אותו ישר נשארים עליו. בשני כיוונים מגיעים לכל נקודה.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M6 74 H154 M36 84 V8"/><circle class="sk-dot-gray" cx="58" cy="62" r="2.2"/><circle class="sk-dot-gray" cx="80" cy="62" r="2.2"/><circle class="sk-dot-gray" cx="102" cy="62" r="2.2"/><circle class="sk-dot-gray" cx="58" cy="40" r="2.2"/><circle class="sk-dot-gray" cx="80" cy="40" r="2.2"/><circle class="sk-dot-gray" cx="102" cy="40" r="2.2"/><circle class="sk-dot-gray" cx="58" cy="18" r="2.2"/><circle class="sk-dot-gray" cx="80" cy="18" r="2.2"/><path class="sk sk-blue sk-bold" d="M36 62 L112 62"/><path class="sk sk-red sk-bold" d="M36 62 L74 18"/><circle class="sk-dot-green" cx="92" cy="28" r="3.6"/>`
+  },
+  {
     name: "epsilon-delta",
     title: "משחק ε‑δ",
     text: "האתגר בוחר ε, אתם בוחרים δ. שישה סיבובים עד ההגדרה.",
