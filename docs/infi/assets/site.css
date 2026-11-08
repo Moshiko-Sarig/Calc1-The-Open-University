@@ -2626,6 +2626,83 @@ bdi {
 .pc-orange-text { fill: var(--pencil-orange); }
 .pc-purple-text { fill: var(--pencil-purple); }
 
+.pc-gray-text { fill: var(--pencil-gray); }
+
+/* Pictures in space (Plot3D in demos.js): a floor grid, translucent planes and
+   a canvas that turns under the pointer. */
+.demo-svg-3d {
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+}
+
+.demo-svg-3d:active {
+  cursor: grabbing;
+}
+
+.demo-canvas-3d:focus-visible {
+  outline: 2px solid var(--pencil-blue);
+  outline-offset: 2px;
+}
+
+.demo-floor {
+  stroke: var(--pencil-gray);
+  stroke-opacity: 0.22;
+  stroke-width: 0.8;
+}
+
+.demo-axis-3d {
+  stroke: var(--pencil-graphite);
+  color: var(--pencil-graphite);
+}
+
+.demo-plane {
+  fill: currentColor;
+  fill-opacity: 0.12;
+  stroke: currentColor;
+  stroke-opacity: 0.5;
+  stroke-width: 1.1;
+  stroke-linejoin: round;
+}
+
+.demo-plane.is-faint {
+  fill-opacity: 0.08;
+  stroke-opacity: 0.3;
+  stroke-dasharray: 3 4;
+}
+
+.demo-view {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 6px;
+}
+
+.demo-view .demo-btn {
+  min-height: 32px;
+  padding: 2px 12px;
+  font-size: 0.86em;
+}
+
+.demo-view-hint {
+  color: var(--ink-2);
+  font-size: 0.88em;
+}
+
+.demo-subhead {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 0.9em;
+  line-height: calc(var(--cell, 17px) * 2);
+}
+
+.demo-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  column-gap: var(--cell, 17px);
+}
+
 .demo-band.band-red { fill: var(--band-red); }
 .demo-band.band-blue { fill: var(--band-blue); }
 .demo-band.band-green { fill: var(--band-green); }

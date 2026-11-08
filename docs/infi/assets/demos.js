@@ -378,6 +378,445 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Plot3D: arrows, lines and planes in R³, turned by hand
+  // ---------------------------------------------------------------------------
+  // An orthographic view of the box [-R, R]³ with z up. Every mark is projected
+  // again on each frame and painted back to front, so the near end of an arrow
+  // covers the far one and a plane tints what lies behind it. Dragging, the
+  // arrow keys and the view buttons turn the camera; "from above" is the flat
+  // picture of the xy-plane that the two-dimensional notes draw.
+
+  const V = {
+    add: (p, q) => p.map((x, i) => x + q[i]),
+    sub: (p, q) => p.map((x, i) => x - q[i]),
+    scale: (p, k) => p.map((x) => x * k),
+    dot: (p, q) => p.reduce((sum, x, i) => sum + x * q[i], 0),
+    cross: (p, q) => [p[1] * q[2] - p[2] * q[1], p[2] * q[0] - p[0] * q[2], p[0] * q[1] - p[1] * q[0]],
+    len: (p) => Math.hypot(...p)
+  };
+  const ORIGIN = [0, 0, 0];
+  const tiny = (p) => V.len(p) < 1e-9;
+
+  // The line where the planes n1·p = d1 and n2·p = d2 meet, or null if they are parallel.
+  function meet(n1, d1, n2, d2) {
+    const dir = V.cross(n1, n2);
+    const size = V.dot(dir, dir);
+    if (size < 1e-12) return null;
+    const a = V.dot(n1, n1), b = V.dot(n1, n2), c = V.dot(n2, n2);
+    const point = V.scale(V.add(V.scale(n1, d1 * c - d2 * b), V.scale(n2, d2 * a - d1 * b)), 1 / size);
+    return { point, dir };
+  }
+
+  const reduceMotion = () => Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+  const HOME_VIEW = [0.62, 0.4];
+  const TOP_VIEW = [-Math.PI / 2, Math.PI / 2];
+  const SIDE_VIEW = [0, 0];
+
+  // One camera can drive several plots, so two pictures of one system turn together.
+  class Camera3D {
+    constructor([yaw, pitch] = HOME_VIEW) {
+      this.yaw = yaw;
+      this.pitch = pitch;
+      this.moving = false;
+      this.views = new Set();
+      this.spin = 0;
+      this.tween = 0;
+      this.onSpin = null;
+    }
+
+    watch(view) {
+      this.views.add(view);
+    }
+
+    alive() {
+      for (const view of this.views) if (view.canvas.isConnected) return true;
+      return false;
+    }
+
+    changed() {
+      for (const view of this.views) view.schedule();
+    }
+
+    set(yaw, pitch) {
+      this.yaw = yaw;
+      this.pitch = Math.max(-0.2, Math.min(Math.PI / 2, pitch));
+      this.changed();
+    }
+
+    turn(dyaw, dpitch) {
+      this.set(this.yaw + dyaw, this.pitch + dpitch);
+    }
+
+    // The pencil filter is dropped while the picture moves, so turning stays smooth.
+    hold(moving) {
+      if (this.moving === moving) return;
+      this.moving = moving;
+      this.changed();
+    }
+
+    stop() {
+      cancelAnimationFrame(this.spin);
+      cancelAnimationFrame(this.tween);
+      const wasSpinning = Boolean(this.spin);
+      this.spin = 0;
+      this.tween = 0;
+      if (wasSpinning) this.onSpin?.(false);
+      this.hold(false);
+    }
+
+    go([yaw, pitch]) {
+      this.stop();
+      let delta = (yaw - this.yaw) % (2 * Math.PI);
+      if (delta > Math.PI) delta -= 2 * Math.PI;
+      if (delta < -Math.PI) delta += 2 * Math.PI;
+      const from = [this.yaw, this.pitch];
+      if (reduceMotion()) return this.set(from[0] + delta, pitch);
+      const start = performance.now();
+      this.hold(true);
+      const step = (now) => {
+        const k = Math.min(1, (now - start) / 560);
+        const e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+        this.set(from[0] + delta * e, from[1] + (pitch - from[1]) * e);
+        if (k < 1 && this.alive()) this.tween = requestAnimationFrame(step);
+        else {
+          this.tween = 0;
+          this.hold(false);
+        }
+      };
+      this.tween = requestAnimationFrame(step);
+    }
+
+    toggleSpin() {
+      if (this.spin) return this.stop();
+      cancelAnimationFrame(this.tween);
+      this.tween = 0;
+      this.hold(true);
+      this.onSpin?.(true);
+      let last = performance.now();
+      const step = (now) => {
+        if (!this.alive()) return this.stop();
+        this.turn(((now - last) / 1000) * 0.45, 0);
+        last = now;
+        this.spin = requestAnimationFrame(step);
+      };
+      this.spin = requestAnimationFrame(step);
+    }
+  }
+
+  class Plot3D {
+    constructor(host, { range = 4, rows = 20, camera = new Camera3D(), names = ["x", "y", "z"], caption = "" } = {}) {
+      Object.assign(this, { host, R: range, rows, camera, names, caption });
+      this.id = ++uid;
+      this.canvas = h("div", {
+        class: "demo-canvas demo-canvas-3d",
+        tabindex: "0",
+        role: "img",
+        "aria-label": `${caption ? `${caption}. ` : ""}תרשים במרחב. גררו אותו, או השתמשו במקשי החיצים, כדי לסובב אותו.`
+      });
+      this.svg = s("svg", { class: "demo-svg demo-svg-3d", "aria-hidden": "true", focusable: "false" });
+      const defs = s("defs");
+      const filter = s("filter", { id: `demo-pencil-${this.id}`, x: "-2%", y: "-2%", width: "104%", height: "104%" });
+      filter.append(
+        s("feTurbulence", { type: "fractalNoise", baseFrequency: "0.85", numOctaves: "1", seed: String(this.id % 7), result: "grain" }),
+        s("feDisplacementMap", { in: "SourceGraphic", in2: "grain", scale: "1.15", xChannelSelector: "R", yChannelSelector: "G" })
+      );
+      defs.append(filter);
+      this.scene = s("g", { class: "demo-ink" });
+      this.top = s("g", { class: "demo-marks" });
+      this.svg.append(defs, this.scene, this.top);
+      this.canvas.append(this.svg);
+      if (caption) host.append(h("p", { class: "demo-subhead", text: caption }));
+      host.append(this.canvas);
+      this.items = [];
+      this.labels = [];
+      this.draw = null;
+      this.frame = 0;
+      camera.watch(this);
+      this.bind();
+      this.layout();
+      this.begin();
+    }
+
+    // Whole cells across and a fixed number of rows, like the flat plots.
+    layout() {
+      const cell = cellOf(this.host);
+      const cols = Math.max(12, Math.floor((this.host.clientWidth + 0.5) / cell));
+      this.cell = cell;
+      this.W = cols * cell;
+      this.H = this.rows * cell;
+      this.k = Math.min(this.W, this.H) / (2 * this.R * 1.22);
+      const height = this.H + 1;
+      this.svg.setAttribute("width", this.W);
+      this.svg.setAttribute("height", height);
+      this.svg.setAttribute("viewBox", `0 0 ${this.W} ${height}`);
+      this.canvas.style.width = `${this.W}px`;
+      this.canvas.style.height = `${height}px`;
+    }
+
+    schedule() {
+      if (this.frame) return;
+      this.frame = requestAnimationFrame(() => {
+        this.frame = 0;
+        if (this.canvas.isConnected) this.draw?.();
+      });
+    }
+
+    bind() {
+      let last = null;
+      const svg = this.svg;
+      svg.addEventListener("pointerdown", (event) => {
+        if (event.button > 0) return;
+        last = [event.clientX, event.clientY];
+        svg.setPointerCapture?.(event.pointerId);
+        this.camera.stop();
+        this.camera.hold(true);
+      });
+      svg.addEventListener("pointermove", (event) => {
+        if (!last) return;
+        const dx = event.clientX - last[0];
+        const dy = event.clientY - last[1];
+        last = [event.clientX, event.clientY];
+        this.camera.turn(-dx * 0.011, dy * 0.009);
+      });
+      const release = () => {
+        if (!last) return;
+        last = null;
+        this.camera.hold(false);
+      };
+      for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) svg.addEventListener(type, release);
+      this.canvas.addEventListener("keydown", (event) => {
+        const turn = { ArrowLeft: [0.12, 0], ArrowRight: [-0.12, 0], ArrowUp: [0, 0.1], ArrowDown: [0, -0.1] }[event.key];
+        if (!turn) return;
+        event.preventDefault();
+        this.camera.stop();
+        this.camera.turn(...turn);
+      });
+    }
+
+    begin() {
+      const { yaw, pitch } = this.camera;
+      const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+      this.right = [-sy, cy, 0];
+      this.up = [-sp * cy, -sp * sy, cp];
+      this.eye = [cp * cy, cp * sy, sp];
+      this.items = [];
+      this.labels = [];
+      if (this.camera.moving) this.scene.removeAttribute("filter");
+      else this.scene.setAttribute("filter", `url(#demo-pencil-${this.id})`);
+    }
+
+    P(p) {
+      return { x: this.W / 2 + this.k * V.dot(p, this.right), y: this.H / 2 - this.k * V.dot(p, this.up), z: V.dot(p, this.eye) };
+    }
+
+    // Far marks are drawn lighter, which is most of what makes the picture read as deep.
+    fade(z) {
+      return Math.max(0.35, Math.min(1, 0.66 + (0.34 * z) / (this.R * 1.75))).toFixed(2);
+    }
+
+    put(z, node) {
+      this.items.push({ z, node });
+    }
+
+    segment(p, q, { cls = "pc-gray", width = 2, dash = null, pieces = 1 } = {}) {
+      for (let i = 0; i < pieces; i += 1) {
+        const A = this.P(V.add(p, V.scale(V.sub(q, p), i / pieces)));
+        const B = this.P(V.add(p, V.scale(V.sub(q, p), (i + 1) / pieces)));
+        const z = (A.z + B.z) / 2;
+        this.put(z, s("line", { x1: A.x, y1: A.y, x2: B.x, y2: B.y, class: `demo-line ${cls}`, "stroke-width": width, "stroke-dasharray": dash, "stroke-opacity": this.fade(z) }));
+      }
+    }
+
+    // The part of the line point + t·dir that lies inside the box, or null.
+    clip(point, dir) {
+      let lo = -Infinity;
+      let hi = Infinity;
+      for (let i = 0; i < 3; i += 1) {
+        if (Math.abs(dir[i]) < 1e-12) {
+          if (Math.abs(point[i]) > this.R) return null;
+          continue;
+        }
+        const t1 = (-this.R - point[i]) / dir[i];
+        const t2 = (this.R - point[i]) / dir[i];
+        lo = Math.max(lo, Math.min(t1, t2));
+        hi = Math.min(hi, Math.max(t1, t2));
+      }
+      return hi > lo ? [V.add(point, V.scale(dir, lo)), V.add(point, V.scale(dir, hi))] : null;
+    }
+
+    line(point, dir, opts = {}) {
+      if (tiny(dir)) return;
+      const ends = this.clip(point, dir);
+      if (ends) this.segment(...ends, { pieces: 14, ...opts });
+    }
+
+    arrow(from, to, { cls = "pc-blue", label = "", dash = null, width = 2.6 } = {}) {
+      if (tiny(V.sub(to, from))) this.dot(to, { cls });
+      else {
+        this.segment(from, to, { cls, width, dash, pieces: 4 });
+        const A = this.P(from);
+        const B = this.P(to);
+        const dx = B.x - A.x, dy = B.y - A.y, length = Math.hypot(dx, dy);
+        if (length > 3) {
+          const ux = dx / length, uy = dy / length, k = Math.min(10, length / 2.2);
+          this.put(
+            B.z + 0.01,
+            s("path", {
+              d: `M${B.x - k * ux + (k * uy) / 2},${B.y - k * uy - (k * ux) / 2} L${B.x},${B.y} L${B.x - k * ux - (k * uy) / 2},${B.y - k * uy + (k * ux) / 2}`,
+              class: `demo-line ${cls}`,
+              fill: "none",
+              "stroke-width": 2.2,
+              "stroke-opacity": this.fade(B.z)
+            })
+          );
+        }
+      }
+      if (label) this.text(to, label, { cls: `${cls}-text` });
+    }
+
+    dot(p, { cls = "pc-blue", r = null, hollow = false } = {}) {
+      const A = this.P(p);
+      this.put(A.z + 0.02, s("circle", { cx: A.x, cy: A.y, r: r ?? this.cell * 0.24, class: `demo-dot ${cls}${hollow ? " is-hollow" : ""}` }));
+    }
+
+    // A dotted plumb line from a point down to the floor z = 0, so its height can be read.
+    drop(p, cls = "pc-gray") {
+      if (Math.abs(p[2]) < 0.05 || Math.max(...p.map(Math.abs)) > this.R) return;
+      const foot = [p[0], p[1], 0];
+      this.segment(p, foot, { cls, width: 1.2, dash: "2 4", pieces: 2 });
+      this.dot(foot, { cls, r: 1.8 });
+    }
+
+    polygon(points, cls, extra = "") {
+      if (points.length < 3) return;
+      const Q = points.map((p) => this.P(p));
+      const z = Q.reduce((sum, q) => sum + q.z, 0) / Q.length;
+      this.put(z, s("polygon", { points: Q.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(" "), class: `demo-plane ${cls} ${extra}`.trim() }));
+    }
+
+    // The plane n·p = d, cut to a box a little smaller than the axes, so its corners stay in the frame.
+    plane(n, d, cls = "pc-blue") {
+      if (tiny(n)) return;
+      const R = this.R * 0.85;
+      const f = (p) => V.dot(n, p) - d;
+      const corners = [];
+      for (const x of [-R, R]) for (const y of [-R, R]) for (const z of [-R, R]) corners.push([x, y, z]);
+      const points = [];
+      for (let i = 0; i < 8; i += 1) {
+        for (let j = i + 1; j < 8; j += 1) {
+          const a = corners[i], b = corners[j];
+          if (a.filter((x, k) => x !== b[k]).length !== 1) continue;
+          const fa = f(a), fb = f(b);
+          if ((fa > 0 && fb > 0) || (fa < 0 && fb < 0) || fa === fb) continue;
+          const p = V.add(a, V.scale(V.sub(b, a), fa / (fa - fb)));
+          if (!points.some((q) => V.len(V.sub(p, q)) < 1e-6)) points.push(p);
+        }
+      }
+      if (points.length < 3) return;
+      const c = V.scale(points.reduce(V.add), 1 / points.length);
+      const e1 = V.sub(points[0], c);
+      const e2 = V.cross(n, e1);
+      const angle = (p) => Math.atan2(V.dot(V.sub(p, c), e2), V.dot(V.sub(p, c), e1));
+      points.sort((p, q) => angle(p) - angle(q));
+      this.polygon(points, cls);
+    }
+
+    // The plane through a point spanned by two directions, if they are independent.
+    span(u, v, cls = "pc-gray", through = ORIGIN) {
+      const n = V.cross(u, v);
+      if (!tiny(n)) this.plane(n, V.dot(n, through), cls);
+    }
+
+    text(p, content, { cls = "", dx = 0.35, dy = -0.45, size = 0.72, anchor = "start" } = {}) {
+      const A = this.P(p);
+      const node = s("text", { x: A.x + dx * this.cell, y: A.y + dy * this.cell, class: `demo-label ${cls}`, "text-anchor": anchor, "font-size": this.cell * size });
+      node.textContent = content;
+      this.labels.push(node);
+    }
+
+    // The floor grid on z = 0 and the three axes; the negative halves are dashed.
+    room() {
+      const R = this.R;
+      const n = Math.floor(R - 0.25);
+      for (let k = -n; k <= n; k += 1) {
+        for (const [p, q] of [[[k, -n, 0], [k, n, 0]], [[-n, k, 0], [n, k, 0]]]) {
+          const A = this.P(p), B = this.P(q);
+          this.put(-1e9, s("line", { x1: A.x, y1: A.y, x2: B.x, y2: B.y, class: "demo-floor" }));
+        }
+      }
+      const axes = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+      axes.forEach((e, i) => {
+        this.segment(V.scale(e, -R), ORIGIN, { cls: "demo-axis-3d", width: 1.3, dash: "3 4", pieces: 4 });
+        this.arrow(ORIGIN, V.scale(e, R), { cls: "demo-axis-3d", width: 1.5 });
+        const across = axes[i === 2 ? 0 : 2];
+        for (let t = 1; t <= n; t += 1) {
+          const at = V.scale(e, t);
+          this.segment(V.add(at, V.scale(across, -0.13)), V.add(at, V.scale(across, 0.13)), { cls: "demo-axis-3d", width: 1.2 });
+          if (n <= 4 || t % 2 === 0) this.text(at, String(t), { cls: "demo-tick", dx: -0.2, dy: 1, size: 0.55 });
+        }
+        if (this.names[i]) this.text(V.scale(e, R * 1.04), this.names[i], { cls: "demo-axis-name", dx: 0.2, dy: -0.25, size: 0.8 });
+      });
+    }
+
+    end() {
+      this.items.sort((a, b) => a.z - b.z);
+      this.scene.replaceChildren(...this.items.map((item) => item.node));
+      this.top.replaceChildren(...this.labels);
+    }
+  }
+
+  // The buttons under a 3D picture: three fixed views and a slow turn.
+  function viewControls(camera) {
+    const spin = button("סיבוב איטי", () => camera.toggleSpin(), "is-quiet");
+    spin.setAttribute("aria-pressed", "false");
+    camera.onSpin = (on) => {
+      spin.setAttribute("aria-pressed", String(on));
+      spin.textContent = on ? "עצירה" : "סיבוב איטי";
+    };
+    return h(
+      "div",
+      { class: "demo-view" },
+      h("span", { class: "demo-view-hint", text: "גררו את התרשים כדי לסובב אותו." }),
+      button("מבט רגיל", () => camera.go(HOME_VIEW), "is-quiet"),
+      button("מבט מלמעלה", () => camera.go(TOP_VIEW), "is-quiet"),
+      button("מבט מהצד", () => camera.go(SIDE_VIEW), "is-quiet"),
+      spin
+    );
+  }
+
+  // Coefficient controls and exact solving shared by the linear algebra demos.
+  const half = (x) => window.Linalg.fraction(Math.round(x * 2), 2);
+  const value = (fraction) => fraction.n / fraction.d;
+  const same = (p, q) => p.every((x, i) => Math.abs(x - q[i]) < 1e-9);
+  const term = (c, name) => (c < 0 ? `(${fmt(c)})${name}` : `${fmt(c)}${name}`);
+  const combine = (coefficients, vectors) => vectors.reduce((sum, vector, i) => V.add(sum, V.scale(vector, coefficients[i])), vectors[0].map(() => 0));
+  // The system whose columns are the given vectors and whose last column is the target.
+  const columnsSystem = (columns, target) => window.Linalg.toFractions(target.map((_, i) => [...columns.map((c) => half(c[i])), half(target[i])]));
+  const pair = (v) => `(${v.map((x) => fmt(x)).join(", ")})`;
+
+  // Walks the vectors head to tail, each scaled by its coefficient.
+  function walk3(plot, coefficients, vectors, classes) {
+    let at = ORIGIN;
+    vectors.forEach((vector, i) => {
+      const next = V.add(at, V.scale(vector, coefficients[i]));
+      if (!same(at, next)) plot.arrow(at, next, { cls: classes[i], dash: "5 4" });
+      at = next;
+    });
+    return at;
+  }
+
+  function target3(plot, target, label = "יעד") {
+    plot.drop(target, "pc-orange");
+    plot.dot(target, { cls: "pc-orange", hollow: true, r: plot.cell * 0.5 });
+    plot.text(target, label, { cls: "pc-orange-text", dx: 0.7, dy: 0.25 });
+  }
+
+  function endPoint(plot, p) {
+    plot.drop(p, "pc-green");
+    plot.dot(p, { cls: "pc-green", r: plot.cell * 0.32 });
+  }
+
+  // ---------------------------------------------------------------------------
   // Controls
   // ---------------------------------------------------------------------------
 
@@ -1570,190 +2009,199 @@
     return { render: draw };
   };
 
-  // Chapter 1: two equations in two unknowns, seen as two lines.
+  // Chapter 1: three equations in three unknowns, seen as three planes.
   DEMOS["solution-count"] = (fig) => {
-    const { toFractions, classify, fraction } = window.Linalg;
-    const names = (column) => "xy"[column];
-    const ui = frame(fig, "שני ישרים, שלוש אפשרויות");
-    const plot = new Plot(ui.plotHost, { view: { xmin: -6, xmax: 6, ymin: -5, ymax: 5 }, rows: 14 });
-    const state = { a: 1, b: -1, c: 0 };
-    const LINE = { a: 1, b: 1, c: 2 };
+    const { toFractions, classify } = window.Linalg;
+    const names = (column) => "xyz"[column];
+    const ui = frame(fig, "שלושה מישורים, שלוש אפשרויות");
+    const plot = new Plot3D(ui.plotHost, { range: 4 });
+    ui.plotHost.append(viewControls(plot.camera));
+    const BLUE = { n: [1, 1, 1], d: 3 };
+    const PURPLE = { n: [1, -1, 1], d: 1 };
+    const state = { a: 1, b: 0, c: -1, d: 0 };
     const sliders = {};
-    const add = (key, label) => {
-      sliders[key] = slider({
-        label,
-        min: -4,
-        max: 4,
-        step: 0.5,
-        value: state[key],
-        onInput: (value) => {
-          state[key] = value;
-          update();
-        }
-      });
+    for (const [key, label, min, max] of [["a", "מקדם \\(a\\)", -3, 3], ["b", "מקדם \\(b\\)", -3, 3], ["c", "מקדם \\(c\\)", -3, 3], ["d", "מקדם חופשי \\(d\\)", -4, 4]]) {
+      sliders[key] = slider({ label, min, max, step: 0.5, value: state[key], onInput: (v) => { state[key] = v; update(); } });
       ui.controls.append(sliders[key].el);
-    };
-    add("a", "מקדם \\(a\\)");
-    add("b", "מקדם \\(b\\)");
-    add("c", "מקדם חופשי \\(c\\)");
-    const setTo = (a, b, c) => {
-      Object.assign(state, { a, b, c });
-      for (const key of ["a", "b", "c"]) sliders[key].set(state[key]);
+    }
+    const setTo = (a, b, c, d) => {
+      Object.assign(state, { a, b, c, d });
+      for (const key of ["a", "b", "c", "d"]) sliders[key].set(state[key]);
       update();
     };
     ui.buttons.append(
-      button("נחתכים", () => setTo(1, -1, 0), "is-quiet"),
-      button("מקבילים", () => setTo(2, 2, 1), "is-quiet"),
-      button("מתלכדים", () => setTo(2, 2, 4), "is-quiet")
+      button("נקודה אחת", () => setTo(1, 0, -1, 0), "is-quiet"),
+      button("ישר שלם", () => setTo(2, 0, 2, 4), "is-quiet"),
+      button("מקביל לכחול", () => setTo(1, 1, 1, -1), "is-quiet"),
+      button("אוהל", () => setTo(2, 0, 2, 0), "is-quiet")
     );
     const reduced = h("div", { class: "demo-rows" });
     ui.panel.prepend(reduced);
 
-    const half = (value) => fraction(Math.round(value * 2), 2);
-    const augmented = () => toFractions([[1, 1, 2], [half(state.a), half(state.b), half(state.c)]]);
-
-    function drawLine({ a, b, c }, options) {
-      if (b !== 0) plot.curve((x) => (c - a * x) / b, options);
-      else if (a !== 0) plot.vline(c / a, options);
-    }
+    const red = () => ({ n: [state.a, state.b, state.c], d: state.d });
+    const augmented = () => toFractions([[1, 1, 1, 3], [1, -1, 1, 1], [half(state.a), half(state.b), half(state.c), half(state.d)]]);
 
     function draw() {
-      plot.clear();
-      plot.drawAxes();
+      plot.begin();
+      plot.room();
+      const planes = [[BLUE, "pc-blue"], [PURPLE, "pc-purple"], [red(), "pc-red"]];
+      for (const [p, cls] of planes) plot.plane(p.n, p.d, cls);
+      for (let i = 0; i < 3; i += 1) {
+        for (let j = i + 1; j < 3; j += 1) {
+          const line = meet(planes[i][0].n, planes[i][0].d, planes[j][0].n, planes[j][0].d);
+          if (line) plot.line(line.point, line.dir, { cls: "pc-gray", width: 1.4 });
+        }
+      }
       const result = classify(augmented());
-      drawLine(LINE, { cls: "pc-blue", width: 2.6 });
-      drawLine(state, { cls: "pc-red", width: 2.2, dash: result.kind === "infinite" ? "7 6" : null });
-      if (result.kind === "one") plot.dot(result.solution[0].n / result.solution[0].d, result.solution[1].n / result.solution[1].d, { cls: "pc-green", r: plot.cell * 0.32 });
+      if (result.kind === "one") endPoint(plot, result.solution.map(value));
+      else if (result.kind === "infinite") {
+        const line = meet(BLUE.n, BLUE.d, PURPLE.n, PURPLE.d);
+        plot.line(line.point, line.dir, { cls: "pc-green", width: 3.6 });
+      }
+      plot.end();
     }
+    plot.draw = draw;
 
     function update() {
       draw();
       const start = augmented();
       const result = classify(start);
       reduced.replaceChildren(matrixNode(result.result), h("div", { class: "demo-system", dir: "ltr" }, start.map((row) => h("span", { text: equationOf(row, names) }))));
-      const emptyEquation = state.a === 0 && state.b === 0;
-      if (result.kind === "one") ui.say(`הישרים נחתכים בנקודה אחת, ולכן יש <strong>פתרון יחיד</strong>: ${m(`(x, y) = (${minusSign(result.solution[0])}, ${minusSign(result.solution[1])})`)}.`);
-      else if (result.kind === "none" && emptyEquation) ui.say(`המשוואה השנייה היא ${m(`0 = ${fmt(state.c)}`)}, ושום נקודה לא מקיימת אותה. לכן <strong>אין פתרון</strong>.`);
-      else if (result.kind === "none") ui.say(`הישרים מקבילים ולא נפגשים. בדירוג מתקבלת שורה ${m("0 = a")} עם ${m("a ≠ 0")}, ולכן <strong>אין פתרון</strong>.`);
-      else if (emptyEquation) ui.say(`המשוואה השנייה היא ${m("0 = 0")} ואינה מגבילה דבר, ולכן כל נקודה על הישר הכחול היא פתרון: <strong>אינסוף פתרונות</strong>.`);
-      else ui.say(`שתי המשוואות מתארות אותו ישר, אז כל נקודה עליו היא פתרון: <strong>אינסוף פתרונות</strong>. ${m("y")} משתנה חופשי.`);
+      const { n } = red();
+      const empty = tiny(n);
+      const parallel = !empty && [BLUE, PURPLE].some((p) => tiny(V.cross(p.n, n)));
+      if (result.kind === "one") ui.say(`שלושת המישורים נפגשים בנקודה אחת, ולכן יש <strong>פתרון יחיד</strong>: ${m(`(x, y, z) = (${result.solution.map(minusSign).join(", ")})`)}.`);
+      else if (result.kind === "none" && empty) ui.say(`המשוואה השלישית היא ${m(`0 = ${fmt(state.d)}`)}, ושום נקודה לא מקיימת אותה. לכן <strong>אין פתרון</strong>.`);
+      else if (result.kind === "none" && parallel) ui.say(`המישור האדום מקביל לאחד המישורים ולא נוגע בו. בדירוג מתקבלת שורה ${m("0 = a")} עם ${m("a ≠ 0")}, ולכן <strong>אין פתרון</strong>.`);
+      else if (result.kind === "none") ui.say(`כל שני מישורים נחתכים בישר אפור, אבל שלושת הישרים מקבילים, כמו שני צדי אוהל והרצפה שלו. אין נקודה שנמצאת על שלושת המישורים, ולכן <strong>אין פתרון</strong>.`);
+      else if (empty) ui.say(`המשוואה השלישית היא ${m("0 = 0")} ואינה מגבילה דבר. הפתרונות הם הישר הירוק, שבו נפגשים הכחול והסגול: <strong>אינסוף פתרונות</strong>.`);
+      else if (parallel) ui.say(`המישור האדום מתלכד עם אחד המישורים, אז נשארו בעצם שני מישורים. הם נחתכים בישר הירוק, ולכן יש <strong>אינסוף פתרונות</strong>.`);
+      else ui.say(`המישור האדום עובר דרך הישר שבו נפגשים הכחול והסגול, ולכן כל נקודה על הישר הירוק היא פתרון: <strong>אינסוף פתרונות</strong>. ${m(result.free.map(names).join(", "))} משתנה חופשי.`);
     }
 
     update();
-    return {
-      render() {
-        plot.layout();
-        draw();
-      }
-    };
+    return { render() { plot.layout(); draw(); } };
   };
 
-  // Chapter 2: vectors over R, using the same accessible notebook controls.
-  function vectorArrow(plot, from, to, cls, label = "", dash = null) {
-    const x = plot.X(to[0]), y = plot.Y(to[1]);
-    const dx = x - plot.X(from[0]), dy = y - plot.Y(from[1]);
-    const length = Math.hypot(dx, dy);
-    plot.line(...from, ...to, { cls, width: 2.5, dash });
-    if (length > 0.5) {
-      const ux = dx / length, uy = dy / length, k = Math.min(9, length / 2);
-      plot.ink.append(s("path", { d: `M${x-k*ux+k*uy/2},${y-k*uy-k*ux/2} L${x},${y} L${x-k*ux-k*uy/2},${y-k*uy+k*ux/2}`, class: `demo-line ${cls}`, fill: "none", "stroke-width": 2 }));
-    } else plot.dot(...to, { cls });
-    if (label) plot.text(...to, label, { dy: -0.65, cls: `${cls}-text` });
-  }
-  const pair = (v) => `(${v.map(x => fmt(x)).join(", ")})`;
-
+  // 2.2: adding arrows in space, head to tail.
   DEMOS["vector-sum"] = (fig) => {
-    const ui = frame(fig, "מחברים חיצים: ראש לעקב");
-    const plot = new Plot(ui.plotHost, { view: { xmin: -7, xmax: 7, ymin: -5, ymax: 5 }, rows: 16 });
+    const ui = frame(fig, "מחברים חיצים במרחב: ראש לעקב");
+    const plot = new Plot3D(ui.plotHost, { range: 4.5 });
+    ui.plotHost.append(viewControls(plot.camera));
+    const a = [2, 0, 1];
+    const b = [0, 2, 1];
     let t = 1;
     const control = slider({ label: "כמה פעמים לקחת את a?", min: -2, max: 2, step: 0.25, value: t, onInput(v) { t = v; update(); } });
     ui.controls.append(control.el);
     ui.buttons.append(button("היפוך כיוון", () => { t = -1; control.set(t); update(); }), button("וקטור האפס", () => { t = 0; control.set(t); update(); }, "is-quiet"));
     function draw() {
-      plot.clear(); plot.drawAxes();
-      const a = [2*t,t], b = [1,2], result = [2*t+1,t+2];
-      vectorArrow(plot, [0,0], b, "pc-gray", "b", "4 4");
-      vectorArrow(plot, [0,0], a, "pc-blue", "ta");
-      vectorArrow(plot, a, result, "pc-red", "b", "5 4");
-      vectorArrow(plot, [0,0], result, "pc-green", "ta+b");
+      plot.begin();
+      plot.room();
+      const ta = V.scale(a, t);
+      const sum = V.add(ta, b);
+      plot.polygon([ORIGIN, ta, sum, b], "pc-green", "is-faint");
+      for (const p of [ta, b]) plot.drop(p);
+      plot.arrow(ORIGIN, b, { cls: "pc-gray", label: "b", dash: "4 4" });
+      plot.arrow(ORIGIN, ta, { cls: "pc-blue", label: "ta" });
+      plot.arrow(ta, sum, { cls: "pc-red", dash: "5 4" });
+      plot.arrow(ORIGIN, sum, { cls: "pc-green", label: "ta+b" });
+      plot.drop(sum, "pc-green");
+      plot.end();
     }
+    plot.draw = draw;
     function update() {
       draw();
-      ui.say(`${m("a = (2, 1), b = (1, 2)")}. ${m(`${fmt(t)}a + b = ${pair([2*t+1,t+2])}`)}. החץ הכחול הוא ${m("ta")}; האדום מוסיף את ${m("b")} מראשו; הירוק מוביל ישר לתוצאה. ${t === 0 ? "כשכופלים באפס, החץ הכחול מתכווץ לנקודה והתוצאה היא b." : t < 0 ? "המקדם שלילי, לכן כיוון a התהפך." : "שנו את המקדם וראו איך אורך החץ משתנה."}`);
+      ui.say(`${m("a = (2, 0, 1), b = (0, 2, 1)")}. ${m(`${fmt(t)}a + b = ${pair(V.add(V.scale(a, t), b))}`)}. החץ הכחול הוא ${m("ta")}; האדום מוסיף את ${m("b")} מראשו; הירוק מוביל ישר לתוצאה. הקווים המנוקדים יורדים לרצפה ${m("z = 0")}, כדי שתראו את הגובה של כל קצה. ${t === 0 ? "כשכופלים באפס, החץ הכחול מתכווץ לנקודה והתוצאה היא b." : t < 0 ? "המקדם שלילי, לכן כיוון a התהפך." : "שנו את המקדם וראו איך אורך החץ משתנה."}`);
     }
-    update(); return { render() { plot.layout(); draw(); } };
+    update();
+    return { render() { plot.layout(); draw(); } };
   };
 
+  // 2.3: a point walking on a line, and with a second direction on a plane.
   DEMOS["parametric-line"] = (fig) => {
-    const ui = frame(fig, "נקודה מטיילת על ישר");
-    const plot = new Plot(ui.plotHost, { view: { xmin: -6, xmax: 6, ymin: -6, ymax: 8 }, rows: 16 });
-    const state = { t: 1, ax: 1, ay: 2 };
+    const ui = frame(fig, "נקודה מטיילת על ישר, ואחר כך על מישור");
+    const plot = new Plot3D(ui.plotHost, { range: 4 });
+    ui.plotHost.append(viewControls(plot.camera));
+    const base = [0, 1, 1];
+    const second = [1, 0, 0];
+    const state = { t: 1, s: 1, ax: 1, ay: 2, az: 1, plane: false };
     const controls = {};
-    for (const [key, label, min, max] of [["t", "הפרמטר t", -3, 3], ["ax", "רכיב x של הכיוון a", -2, 2], ["ay", "רכיב y של הכיוון a", -2, 2]]) {
+    for (const [key, label, min, max] of [["t", "הפרמטר t", -3, 3], ["s", "הפרמטר s של הכיוון c", -3, 3], ["ax", "רכיב x של הכיוון a", -2, 2], ["ay", "רכיב y של הכיוון a", -2, 2], ["az", "רכיב z של הכיוון a", -2, 2]]) {
       controls[key] = slider({ label, min, max, step: 0.5, value: state[key], onInput(v) { state[key] = v; update(); } });
       ui.controls.append(controls[key].el);
     }
-    function preset(ax, ay) { state.ax=ax; state.ay=ay; controls.ax.set(ax); controls.ay.set(ay); update(); }
-    ui.buttons.append(button("ישר אנכי", () => preset(0,1), "is-quiet"), button("כיוון אפס", () => preset(0,0), "is-quiet"), button("איפוס", () => { state.t=1; controls.t.set(1); preset(1,2); }, "is-quiet"));
+    const mode = button("", () => { state.plane = !state.plane; syncMode(); update(); });
+    function syncMode() {
+      controls.s.el.style.display = state.plane ? "" : "none";
+      mode.textContent = state.plane ? "חזרה לישר" : "הוסיפו כיוון שני: מישור";
+      mode.setAttribute("aria-pressed", String(state.plane));
+    }
+    function preset(ax, ay, az) {
+      Object.assign(state, { ax, ay, az });
+      for (const key of ["ax", "ay", "az"]) controls[key].set(state[key]);
+      update();
+    }
+    ui.buttons.append(
+      mode,
+      button("ישר אנכי", () => preset(0, 0, 1), "is-quiet"),
+      button("כיוון אפס", () => preset(0, 0, 0), "is-quiet"),
+      button("a על הישר של c", () => { state.plane = true; syncMode(); preset(2, 0, 0); }, "is-quiet"),
+      button("איפוס", () => { state.t = 1; state.s = 1; controls.t.set(1); controls.s.set(1); preset(1, 2, 1); }, "is-quiet")
+    );
+    const direction = () => [state.ax, state.ay, state.az];
     function draw() {
-      plot.clear(); plot.drawAxes();
-      const {t,ax,ay} = state;
-      if (ax !== 0) plot.curve(x => 1 + ay*x/ax, { cls: "pc-gray", dash: "5 5" });
-      else if (ay !== 0) plot.vline(0, { cls: "pc-gray", dash: "5 5" });
-      vectorArrow(plot, [0,1], [t*ax,1+t*ay], "pc-blue");
-      plot.dot(0,1, {cls:"pc-red"}); plot.text(0,1,"b",{dy:1.3});
-      plot.dot(t*ax,1+t*ay,{cls:"pc-green"}); plot.text(t*ax,1+t*ay,"p(t)",{dy:-0.65});
+      plot.begin();
+      plot.room();
+      const a = direction();
+      const at = V.add(base, V.scale(a, state.t));
+      const p = state.plane ? V.add(at, V.scale(second, state.s)) : at;
+      if (state.plane) plot.span(a, second, "pc-blue", base);
+      plot.line(base, a, { cls: "pc-gray", dash: "5 5", width: 1.8 });
+      if (state.plane) plot.line(base, second, { cls: "pc-gray", dash: "2 5", width: 1.4 });
+      plot.arrow(base, at, { cls: "pc-blue" });
+      if (state.plane) plot.arrow(at, p, { cls: "pc-purple" });
+      plot.drop(base, "pc-red");
+      plot.dot(base, { cls: "pc-red" });
+      plot.text(base, "b", { dx: -0.9, dy: 0.2 });
+      endPoint(plot, p);
+      plot.text(p, state.plane ? "p(t, s)" : "p(t)", { cls: "pc-green-text" });
+      plot.end();
     }
+    plot.draw = draw;
     function update() {
-      draw(); const {t,ax,ay}=state;
-      ui.say(`${m(`b = (0, 1), a = ${pair([ax,ay])}`)}. ${m(`p(t) = b + ta = ${pair([t*ax,1+t*ay])}`)}. ${ax===0 && ay===0 ? "אין כיוון תנועה: לכל ערך של t נשארים ב-b. זו נקודה אחת, לא ישר." : "הקו המקווקו מראה את הישר; הנקודה הירוקה היא הבחירה הנוכחית של t. המחוון מציג רק חלק מהערכים, אבל הישר כולל את כל t הממשיים."}`);
+      draw();
+      const a = direction();
+      const at = V.add(base, V.scale(a, state.t));
+      const start = `${m(`b = (0, 1, 1), a = ${pair(a)}`)}`;
+      if (!state.plane) {
+        ui.say(`${start}. ${m(`p(t) = b + ta = ${pair(at)}`)}. ${tiny(a) ? "אין כיוון תנועה: לכל ערך של t נשארים ב-b. זו נקודה אחת, לא ישר." : "הקו המקווקו הוא הישר, והנקודה הירוקה היא הבחירה הנוכחית של t. המחוון מציג רק חלק מהערכים, אבל הישר כולל את כל t הממשיים. סובבו את התרשים: מכל כיוון זה נשאר ישר."}`);
+        return;
+      }
+      const p = V.add(at, V.scale(second, state.s));
+      const where = `${start}, ${m("c = (1, 0, 0)")}. ${m(`p(t, s) = b + ta + sc = ${pair(p)}`)}.`;
+      if (tiny(a)) ui.say(`${where} ${m("a")} הוא וקטור האפס, אז נשאר רק הכיוון ${m("c")}: מתקבל ישר, לא מישור.`);
+      else if (tiny(V.cross(a, second))) ui.say(`${where} ${m("a")} ו-${m("c")} על אותו ישר, ולכן כל הנקודות נשארות על ישר אחד. מישור צריך שתי הוראות תנועה שאינן על אותו ישר.`);
+      else ui.say(`${where} שני כיוונים שאינם על אותו ישר פורשים מישור, המישור המוצלל. כל בחירה של ${m("t")} ושל ${m("s")} נותנת נקודה עליו. נסו "מבט מהצד" וסובבו עד שהמישור נראה כקו: כך רואים שהוא שטוח.`);
     }
-    update(); return { render() { plot.layout(); draw(); } };
+    syncMode();
+    update();
+    return { render() { plot.layout(); draw(); } };
   };
-
-  // Coefficient controls and exact solving shared by the chapter 2 demos below.
-  const half = (value) => window.Linalg.fraction(Math.round(value * 2), 2);
-  const value = (fraction) => fraction.n / fraction.d;
-  const same = (p, q) => Math.abs(p[0] - q[0]) < 1e-9 && Math.abs(p[1] - q[1]) < 1e-9;
-  const term = (c, name) => (c < 0 ? `(${fmt(c)})${name}` : `${fmt(c)}${name}`);
-  const combine = (coefficients, vectors) =>
-    vectors.reduce((sum, vector, i) => [sum[0] + coefficients[i] * vector[0], sum[1] + coefficients[i] * vector[1]], [0, 0]);
-  const columnsSystem = (a, b, target) =>
-    window.Linalg.toFractions([0, 1].map((i) => [half(a[i]), half(b[i]), half(target[i])]));
-
-  function drawSpanLine(plot, direction) {
-    plot.line(-40 * direction[0], -40 * direction[1], 40 * direction[0], 40 * direction[1], { cls: "pc-gray", dash: "5 5" });
-  }
-
-  function drawTarget(plot, target, label = "יעד") {
-    plot.dot(target[0], target[1], { cls: "pc-orange", hollow: true, r: plot.cell * 0.5 });
-    plot.text(target[0], target[1], label, { dy: 1.35, cls: "pc-orange-text" });
-  }
-
-  // Walks the vectors head to tail, each scaled by its coefficient.
-  function drawWalk(plot, coefficients, vectors, classes) {
-    let at = [0, 0];
-    vectors.forEach((vector, i) => {
-      const next = [at[0] + coefficients[i] * vector[0], at[1] + coefficients[i] * vector[1]];
-      if (!same(at, next)) vectorArrow(plot, at, next, classes[i], "", "5 4");
-      at = next;
-    });
-    return at;
-  }
 
   // 2.5: a linear combination as a recipe that has to hit a target.
   DEMOS["reach-target"] = (fig) => {
     const { classify } = window.Linalg;
-    const ui = frame(fig, "להגיע ליעד: מוצאים את המתכון");
-    const plot = new Plot(ui.plotHost, { view: { xmin: -8, xmax: 8, ymin: -7, ymax: 8 }, rows: 16 });
-    const FREE = { a: [2, 1], b: [-1, 1] };
-    const LINE = { a: [1, 2], b: [2, 4] };
+    const ui = frame(fig, "להגיע ליעד במרחב: מוצאים את המתכון");
+    const plot = new Plot3D(ui.plotHost, { range: 4 });
+    ui.plotHost.append(viewControls(plot.camera));
+    const FREE = { a: [2, 1, 0], b: [-1, 1, 1] };
+    const LINE = { a: [1, 1, 1], b: [2, 2, 2] };
     const CASES = [
-      { label: "יעד ראשון", ...FREE, target: [4, 5] },
-      { label: "יעד שני", ...FREE, target: [-4, 1] },
-      { label: "יעד שלישי", ...FREE, target: [0, -3] },
-      { label: "על ישר אחד: יעד מחוץ לישר", ...LINE, target: [1, 0] },
-      { label: "על ישר אחד: יעד על הישר", ...LINE, target: [3, 6] }
+      { label: "יעד ראשון", ...FREE, target: [0, 3, 2] },
+      { label: "יעד שני", ...FREE, target: [4, -1, -2] },
+      { label: "יעד מחוץ למישור", ...FREE, target: [0, 0, 3] },
+      { label: "על ישר אחד: יעד מחוץ לישר", ...LINE, target: [1, 0, 0] },
+      { label: "על ישר אחד: יעד על הישר", ...LINE, target: [3, 3, 3] }
     ];
     const state = { index: 0, s: 1, t: 0 };
     const current = () => CASES[state.index];
@@ -1773,7 +2221,7 @@
       ...CASES.map((item, index) => button(item.label, () => { state.index = index; setCoefficients(1, 0); }, "is-quiet")),
       button("הראו לי מתכון", () => {
         const { a, b, target } = current();
-        const result = classify(columnsSystem(a, b, target));
+        const result = classify(columnsSystem([a, b], target));
         if (result.kind === "one") setCoefficients(value(result.solution[0]), value(result.solution[1]));
         else if (result.kind === "infinite") setCoefficients(3, 0);
         else {
@@ -1786,110 +2234,126 @@
     ui.panel.prepend(rows);
 
     function draw() {
-      plot.clear();
-      plot.drawAxes();
+      plot.begin();
+      plot.room();
       const { a, b, target } = current();
-      if (same(a, LINE.a)) drawSpanLine(plot, a);
-      vectorArrow(plot, [0, 0], a, "pc-blue", "a");
-      vectorArrow(plot, [0, 0], b, "pc-red", "b");
-      drawTarget(plot, target);
-      const end = drawWalk(plot, [state.s, state.t], [a, b], ["pc-blue", "pc-red"]);
-      plot.dot(end[0], end[1], { cls: "pc-green", r: plot.cell * 0.32 });
+      const n = V.cross(a, b);
+      if (tiny(n)) plot.line(ORIGIN, a, { cls: "pc-gray", dash: "5 5", width: 1.8 });
+      else {
+        plot.span(a, b, "pc-gray");
+        // How far the target is from the plane: the plumb line to its nearest point there.
+        const k = V.dot(target, n) / V.dot(n, n);
+        if (Math.abs(k) > 1e-9) {
+          const foot = V.sub(target, V.scale(n, k));
+          plot.segment(target, foot, { cls: "pc-orange", dash: "2 4", width: 1.6, pieces: 3 });
+          plot.dot(foot, { cls: "pc-orange", r: 2.4 });
+        }
+      }
+      plot.arrow(ORIGIN, a, { cls: "pc-blue", label: "a" });
+      plot.arrow(ORIGIN, b, { cls: "pc-red", label: "b" });
+      target3(plot, target);
+      endPoint(plot, walk3(plot, [state.s, state.t], [a, b], ["pc-blue", "pc-red"]));
+      plot.end();
     }
+    plot.draw = draw;
 
     function update() {
       draw();
       const { a, b, target } = current();
-      const system = columnsSystem(a, b, target);
+      const system = columnsSystem([a, b], target);
       const result = classify(system);
       rows.replaceChildren(matrixNode(system), h("div", { class: "demo-system", dir: "ltr" }, system.map((row) => h("span", { text: equationOf(row, (column) => "st"[column]) }))));
       const end = combine([state.s, state.t], [a, b]);
+      const flat = tiny(V.cross(a, b));
       const where = `${m(`${term(state.s, "a")} + ${term(state.t, "b")} = ${pair(end)}`)}. היעד הוא ${m(pair(target))}.`;
       if (same(end, target) && result.kind === "one") ui.say(`${where} <strong>הגעתם.</strong> המקדמים ${m(`s = ${fmt(state.s)}, t = ${fmt(state.t)}`)} הם הפתרון של המערכת, וזה המתכון היחיד.`);
       else if (same(end, target)) ui.say(`${where} <strong>הגעתם, אבל זה לא המתכון היחיד.</strong> מכיוון ש-${m("b = 2a")}, גם ${m(`s = ${fmt(state.s + 2)}, t = ${fmt(state.t - 1)}`)} מגיע לאותו מקום. למערכת יש אינסוף פתרונות.`);
-      else if (result.kind === "none") ui.say(`${where} כל צירוף נשאר על הישר המקווקו, והיעד לא עליו. אי אפשר להגיע אליו, ובדירוג המערכת מתקבלת שורת סתירה.`);
-      else ui.say(`${where} הזיזו את המקדמים עד שהנקודה הירוקה תיכנס לעיגול. כל עמודה במטריצה היא וקטור, והעמודה האחרונה היא היעד.`);
+      else if (result.kind === "none" && flat) ui.say(`${where} כל צירוף נשאר על הישר המקווקו, והיעד לא עליו. אי אפשר להגיע אליו, ובדירוג המערכת מתקבלת שורת סתירה.`);
+      else if (result.kind === "none") ui.say(`${where} החצים ${m("a")} ו-${m("b")} פורשים מישור, המישור המוצלל, וכל צירוף שלהם נשאר עליו. היעד מחוץ למישור, והקו הכתום מראה כמה. לכן אין מתכון, ובדירוג המערכת מתקבלת שורת סתירה. במרחב שני וקטורים לא מספיקים כדי להגיע לכל מקום.`);
+      else ui.say(`${where} הזיזו את המקדמים עד שהנקודה הירוקה תיכנס לעיגול. סובבו את התרשים כדי לבדוק: מכיוון אחד הנקודה יכולה להיראות בתוך העיגול גם כשהיא לפניו או מאחוריו. כל עמודה במטריצה היא וקטור, והעמודה האחרונה היא היעד.`);
     }
 
     update();
     return { render() { plot.layout(); draw(); } };
   };
 
-  // 2.5 and chapter 1: one system read by rows (lines) and by columns (arrows).
+  // 2.5 and chapter 1: one system read by rows (planes) and by columns (arrows).
   DEMOS["rows-columns"] = (fig) => {
     const { classify } = window.Linalg;
     const ui = frame(fig, "אותה מערכת: שורות או עמודות");
     const CASES = [
-      { label: "פתרון יחיד", a: [2, 1], b: [-1, 1], target: [4, 5], sample: [3, 2] },
-      { label: "אין פתרון", a: [1, 2], b: [2, 4], target: [1, 0], sample: null },
-      { label: "אינסוף פתרונות", a: [1, 2], b: [2, 4], target: [3, 6], sample: [1, 1] }
+      { label: "פתרון יחיד", columns: [[1, 0, 1], [1, 1, 0], [0, 1, 1]], target: [3, 3, 2], sample: [1, 2, 1] },
+      { label: "אין פתרון", columns: [[1, 0, 1], [0, 1, 1], [1, 1, 2]], target: [1, 1, 0], sample: null },
+      { label: "אינסוף פתרונות", columns: [[1, 0, 1], [0, 1, 1], [1, 1, 2]], target: [1, 2, 3], sample: [1, 2, 0] }
     ];
-    const view = { xmin: -6, xmax: 8, ymin: -3, ymax: 7 };
+    const CLASSES = ["pc-blue", "pc-red", "pc-purple"];
+    const pairHost = h("div", { class: "demo-pair" });
     const rowHost = h("div");
     const columnHost = h("div");
-    ui.plotHost.append(rowHost, columnHost);
-    const rowPlot = new Plot(rowHost, { view, rows: 12 });
-    const columnPlot = new Plot(columnHost, { view, rows: 12 });
-    const state = { index: 0, x: 1, y: 1 };
+    pairHost.append(rowHost, columnHost);
+    ui.plotHost.append(pairHost);
+    const camera = new Camera3D();
+    const rowPlot = new Plot3D(rowHost, { range: 3.5, rows: 16, camera, caption: "שורות: כל משוואה היא מישור" });
+    const columnPlot = new Plot3D(columnHost, { range: 3.5, rows: 16, camera, caption: "עמודות: כל נעלם הוא מקדם של חץ" });
+    ui.plotHost.append(viewControls(camera));
+    const state = { index: 0, x: 1, y: 1, z: 1 };
     const current = () => CASES[state.index];
+    const guess = () => [state.x, state.y, state.z];
     const controls = {};
-    for (const key of ["x", "y"]) {
+    for (const key of ["x", "y", "z"]) {
       controls[key] = slider({ label: `הניחוש ל-${key}`, min: -3, max: 4, step: 0.5, value: state[key], onInput(v) { state[key] = v; update(); } });
       ui.controls.append(controls[key].el);
     }
-    const setGuess = (x, y) => {
-      state.x = x;
-      state.y = y;
-      controls.x.set(x);
-      controls.y.set(y);
+    const setGuess = (x, y, z) => {
+      Object.assign(state, { x, y, z });
+      for (const key of ["x", "y", "z"]) controls[key].set(state[key]);
       update();
     };
     ui.buttons.append(
-      ...CASES.map((item, index) => button(item.label, () => { state.index = index; setGuess(1, 1); }, "is-quiet")),
+      ...CASES.map((item, index) => button(item.label, () => { state.index = index; setGuess(1, 1, 1); }, "is-quiet")),
       button("הראו פתרון", () => {
         const { sample } = current();
-        if (sample) setGuess(sample[0], sample[1]);
+        if (sample) setGuess(...sample);
       })
     );
     const rows = h("div", { class: "demo-rows" });
     ui.panel.prepend(rows);
 
-    function drawEquation(p, q, r, cls) {
-      if (q !== 0) rowPlot.curve((x) => (r - p * x) / q, { cls, width: 2.4 });
-      else if (p !== 0) rowPlot.vline(r / p, { cls, width: 2.4 });
+    function drawRows() {
+      const { columns, target } = current();
+      rowPlot.begin();
+      rowPlot.room();
+      CLASSES.forEach((cls, i) => rowPlot.plane(columns.map((c) => c[i]), target[i], cls));
+      endPoint(rowPlot, guess());
+      rowPlot.end();
     }
 
-    function draw() {
-      const { a, b, target } = current();
-      rowPlot.clear();
-      rowPlot.drawAxes();
-      drawEquation(a[0], b[0], target[0], "pc-blue");
-      drawEquation(a[1], b[1], target[1], "pc-red");
-      rowPlot.dot(state.x, state.y, { cls: "pc-green", r: rowPlot.cell * 0.32 });
-      rowPlot.text(rowPlot.xLeft + 0.4 * rowPlot.dx, rowPlot.yTop - 1.2 * rowPlot.dy, "שורות: כל משוואה היא ישר", { anchor: "start" });
-
-      columnPlot.clear();
-      columnPlot.drawAxes();
-      vectorArrow(columnPlot, [0, 0], a, "pc-blue", "c₁");
-      vectorArrow(columnPlot, [0, 0], b, "pc-red", "c₂");
-      drawTarget(columnPlot, target, "b");
-      const end = drawWalk(columnPlot, [state.x, state.y], [a, b], ["pc-blue", "pc-red"]);
-      columnPlot.dot(end[0], end[1], { cls: "pc-green", r: columnPlot.cell * 0.32 });
-      columnPlot.text(columnPlot.xLeft + 0.4 * columnPlot.dx, columnPlot.yTop - 1.2 * columnPlot.dy, "עמודות: כל נעלם הוא מקדם של חץ", { anchor: "start" });
+    function drawColumns() {
+      const { columns, target } = current();
+      columnPlot.begin();
+      columnPlot.room();
+      if (Math.abs(V.dot(columns[0], V.cross(columns[1], columns[2]))) < 1e-9) columnPlot.span(columns[0], columns[1], "pc-gray");
+      columns.forEach((c, i) => columnPlot.arrow(ORIGIN, c, { cls: CLASSES[i], label: `c${sub(i + 1)}` }));
+      target3(columnPlot, target, "b");
+      endPoint(columnPlot, walk3(columnPlot, guess(), columns, CLASSES));
+      columnPlot.end();
     }
+    rowPlot.draw = drawRows;
+    columnPlot.draw = drawColumns;
 
     function update() {
-      draw();
-      const { a, b, target } = current();
-      const system = columnsSystem(a, b, target);
+      drawRows();
+      drawColumns();
+      const { columns, target } = current();
+      const system = columnsSystem(columns, target);
       const result = classify(system);
-      rows.replaceChildren(matrixNode(system), h("div", { class: "demo-system", dir: "ltr" }, system.map((row) => h("span", { text: equationOf(row, (column) => "xy"[column]) }))));
-      const end = combine([state.x, state.y], [a, b]);
-      const guess = m(`(x, y) = ${pair([state.x, state.y])}`);
-      const reach = m(`${term(state.x, "c₁")} + ${term(state.y, "c₂")} = ${pair(end)}`);
-      if (same(end, target)) ui.say(`${guess} <strong>פותר את המערכת.</strong> למעלה הנקודה נמצאת על שני הישרים, ולמטה החיצים מגיעים בדיוק ל-${m("b")}. ${result.kind === "infinite" ? "כאן שני הישרים מתלכדים, ולכן יש עוד הרבה פתרונות." : "זו אותה עובדה בשתי תמונות."}`);
-      else if (result.kind === "none") ui.say(`${guess}. ${reach}. למעלה הישרים מקבילים ולא נפגשים. למטה ${m("b")} מחוץ לישר של החיצים. בשתי התמונות <strong>אין פתרון</strong>.`);
-      else ui.say(`${guess}. ${reach}, ועדיין לא ${m(pair(target))}. שנו את הניחוש: למעלה הנקודה צריכה להיות על שני הישרים, ולמטה החיצים צריכים להגיע ל-${m("b")}. שני התנאים מתקיימים יחד.`);
+      rows.replaceChildren(matrixNode(system), h("div", { class: "demo-system", dir: "ltr" }, system.map((row) => h("span", { text: equationOf(row, (column) => "xyz"[column]) }))));
+      const end = combine(guess(), columns);
+      const shown = m(`(x, y, z) = ${pair(guess())}`);
+      const reach = m(`${term(state.x, "c₁")} + ${term(state.y, "c₂")} + ${term(state.z, "c₃")} = ${pair(end)}`);
+      if (same(end, target)) ui.say(`${shown} <strong>פותר את המערכת.</strong> בתמונת השורות הנקודה נמצאת על שלושת המישורים, ובתמונת העמודות החיצים מגיעים בדיוק ל-${m("b")}. ${result.kind === "infinite" ? "כאן שלושת המישורים נפגשים בישר שלם, ולכן יש עוד הרבה פתרונות." : "זו אותה עובדה בשתי תמונות."}`);
+      else if (result.kind === "none") ui.say(`${shown}. ${reach}. בתמונת השורות כל שני מישורים נפגשים, אבל אין נקודה על שלושתם. בתמונת העמודות שלושת החיצים שוכבים באותו מישור, ו-${m("b")} מחוץ לו. בשתי התמונות <strong>אין פתרון</strong>.`);
+      else ui.say(`${shown}. ${reach}, ועדיין לא ${m(pair(target))}. שנו את הניחוש: בתמונת השורות הנקודה צריכה להיות על שלושת המישורים, ובתמונת העמודות החיצים צריכים להגיע ל-${m("b")}. שני התנאים מתקיימים יחד.`);
     }
 
     update();
@@ -1897,7 +2361,8 @@
       render() {
         rowPlot.layout();
         columnPlot.layout();
-        draw();
+        drawRows();
+        drawColumns();
       }
     };
   };
@@ -1906,24 +2371,26 @@
   DEMOS["dependence"] = (fig) => {
     const { fraction } = window.Linalg;
     const ui = frame(fig, "לחזור הביתה: האם יש וקטור מיותר?");
-    const plot = new Plot(ui.plotHost, { view: { xmin: -4, xmax: 4, ymin: -4.5, ymax: 4.5 }, rows: 18 });
+    const plot = new Plot3D(ui.plotHost, { range: 4 });
+    ui.plotHost.append(viewControls(plot.camera));
     const CASES = [
-      { label: "כיוונים שונים", vectors: [[2, 1], [-1, 1]], relation: null },
-      { label: "על ישר אחד", vectors: [[1, 2], [2, 4]], relation: [2, -1] },
-      { label: "שלושה במישור", vectors: [[2, 0], [0, 1], [1, 1]], relation: [1, 2, -2] },
-      { label: "עם וקטור האפס", vectors: [[0, 0], [1, 1]], relation: [1, 0] }
+      { label: "שלושה שאינם במישור אחד", vectors: [[2, 1, 0], [-1, 1, 0], [0, 1, 2]], relation: null },
+      { label: "שלושה במישור אחד", vectors: [[2, 0, 1], [0, 2, 1], [1, 1, 1]], relation: [1, 1, -2] },
+      { label: "שניים על ישר אחד", vectors: [[1, 2, 1], [2, 4, 2]], relation: [2, -1] },
+      { label: "ארבעה ב-ℝ³", vectors: [[2, 0, 0], [0, 2, 0], [0, 0, 2], [1, 1, 1]], relation: [1, 1, 1, -2] },
+      { label: "עם וקטור האפס", vectors: [[0, 0, 0], [1, 1, 1]], relation: [1, 0] }
     ];
-    const CLASSES = ["pc-blue", "pc-red", "pc-purple"];
+    const CLASSES = ["pc-blue", "pc-red", "pc-purple", "pc-gray"];
     const nameOf = (i) => `a${sub(i + 1)}`;
-    const state = { index: 0, coefficients: [1, 1, 1] };
+    const state = { index: 0, coefficients: [1, 1, 1, 1] };
     const current = () => CASES[state.index];
-    const controls = [0, 1, 2].map((i) => {
+    const controls = [0, 1, 2, 3].map((i) => {
       const control = slider({ label: `המקדם של ${nameOf(i)}`, min: -3, max: 3, step: 0.5, value: 1, onInput(v) { state.coefficients[i] = v; update(); } });
       ui.controls.append(control.el);
       return control;
     });
     const setCoefficients = (values) => {
-      state.coefficients = [0, 1, 2].map((i) => values[i] ?? 0);
+      state.coefficients = [0, 1, 2, 3].map((i) => values[i] ?? 0);
       controls.forEach((control, i) => {
         control.set(state.coefficients[i]);
         control.el.style.display = i < current().vectors.length ? "" : "none";
@@ -1931,7 +2398,7 @@
       update();
     };
     ui.buttons.append(
-      ...CASES.map((item, index) => button(item.label, () => { state.index = index; setCoefficients([1, 1, 1]); }, "is-quiet")),
+      ...CASES.map((item, index) => button(item.label, () => { state.index = index; setCoefficients([1, 1, 1, 1]); }, "is-quiet")),
       button("הראו קשר", () => {
         const { relation, vectors } = current();
         setCoefficients(relation || vectors.map(() => 0));
@@ -1943,21 +2410,26 @@
       const pivot = coefficients.findIndex((c, i) => i < count && c !== 0);
       const terms = [];
       for (let j = 0; j < count; j += 1) {
-        if (j === pivot) continue;
+        if (j === pivot || coefficients[j] === 0) continue;
         terms.push(`(${minusSign(fraction(-Math.round(coefficients[j] * 2), Math.round(coefficients[pivot] * 2)))})${nameOf(j)}`);
       }
-      return `${nameOf(pivot)} = ${terms.join(" + ")}`;
+      return `${nameOf(pivot)} = ${terms.join(" + ") || "0"}`;
     }
 
+    const coplanar = () => current().vectors.length === 3 && current().relation;
+
     function draw() {
-      plot.clear();
-      plot.drawAxes();
+      plot.begin();
+      plot.room();
       const { vectors } = current();
-      vectors.forEach((vector, i) => vectorArrow(plot, [0, 0], vector, CLASSES[i], nameOf(i)));
-      drawTarget(plot, [0, 0], "בית");
-      const end = drawWalk(plot, state.coefficients, vectors, CLASSES);
-      plot.dot(end[0], end[1], { cls: "pc-green", r: plot.cell * 0.32 });
+      if (coplanar()) plot.span(vectors[0], vectors[1], "pc-gray");
+      else if (vectors.length === 2 && !tiny(vectors[0]) && !tiny(vectors[1])) plot.line(ORIGIN, vectors[1], { cls: "pc-gray", dash: "5 5", width: 1.6 });
+      vectors.forEach((vector, i) => plot.arrow(ORIGIN, vector, { cls: CLASSES[i], label: nameOf(i) }));
+      target3(plot, ORIGIN, "בית");
+      endPoint(plot, walk3(plot, state.coefficients, vectors, CLASSES));
+      plot.end();
     }
+    plot.draw = draw;
 
     function update() {
       draw();
@@ -1966,76 +2438,70 @@
       const end = combine(used, vectors);
       const allZero = used.every((c) => c === 0);
       const shown = m(`${used.map((c, i) => term(c, nameOf(i))).join(" + ")} = ${pair(end)}`);
-      if (same(end, [0, 0]) && allZero) ui.say(`${shown}. חזרתם הביתה כי לא זזתם: זה <strong>הצירוף הטריוויאלי</strong>, והוא עובד לכל וקטורים. ${relation ? "בדקו אם יש דרך אחרת לחזור." : "בזוג הזה אין דרך אחרת, ולכן הווקטורים <strong>בלתי תלויים</strong>."}`);
-      else if (same(end, [0, 0])) ui.say(`${shown}. חזרתם הביתה עם מקדמים שלא כולם אפס, ולכן הווקטורים <strong>תלויים</strong>. מעבירים אגף ומבודדים וקטור אחד: ${m(isolate(used, vectors.length))}.`);
-      else if (relation && vectors.length > 2) ui.say(`${shown}. שלושה וקטורים ב-${m("ℝ²")} תמיד תלויים, לפי משפט 2.6.6, ולכן יש דרך לחזור הביתה. נסו למצוא אותה.`);
+      if (same(end, ORIGIN) && allZero) ui.say(`${shown}. חזרתם הביתה כי לא זזתם: זה <strong>הצירוף הטריוויאלי</strong>, והוא עובד לכל וקטורים. ${relation ? "בדקו אם יש דרך אחרת לחזור." : "כאן אין דרך אחרת, ולכן הווקטורים <strong>בלתי תלויים</strong>."}`);
+      else if (same(end, ORIGIN)) ui.say(`${shown}. חזרתם הביתה עם מקדמים שלא כולם אפס, ולכן הווקטורים <strong>תלויים</strong>. מעבירים אגף ומבודדים וקטור אחד: ${m(isolate(used, vectors.length))}.`);
+      else if (vectors.length > 3) ui.say(`${shown}. ארבעה וקטורים ב-${m("ℝ³")} תמיד תלויים, לפי משפט 2.6.6, ולכן יש דרך לחזור הביתה. נסו למצוא אותה.`);
+      else if (coplanar()) ui.say(`${shown}. שלושת הווקטורים שוכבים באותו מישור, המישור המוצלל. סובבו את התרשים עד שהמישור נראה כקו, ותראו את שלושתם עליו. בתוך מישור אחד יש דרך לחזור הביתה בלי לאפס הכול. נסו למצוא אותה.`);
       else if (relation) ui.say(`${shown}. בזוג הזה יש דרך לחזור הביתה בלי לאפס את כל המקדמים. נסו למצוא אותה.`);
-      else ui.say(`${shown}. הכיוונים שונים, ולכן כל עוד מקדם אחד אינו אפס לא תחזרו הביתה. אפסו את שני המקדמים כדי לראות את המקרה היחיד שעובד.`);
+      else ui.say(`${shown}. אף אחד מהשלושה אינו במישור של שני האחרים, ולכן כל עוד מקדם אחד אינו אפס לא תחזרו הביתה. אפסו את כל המקדמים כדי לראות את המקרה היחיד שעובד.`);
     }
 
-    setCoefficients([1, 1, 1]);
+    setCoefficients([1, 1, 1, 1]);
     return { render() { plot.layout(); draw(); } };
   };
 
-  // 2.7: the unique coordinates of a target in an ordered basis.
+  // 2.7: the unique coordinates of a target in an ordered basis of R³.
   DEMOS["basis-coordinates"] = (fig) => {
     const { classify } = window.Linalg;
     const ui = frame(fig, "אותו יעד, מתכון לפי בסיס");
-    const plot = new Plot(ui.plotHost, { view: { xmin: -8, xmax: 8, ymin: -7, ymax: 7 }, rows: 16 });
+    const plot = new Plot3D(ui.plotHost, { range: 4 });
+    ui.plotHost.append(viewControls(plot.camera));
     const BASES = [
-      { label: "הבסיס הסטנדרטי", vectors: [[1, 0], [0, 1]] },
-      { label: "בסיס (1,1), (1,2)", vectors: [[1, 1], [1, 2]] },
-      { label: "בסיס (2,1), (−1,1)", vectors: [[2, 1], [-1, 1]] },
-      { label: "לא בסיס: (1,2), (2,4)", vectors: [[1, 2], [2, 4]] }
+      { label: "הבסיס הסטנדרטי", vectors: [[1, 0, 0], [0, 1, 0], [0, 0, 1]] },
+      { label: "בסיס (1,1,0), (0,1,1), (1,0,1)", vectors: [[1, 1, 0], [0, 1, 1], [1, 0, 1]] },
+      { label: "בסיס (1,0,0), (1,1,0), (1,1,1)", vectors: [[1, 0, 0], [1, 1, 0], [1, 1, 1]] },
+      { label: "לא בסיס: (1,0,1), (0,1,1), (1,1,2)", vectors: [[1, 0, 1], [0, 1, 1], [1, 1, 2]] }
     ];
-    const state = { index: 1, swapped: false, x: 4, y: 5 };
+    const CLASSES = ["pc-blue", "pc-red", "pc-purple"];
+    const state = { index: 1, swapped: false, x: 2, y: 3, z: 3 };
     const ordered = () => {
-      const [first, second] = BASES[state.index].vectors;
-      return state.swapped ? [second, first] : [first, second];
+      const [first, second, third] = BASES[state.index].vectors;
+      return state.swapped ? [second, first, third] : [first, second, third];
     };
-    for (const key of ["x", "y"]) {
-      const control = slider({ label: `רכיב ${key} של היעד`, min: -5, max: 5, step: 0.5, value: state[key], onInput(v) { state[key] = v; update(); } });
+    const target = () => [state.x, state.y, state.z];
+    for (const key of ["x", "y", "z"]) {
+      const control = slider({ label: `רכיב ${key} של היעד`, min: -4, max: 4, step: 0.5, value: state[key], onInput(v) { state[key] = v; update(); } });
       ui.controls.append(control.el);
     }
     ui.buttons.append(
       ...BASES.map((item, index) => button(item.label, () => { state.index = index; state.swapped = false; update(); }, "is-quiet")),
-      button("החלפת הסדר", () => { state.swapped = !state.swapped; update(); })
+      button("החלפת הסדר של a₁ ו-a₂", () => { state.swapped = !state.swapped; update(); })
     );
 
     function draw() {
-      plot.clear();
-      plot.drawAxes();
-      const [a, b] = ordered();
-      const target = [state.x, state.y];
-      const result = classify(columnsSystem(a, b, target));
-      const independent = a[0] * b[1] - a[1] * b[0] !== 0;
-      if (independent) {
-        // Two axes marked in whole steps: a full skew grid reads as hatching on a phone.
-        drawSpanLine(plot, a);
-        drawSpanLine(plot, b);
-        for (let k = -12; k <= 12; k += 1) {
-          plot.dot(k * a[0], k * a[1], { cls: "pc-gray", r: 2 });
-          plot.dot(k * b[0], k * b[1], { cls: "pc-gray", r: 2 });
-        }
-      } else drawSpanLine(plot, a);
-      vectorArrow(plot, [0, 0], a, "pc-blue", "a₁");
-      vectorArrow(plot, [0, 0], b, "pc-red", "a₂");
-      if (result.kind === "one") drawWalk(plot, result.solution.map(value), [a, b], ["pc-blue", "pc-red"]);
-      plot.dot(target[0], target[1], { cls: "pc-green", r: plot.cell * 0.32 });
+      plot.begin();
+      plot.room();
+      const basis = ordered();
+      const result = classify(columnsSystem(basis, target()));
+      if (Math.abs(V.dot(basis[0], V.cross(basis[1], basis[2]))) < 1e-9) plot.span(basis[0], basis[1], "pc-gray");
+      basis.forEach((vector, i) => plot.arrow(ORIGIN, vector, { cls: CLASSES[i], label: `a${sub(i + 1)}` }));
+      if (result.kind === "one") walk3(plot, result.solution.map(value), basis, CLASSES);
+      endPoint(plot, target());
+      plot.end();
     }
+    plot.draw = draw;
 
     function update() {
       draw();
-      const [a, b] = ordered();
-      const target = [state.x, state.y];
-      const result = classify(columnsSystem(a, b, target));
-      const order = `${m(`a₁ = ${pair(a)}, a₂ = ${pair(b)}`)}`;
+      const basis = ordered();
+      const result = classify(columnsSystem(basis, target()));
+      const order = m(basis.map((vector, i) => `a${sub(i + 1)} = ${pair(vector)}`).join(", "));
       if (result.kind === "one") {
-        const [cs, t] = result.solution.map((c) => minusSign(c));
+        const coefficients = result.solution.map((c) => minusSign(c));
         const wrap = (text) => (/[−/]/.test(text) ? `(${text})` : text);
-        ui.say(`${order}. ${m(`${pair(target)} = ${wrap(cs)}a₁ + ${wrap(t)}a₂`)}. סדרת המקדמים היא ${m(`(${cs}, ${t})`)}, וזה <strong>המתכון היחיד</strong> בסדר הזה (משפט 2.7.9). החליפו את הסדר: הווקטור לא זז, רק המקדמים מתחלפים.`);
-      } else if (result.kind === "none") ui.say(`${order}. הווקטורים תלויים, ולכן כל צירוף שלהם נשאר על הישר המקווקו. היעד מחוץ לישר, ו<strong>אין לו מתכון</strong>. זה לא בסיס: אין פרישה.`);
-      else ui.say(`${order}. הווקטורים תלויים. היעד על הישר המקווקו, ולכן יש לו <strong>הרבה מתכונים</strong>, ואין יחידות. גם כאן זה לא בסיס.`);
+        ui.say(`${order}. ${m(`${pair(target())} = ${coefficients.map((c, i) => `${wrap(c)}a${sub(i + 1)}`).join(" + ")}`)}. סדרת המקדמים היא ${m(`(${coefficients.join(", ")})`)}, וזה <strong>המתכון היחיד</strong> בסדר הזה (משפט 2.7.9). החליפו את הסדר: הווקטור לא זז, רק המקדמים מתחלפים.`);
+      } else if (result.kind === "none") ui.say(`${order}. שלושת הווקטורים שוכבים באותו מישור, המישור המוצלל, ולכן כל צירוף שלהם נשאר עליו. היעד מחוץ למישור, ו<strong>אין לו מתכון</strong>. זה לא בסיס: אין פרישה.`);
+      else ui.say(`${order}. שלושת הווקטורים שוכבים באותו מישור. היעד במישור, ולכן יש לו <strong>הרבה מתכונים</strong>, ואין יחידות. גם כאן זה לא בסיס.`);
     }
 
     update();

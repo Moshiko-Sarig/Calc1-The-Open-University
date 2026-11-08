@@ -791,45 +791,45 @@ const DEMO_GALLERY = [
   },
   {
     name: "solution-count",
-    title: "שני ישרים, שלוש אפשרויות",
-    text: "משנים מקדמים ורואים מתי יש פתרון יחיד, אין פתרון או אינסוף פתרונות.",
-    sketch: `<path class="sk sk-graphite sk-thin" d="M4 80 H156 M16 86 V4"/><path class="sk sk-blue" d="M10 78 L150 12"/><path class="sk sk-red" d="M12 16 L148 76"/><circle class="sk-dot-green" cx="80" cy="45" r="4"/>`
+    title: "שלושה מישורים, שלוש אפשרויות",
+    text: "משנים את המישור השלישי ורואים מתי יש נקודה אחת, ישר שלם או שום נקודה משותפת.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M70 62 V6 M70 62 L154 68 M70 62 L26 88"/><path class="sk sk-blue" d="M24 40 L108 26 L136 54 L52 70 Z"/><path class="sk sk-purple" d="M58 14 L94 10 L98 80 L62 84 Z"/><path class="sk sk-red sk-thin" d="M30 22 L132 34 L126 62 L24 50 Z"/><circle class="sk-dot-green" cx="80" cy="46" r="4"/>`
   },
   {
     name: "vector-sum",
-    title: "חיבור של וקטורים",
-    text: "משנים את המקדם של a ורואים את החץ, את b שנוסף מקצהו, ואת הסכום.",
-    sketch: `<path class="sk sk-graphite sk-thin" d="M6 74 H154 M30 84 V8"/><path class="sk sk-gray" stroke-dasharray="4 3" d="M42 62 L64 30"/><path class="sk sk-blue sk-bold" d="M42 62 L104 44"/><path class="sk sk-red" d="M104 44 L126 12"/><path class="sk sk-green sk-bold" d="M42 62 L126 12"/><circle class="sk-dot-blue" cx="104" cy="44" r="3.2"/><circle class="sk-dot-green" cx="126" cy="12" r="3.4"/>`
+    title: "חיבור של וקטורים במרחב",
+    text: "משנים את המקדם של a ורואים את החץ, את b שנוסף מקצהו, ואת הסכום, מכל זווית.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M70 62 V6 M70 62 L154 68 M70 62 L26 88"/><path class="sk sk-gray" stroke-dasharray="4 3" d="M70 62 L112 50"/><path class="sk sk-blue sk-bold" d="M70 62 L48 38"/><path class="sk sk-red" d="M48 38 L90 26"/><path class="sk sk-green sk-bold" d="M70 62 L90 26"/><path class="sk sk-gray sk-thin" stroke-dasharray="2 3" d="M90 26 V60"/><circle class="sk-dot-green" cx="90" cy="26" r="3.4"/>`
   },
   {
     name: "parametric-line",
-    title: "נקודה על ישר",
-    text: "מזיזים את t ואת הכיוון, ורואים את הנקודה מטיילת על הישר.",
-    sketch: `<path class="sk sk-graphite sk-thin" d="M6 74 H154 M28 84 V8"/><path class="sk sk-gray" stroke-dasharray="5 4" d="M16 76 L146 14"/><path class="sk sk-blue sk-bold" d="M50 60 L98 34"/><circle class="sk-dot-red" cx="50" cy="60" r="3.6"/><circle class="sk-dot-green" cx="112" cy="26" r="3.6"/>`
+    title: "נקודה על ישר ועל מישור",
+    text: "מזיזים את t ואת הכיוון, ומוסיפים כיוון שני כדי לקבל מישור.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M70 62 V6 M70 62 L154 68 M70 62 L26 88"/><path class="sk sk-blue sk-thin" d="M22 44 L104 30 L140 56 L58 72 Z"/><path class="sk sk-gray" stroke-dasharray="5 4" d="M30 58 L136 40"/><path class="sk sk-blue sk-bold" d="M62 52 L98 46"/><circle class="sk-dot-red" cx="62" cy="52" r="3.6"/><circle class="sk-dot-green" cx="98" cy="46" r="3.6"/>`
   },
   {
     name: "reach-target",
-    title: "להגיע ליעד",
-    text: "מזיזים את המקדמים עד שהצירוף פוגע ביעד, ורואים את אותה שאלה כמערכת משוואות.",
-    sketch: `<path class="sk sk-graphite sk-thin" d="M6 74 H154 M30 84 V8"/><path class="sk sk-blue sk-bold" d="M30 74 L84 56"/><path class="sk sk-red sk-bold" d="M84 56 L118 22"/><circle class="sk-dot-red" cx="118" cy="22" r="6" fill="none"/><circle class="sk-dot-green" cx="118" cy="22" r="3.2"/>`
+    title: "להגיע ליעד במרחב",
+    text: "מזיזים את המקדמים עד שהצירוף פוגע ביעד, ורואים מתי היעד בכלל מחוץ למישור.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M70 62 V6 M70 62 L154 68 M70 62 L26 88"/><path class="sk sk-gray sk-thin" d="M20 54 L100 40 L142 66 L62 82 Z"/><path class="sk sk-blue sk-bold" d="M70 62 L104 58"/><path class="sk sk-red sk-bold" d="M104 58 L96 46"/><path class="sk sk-orange sk-thin" stroke-dasharray="2 3" d="M100 14 V50"/><circle class="sk-dot-red" cx="100" cy="14" r="6" fill="none"/><circle class="sk-dot-green" cx="96" cy="46" r="3.2"/>`
   },
   {
     name: "rows-columns",
     title: "שורות או עמודות",
-    text: "אותה מערכת בשתי תמונות: ישרים שנחתכים, וחיצים שמגיעים ליעד.",
-    sketch: `<path class="sk sk-graphite sk-thin" d="M80 6 V84"/><path class="sk sk-blue" d="M8 70 L72 20"/><path class="sk sk-red" d="M8 24 L72 66"/><circle class="sk-dot-green" cx="40" cy="45" r="3.2"/><path class="sk sk-blue sk-bold" d="M90 72 L120 58"/><path class="sk sk-red sk-bold" d="M120 58 L146 22"/><circle class="sk-dot-green" cx="146" cy="22" r="3.2"/>`
+    text: "אותה מערכת בשתי תמונות במרחב: מישורים שנחתכים, וחיצים שמגיעים ליעד.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M80 6 V84"/><path class="sk sk-blue" d="M8 34 L58 24 L72 50 L22 60 Z"/><path class="sk sk-red" d="M30 12 L52 10 L54 74 L32 78 Z"/><circle class="sk-dot-green" cx="40" cy="42" r="3.2"/><path class="sk sk-blue sk-bold" d="M96 70 L116 58"/><path class="sk sk-red sk-bold" d="M116 58 L134 50"/><path class="sk sk-purple sk-bold" d="M134 50 L140 24"/><circle class="sk-dot-green" cx="140" cy="24" r="3.2"/>`
   },
   {
     name: "dependence",
     title: "לחזור הביתה",
-    text: "הולכים לפי הווקטורים ומנסים לחזור לראשית בלי לאפס את כל המקדמים.",
-    sketch: `<path class="sk sk-graphite sk-thin" d="M6 74 H154 M36 84 V8"/><path class="sk sk-blue sk-bold" d="M36 74 L112 74"/><path class="sk sk-red sk-bold" d="M112 74 L112 24"/><path class="sk sk-purple sk-bold" d="M112 24 L36 74"/><circle class="sk-dot-green" cx="36" cy="74" r="3.6"/>`
+    text: "הולכים לפי הווקטורים ומנסים לחזור לראשית בלי לאפס את כל המקדמים. מתי שלושה וקטורים שוכבים במישור אחד?",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M70 62 V6 M70 62 L154 68 M70 62 L26 88"/><path class="sk sk-gray sk-thin" d="M18 52 L98 38 L142 64 L62 80 Z"/><path class="sk sk-blue sk-bold" d="M70 62 L116 58"/><path class="sk sk-red sk-bold" d="M116 58 L92 46"/><path class="sk sk-purple sk-bold" d="M92 46 L70 62"/><circle class="sk-dot-green" cx="70" cy="62" r="3.6"/>`
   },
   {
     name: "basis-coordinates",
     title: "מקדמים לפי בסיס",
-    text: "בוחרים בסיס ויעד, ורואים את המתכון היחיד ואיך הסדר משפיע עליו.",
-    sketch: `<path class="sk sk-gray sk-thin" d="M12 78 L72 60 L132 42 M32 54 L92 36 L152 18 M12 78 L32 54 M72 60 L92 36 M132 42 L152 18"/><path class="sk sk-blue sk-bold" d="M12 78 L72 60"/><path class="sk sk-red sk-bold" d="M72 60 L92 36"/><circle class="sk-dot-green" cx="92" cy="36" r="3.4"/>`
+    text: "בוחרים בסיס של ℝ³ ויעד, ורואים את המתכון היחיד ואיך הסדר משפיע עליו.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M70 62 V6 M70 62 L154 68 M70 62 L26 88"/><path class="sk sk-blue sk-bold" d="M70 62 L44 76"/><path class="sk sk-red sk-bold" d="M44 76 L100 82"/><path class="sk sk-purple sk-bold" d="M100 82 L104 30"/><path class="sk sk-gray sk-thin" stroke-dasharray="2 3" d="M104 30 V64"/><circle class="sk-dot-green" cx="104" cy="30" r="3.4"/>`
   },
   {
     name: "epsilon-delta",
