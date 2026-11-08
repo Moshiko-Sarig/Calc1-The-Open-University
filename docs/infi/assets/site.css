@@ -5349,6 +5349,42 @@ details.callout > summary.callout-title { min-height: 32px; }
   white-space: nowrap;
 }
 
+/* Chapter 3: named matrices side by side, with the row, column and cell being multiplied. */
+.demo-named {
+  display: grid;
+  grid-auto-rows: auto;
+  justify-items: center;
+  gap: 2px;
+}
+.demo-name {
+  font-size: 0.85em;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.demo-op {
+  align-self: center;
+  font-size: 1.2em;
+  color: var(--ink-2);
+}
+.demo-product {
+  direction: ltr;
+  gap: var(--cell);
+}
+.demo-matrix .is-row,
+.demo-matrix .is-col {
+  background: var(--band-blue);
+  color: var(--pencil-blue);
+  font-weight: 700;
+}
+.demo-matrix .is-hit {
+  background: var(--band-red);
+  color: var(--pencil-red);
+  font-weight: 700;
+  outline: 1.5px solid currentColor;
+  outline-offset: -3px;
+  border-radius: 4px;
+}
+
 /* The link to the other course: set apart from this course's own views. */
 .primary-nav .course-switch {
   margin-inline-start: 6px;

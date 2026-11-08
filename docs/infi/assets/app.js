@@ -832,6 +832,24 @@ const DEMO_GALLERY = [
     sketch: `<path class="sk sk-graphite sk-thin" d="M70 62 V6 M70 62 L154 68 M70 62 L26 88"/><path class="sk sk-blue sk-bold" d="M70 62 L44 76"/><path class="sk sk-red sk-bold" d="M44 76 L100 82"/><path class="sk sk-purple sk-bold" d="M100 82 L104 30"/><path class="sk sk-gray sk-thin" stroke-dasharray="2 3" d="M104 30 V64"/><circle class="sk-dot-green" cx="104" cy="30" r="3.4"/>`
   },
   {
+    name: "matrix-product",
+    title: "שורה כפול עמודה",
+    text: "בוחרים תא במכפלה ורואים איזו שורה ואיזו עמודה יוצרות אותו. מחליפים את הסדר ומקבלים מטריצה אחרת.",
+    sketch: `<path class="sk sk-graphite" d="M14 18 H8 V72 H14 M44 18 H50 V72 H44 M62 30 H56 V60 H62 M110 30 H116 V60 H110 M126 18 H120 V72 H126 M152 18 H158 V72 H152"/><path class="sk sk-blue sk-bold" d="M14 45 H44"/><path class="sk sk-blue sk-bold" d="M86 32 V58"/><path class="sk sk-gray sk-thin" d="M66 36 h10 M96 36 h10 M66 54 h10 M96 54 h10 M16 28 h26 M16 62 h26"/><rect class="sk-band-red" x="130" y="38" width="12" height="14"/><circle class="sk-dot-red" cx="136" cy="45" r="3.2"/>`
+  },
+  {
+    name: "inverse-steps",
+    title: "מוצאים הופכית",
+    text: "מדרגים את [A | I] צעד אחר צעד, ורואים לכל פעולה את המטריצה האלמנטרית שלה. בסוף מימין מחכה ההופכית, או שורת אפסים.",
+    sketch: `<path class="sk sk-graphite" d="M18 12 H10 V78 H18 M142 12 H150 V78 H142"/><path class="sk sk-gray sk-thin" d="M80 12 V78"/><path class="sk sk-blue sk-bold" d="M20 24 h10 M42 46 h10 M64 68 h10"/><path class="sk sk-gray" d="M42 24 h10 M64 24 h10 M20 46 h10 M64 46 h10 M20 68 h10 M42 68 h10"/><path class="sk sk-red" d="M88 24 h10 M108 24 h10 M128 24 h10 M88 46 h10 M108 46 h10 M128 46 h10 M88 68 h10 M108 68 h10 M128 68 h10"/>`
+  },
+  {
+    name: "linear-map",
+    title: "מטריצה מזיזה את הרשת",
+    text: "משנים את ארבעת המספרים של מטריצה 2×2 ורואים את הריבוע שבונים e₁ ו-e₂ הופך למקבילית, או נמחץ לקו כשהעמודות תלויות.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M20 70 H150 M30 84 V6"/><path class="sk sk-gray sk-thin" stroke-dasharray="3 4" d="M30 70 L74 52 M30 70 L58 26"/><path class="sk sk-green" d="M30 70 L102 52 L130 8 L58 26 Z"/><path class="sk sk-blue sk-bold" d="M30 70 L102 52"/><path class="sk sk-red sk-bold" d="M30 70 L58 26"/><circle class="sk-dot-green" cx="30" cy="70" r="3"/>`
+  },
+  {
     name: "epsilon-delta",
     title: "משחק ε‑δ",
     text: "האתגר בוחר ε, אתם בוחרים δ. שישה סיבובים עד ההגדרה.",

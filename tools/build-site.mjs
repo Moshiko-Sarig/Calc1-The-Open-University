@@ -759,7 +759,9 @@ function renderDataview(code) {
 // ---------------------------------------------------------------------------
 
 const STATEMENT_KINDS = ["משפט", "טענה", "למה", "הגדרה", "מסקנה", "אקסיומה"];
-const STATEMENT_LEAD = new RegExp(`^\\*\\*(${STATEMENT_KINDS.join("|")})\\s+(${NUMBER_SOURCE})`);
+// A course may number more kinds (linear algebra numbers its notations, "סימון 3.3.1").
+const statementKinds = () => [...STATEMENT_KINDS, ...(course?.extraStatementKinds || [])];
+const statementLead = () => new RegExp(`^\\*\\*(${statementKinds().join("|")})\\s+(${NUMBER_SOURCE})`);
 const FLASHCARD_LINE = /^\s*(?:[-*]\s+)?([^:\n][^\n]*?)::([^\n]+)$/;
 
 const proofAnchor = (number) => `proof-${numberKey(number)}`;
@@ -767,7 +769,7 @@ const proofAnchor = (number) => `proof-${numberKey(number)}`;
 // A paragraph or list item that opens with "**משפט 4.42**" gets an anchor,
 // so the study tools can quote that statement.
 function statementAttrs(text) {
-  const lead = String(text).trim().match(STATEMENT_LEAD);
+  const lead = String(text).trim().match(statementLead());
   if (!lead) return "";
   const id = `stmt-${numberKey(lead[2])}`;
   if (renderContext.slugs.has(id)) return "";
@@ -782,8 +784,9 @@ const stripTags = (html) => html.replace(/<[^>]+>/g, "").replace(/&quot;/g, '"')
 // that opens with it. Proof headings are skipped; unit notes only.
 function buildStatements(pages) {
   const index = {};
-  const kindWord = new RegExp(`(?:^|[\\s(])ה?(${STATEMENT_KINDS.join("|")})(?=[\\s(:,]|$)`);
-  const named = new RegExp(`(${STATEMENT_KINDS.join("|")})\\s+(${NUMBER_SOURCE})(?![\\d.–-])`, "g");
+  const kinds = statementKinds().join("|");
+  const kindWord = new RegExp(`(?:^|[\\s(])ה?(${kinds})(?=[\\s(:,]|$)`);
+  const named = new RegExp(`(${kinds})\\s+(${NUMBER_SOURCE})(?![\\d.–-])`, "g");
   const bare = new RegExp(`\\((${NUMBER_SOURCE})\\)`, "g");
   const stmtAnchor = new RegExp(` id="stmt-(${NUMBER_KEY_SOURCE})" data-kind="([^"]+)"`, "g");
   for (const page of pages) {
@@ -875,7 +878,7 @@ function collectFlashcards(page, body, resolver) {
   return cards;
 }
 
-const DEMO_NAMES = new Set(["sup", "epsilon-n", "nested-intervals", "epsilon-delta", "bisection", "uniform", "secant", "mvt", "row-reduction", "solution-count", "vector-sum", "parametric-line", "reach-target", "rows-columns", "dependence", "basis-coordinates"]);
+const DEMO_NAMES = new Set(["sup", "epsilon-n", "nested-intervals", "epsilon-delta", "bisection", "uniform", "secant", "mvt", "row-reduction", "solution-count", "vector-sum", "parametric-line", "reach-target", "rows-columns", "dependence", "basis-coordinates", "matrix-product", "inverse-steps", "linear-map"]);
 
 function renderDemo(name) {
   if (!DEMO_NAMES.has(name)) throw new Error(`Unknown infi-demo "${name}"`);

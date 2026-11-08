@@ -2509,6 +2509,217 @@
   };
 
   // ---------------------------------------------------------------------------
+  // Chapter 3: matrices
+  // ---------------------------------------------------------------------------
+
+  // A plain matrix on the grid. marks(i, j) gives extra classes for a cell;
+  // split puts a bar before that column, as in [A | I].
+  function gridMatrix(matrix, { marks = () => "", split = null, label = "מטריצה" } = {}) {
+    const node = h("div", { class: "demo-matrix", dir: "ltr", role: "img", style: `--cols:${matrix[0].length}` });
+    node.setAttribute("aria-label", `${label}: ${matrix.map((row, i) => `שורה ${i + 1}: ${row.map((v) => String(v)).join(", ")}`).join("; ")}`);
+    matrix.forEach((row, i) => {
+      row.forEach((value, j) => {
+        const classes = [marks(i, j), split !== null && j === split ? "is-free" : ""].filter(Boolean).join(" ");
+        node.append(h("span", { class: classes || null, text: minusSign(value) }));
+      });
+    });
+    return node;
+  }
+
+  const named = (name, node) => h("div", { class: "demo-named" }, h("span", { class: "demo-name", dir: "ltr", text: name }), node);
+  const productOf = (A, B) => A.map((row) => B[0].map((_, j) => row.reduce((sum, a, k) => sum + a * B[k][j], 0)));
+  const signed = (x) => (x < 0 ? `(${minusSign(x)})` : String(x));
+
+  // 3.4: every cell of a product is one row times one column.
+  DEMOS["matrix-product"] = (fig) => {
+    const A = [[1, 2], [0, -1], [3, 1]];
+    const B = [[2, 0, 1], [1, 4, -2]];
+    const ui = frame(fig, "כפל מטריצות: שורה כפול עמודה");
+    const board = h("div", { class: "demo-rows demo-product" });
+    ui.plotHost.append(board);
+    const state = { order: 0, i: 0, j: 0 };
+    const factors = () => (state.order === 0 ? [A, B, "A", "B"] : [B, A, "B", "A"]);
+
+    const order = choice("סדר הגורמים", ["AB", "BA"], (v) => { state.order = v; state.i = 0; state.j = 0; refill(); update(); });
+    const row = choice("שורה", [], (v) => { state.i = v; update(); });
+    const column = choice("עמודה", [], (v) => { state.j = v; update(); });
+    ui.controls.append(order.el, row.el, column.el);
+    ui.buttons.append(
+      button("התא הבא", () => {
+        const [L, R] = factors();
+        state.j += 1;
+        if (state.j === R[0].length) { state.j = 0; state.i = (state.i + 1) % L.length; }
+        row.select.value = String(state.i);
+        column.select.value = String(state.j);
+        update();
+      })
+    );
+
+    function refill() {
+      const [L, R] = factors();
+      row.select.replaceChildren(...L.map((_, i) => h("option", { value: String(i), text: String(i + 1) })));
+      column.select.replaceChildren(...R[0].map((_, j) => h("option", { value: String(j), text: String(j + 1) })));
+      row.select.value = String(state.i);
+      column.select.value = String(state.j);
+    }
+
+    function update() {
+      const [L, R, ln, rn] = factors();
+      const P = productOf(L, R);
+      const { i, j } = state;
+      board.replaceChildren(
+        named(`${ln} (${L.length}×${L[0].length})`, gridMatrix(L, { marks: (r) => (r === i ? "is-row" : ""), label: ln })),
+        h("span", { class: "demo-op", text: "·" }),
+        named(`${rn} (${R.length}×${R[0].length})`, gridMatrix(R, { marks: (_, c) => (c === j ? "is-col" : ""), label: rn })),
+        h("span", { class: "demo-op", text: "=" }),
+        named(`${ln}${rn} (${P.length}×${P[0].length})`, gridMatrix(P, { marks: (r, c) => (r === i && c === j ? "is-hit" : ""), label: `${ln}${rn}` }))
+      );
+      const terms = L[i].map((a, k) => `${signed(a)}·${signed(R[k][j])}`).join(" + ");
+      const sizes = `${m(`(${L.length}×${L[0].length})·(${R.length}×${R[0].length}) = ${P.length}×${P[0].length}`)}`;
+      const other = state.order === 0 ? `ב-${m("BA")} יוצאת מטריצה ${m("2×2")}: אפילו הסדר של התוצאה שונה.` : `ב-${m("AB")} יוצאת מטריצה ${m("3×3")}: אפילו הסדר של התוצאה שונה.`;
+      ui.say(`התא ${m(`(${i + 1}, ${j + 1})`)} של ${m(`${ln}${rn}`)} הוא שורה ${i + 1} של ${m(ln)} כפול עמודה ${j + 1} של ${m(rn)}: ${m(`${terms} = ${minusSign(P[i][j])}`)}. הסדרים: ${sizes}. ${other}`);
+    }
+
+    refill();
+    update();
+    return { render: update };
+  };
+
+  // 3.9: [A | I] row-reduced to [I | A⁻¹], with the elementary matrix of every step.
+  DEMOS["inverse-steps"] = (fig) => {
+    const { toFractions, applyOp, nextStep } = window.Linalg;
+    const examples = [
+      { name: "מטריצה 3×3 הפיכה", matrix: [[1, 1, 1], [0, 1, 2], [1, 0, 0]] },
+      { name: "מטריצה 2×2 הפיכה", matrix: [[2, 1], [5, 3]] },
+      { name: "שורה שלישית = סכום השתיים", matrix: [[1, 2, 1], [2, 1, 0], [3, 3, 1]] }
+    ];
+    const ui = frame(fig, "מוצאים הופכית: מדרגים את \\([A \\mid I]\\)");
+    const board = h("div", { class: "demo-rows demo-product" });
+    ui.plotHost.append(board);
+    let history = [];
+    let n = 3;
+
+    const example = choice("מטריצה", examples.map((item) => item.name), () => restart());
+    ui.controls.append(example.el);
+    const nextButton = button("הצעד הבא", () => {
+      const op = nextStep(left(current().matrix));
+      if (op) apply(op);
+    });
+    const backButton = button("אחורה", () => { history = history.slice(0, -1); update("חזרנו צעד אחד אחורה."); }, "is-quiet");
+    ui.buttons.append(nextButton, backButton, button("מההתחלה", () => restart(), "is-quiet"));
+
+    const current = () => history.at(-1);
+    const left = (matrix) => matrix.map((row) => row.slice(0, n));
+    const right = (matrix) => matrix.map((row) => row.slice(n));
+    const identity = (size) => toFractions(Array.from({ length: size }, (_, i) => Array.from({ length: size }, (_, j) => (i === j ? 1 : 0))));
+    const isIdentity = (matrix) => matrix.every((row, i) => row.every((v, j) => (i === j ? v.isOne() : v.isZero())));
+    const zeroRow = (matrix) => matrix.findIndex((row) => row.every((v) => v.isZero()));
+
+    function restart() {
+      const A = examples[Number(example.select.value)].matrix;
+      n = A.length;
+      const I = identity(n);
+      history = [{ matrix: toFractions(A).map((row, i) => [...row, ...I[i]]), op: null }];
+      update("זו המטריצה \\([A \\mid I]\\). כל פעולה מתבצעת על השורה כולה, משני צדי הקו.");
+    }
+
+    function apply(op) {
+      history = [...history, { matrix: applyOp(current().matrix, op), op }];
+      update(`${m(operationText(op))}: ${OPERATION_NAMES[op.type]}. המטריצה האלמנטרית של הפעולה מופיעה מימין. לבצע את הפעולה זה לכפול בה משמאל (טענה 3.9.3).`);
+    }
+
+    let said = "";
+    function update(message = said) {
+      said = message;
+      const { matrix, op } = current();
+      const parts = [named("[A | I]", gridMatrix(matrix, { split: n, label: "המטריצה הרחבה" }))];
+      if (op) parts.push(named(`φ(I): ${operationText(op)}`, gridMatrix(applyOp(identity(n), op), { label: "המטריצה האלמנטרית" })));
+      board.replaceChildren(...parts);
+      const done = !nextStep(left(matrix));
+      nextButton.disabled = done;
+      backButton.disabled = history.length === 1;
+      let tail = "";
+      if (done && isIdentity(left(matrix))) {
+        tail = ` <strong>בצד שמאל התקבלה \\(I\\), ולכן \\(A\\) הפיכה.</strong> בצד ימין: ${m(`A⁻¹ = [${right(matrix).map((row) => row.map(minusSign).join(", ")).join("; ")}]`)}. אלה אותן פעולות, באותו סדר, שהפכו את ${m("A")} ל-${m("I")}.`;
+      } else if (zeroRow(left(matrix)) >= 0) {
+        tail = ` <strong>בצד שמאל יש שורת אפסים (שורה ${zeroRow(left(matrix)) + 1}), ולכן \\(A\\) אינה הפיכה.</strong> אי אפשר להגיע ל-${m("I")}, והשורות של ${m("A")} תלויות.`;
+      }
+      ui.say(`${message}${tail}`);
+      window.MathJax?.typesetPromise?.([fig]).catch(() => {});
+    }
+
+    restart();
+    return { render: () => update() };
+  };
+
+  // 3.10: a 2×2 matrix moves the whole grid; its columns are where e₁ and e₂ land.
+  DEMOS["linear-map"] = (fig) => {
+    const ui = frame(fig, "מטריצה מזיזה את דף המשבצות");
+    const plot = new Plot(ui.plotHost, { view: { xmin: -4, xmax: 4, ymin: -3.5, ymax: 3.5 }, rows: 14 });
+    const state = { a: 1, b: 1, c: 0, d: 1 };
+    const sliders = {};
+    for (const [key, label] of [["a", "\\(a\\)"], ["b", "\\(b\\)"], ["c", "\\(c\\)"], ["d", "\\(d\\)"]]) {
+      sliders[key] = slider({ label, min: -2, max: 2, step: 0.5, value: state[key], onInput: (v) => { state[key] = v; update(); } });
+      ui.controls.append(sliders[key].el);
+    }
+    const setTo = (a, b, c, d) => {
+      Object.assign(state, { a, b, c, d });
+      for (const key of "abcd") sliders[key].set(state[key]);
+      update();
+    };
+    ui.buttons.append(
+      button("הטיה", () => setTo(1, 1, 0, 1), "is-quiet"),
+      button("סיבוב ברבע", () => setTo(0, -1, 1, 0), "is-quiet"),
+      button("מתיחה", () => setTo(2, 0, 0, 0.5), "is-quiet"),
+      button("מחיצה לקו", () => setTo(1, 2, 0.5, 1), "is-quiet"),
+      button("\\(I\\)", () => setTo(1, 0, 0, 1), "is-quiet")
+    );
+    const matrixHost = h("div", { class: "demo-rows" });
+    ui.panel.prepend(matrixHost);
+
+    const map = ([x, y]) => [state.a * x + state.b * y, state.c * x + state.d * y];
+
+    function draw() {
+      plot.clear();
+      plot.drawAxes();
+      for (let k = -3; k <= 3; k += 1) {
+        const [p, q] = [map([k, -3]), map([k, 3])];
+        const [r, t] = [map([-3, k]), map([3, k])];
+        plot.line(p[0], p[1], q[0], q[1], { cls: "pc-gray", width: 1, dash: "3 4" });
+        plot.line(r[0], r[1], t[0], t[1], { cls: "pc-gray", width: 1, dash: "3 4" });
+      }
+      const corners = [[0, 0], [1, 0], [1, 1], [0, 1]].map(map);
+      plot.bands.append(s("polygon", { points: corners.map(([x, y]) => `${plot.X(x)},${plot.Y(y)}`).join(" "), class: "demo-band band-green" }));
+      for (let i = 0; i < 4; i += 1) {
+        const [p, q] = [corners[i], corners[(i + 1) % 4]];
+        plot.line(p[0], p[1], q[0], q[1], { cls: "pc-green", width: 1.6 });
+      }
+      const e1 = map([1, 0]);
+      const e2 = map([0, 1]);
+      plot.line(0, 0, e1[0], e1[1], { cls: "pc-blue", width: 3 });
+      plot.dot(e1[0], e1[1], { cls: "pc-blue" });
+      plot.text(e1[0], e1[1], "Ae₁", { cls: "pc-blue-text", dy: -0.5 });
+      plot.line(0, 0, e2[0], e2[1], { cls: "pc-red", width: 3 });
+      plot.dot(e2[0], e2[1], { cls: "pc-red" });
+      plot.text(e2[0], e2[1], "Ae₂", { cls: "pc-red-text", dy: -0.5 });
+    }
+
+    function update() {
+      draw();
+      const { a, b, c, d } = state;
+      matrixHost.replaceChildren(named("A", gridMatrix([[a, b], [c, d]].map((row) => row.map((v) => fmt(v))), { label: "A" })));
+      const cross = a * d - b * c;
+      const cols = `העמודה הראשונה ${m(`(${fmt(a)}, ${fmt(c)})`)} היא ${m("Ae₁")} (כחול), והשנייה ${m(`(${fmt(b)}, ${fmt(d)})`)} היא ${m("Ae₂")} (אדום).`;
+      if (Math.abs(cross) > 1e-9) ui.say(`${cols} העמודות בלתי תלויות, ולכן ריבוע היחידה הפך למקבילית אמיתית (ירוקה) והרשת כולה עדיין ממלאת את המישור. <strong>${m("A")} הפיכה</strong> (טענה 3.10.3): אפשר להחזיר כל נקודה למקומה.`);
+      else if (a === 0 && b === 0 && c === 0 && d === 0) ui.say(`${cols} זו מטריצת האפס: כל המישור נמחץ לנקודה אחת, הראשית. <strong>${m("A")} אינה הפיכה.</strong>`);
+      else ui.say(`${cols} העמודות תלויות, ולכן כל המישור נמחץ לישר אחד. נקודות שונות נוחתות באותו מקום, ואין דרך לדעת מאיפה הגיעו. <strong>${m("A")} אינה הפיכה</strong>, ול-${m("Ax = b")} אין פתרון כש-${m("b")} מחוץ לישר.`);
+    }
+
+    update();
+    return { render() { plot.layout(); draw(); } };
+  };
+
+  // ---------------------------------------------------------------------------
   // Mounting
   // ---------------------------------------------------------------------------
 

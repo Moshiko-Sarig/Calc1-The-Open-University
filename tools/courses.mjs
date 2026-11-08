@@ -90,7 +90,7 @@ export const COURSES = [
     fullName: "אלגברה לינארית 1",
     courseCode: "20109",
     tagline: "קורס 20109",
-    summary: "מערכות משוואות, וקטורים, צירופים לינאריים ובסיסים. פרקים 1–2 זמינים ללימוד.",
+    summary: "מערכות משוואות, וקטורים, בסיסים ומטריצות. פרקים 1–3 זמינים ללימוד.",
     brandMark: "λ",
     coverColor: "#2f5a4b",
     description:
@@ -135,6 +135,8 @@ export const COURSES = [
     searchExample: "1.10.5",
     // Notes sort by name, so without this definition cards would not follow the book.
     sortStatementsByNumber: true,
+    // The book numbers its notations too (סימון 3.3.1, סימון 3.9.2).
+    extraStatementKinds: ["סימון"],
     storagePrefix: "linear1",
     scripts: ["linalg.js", "linear-archive.js"],
     archiveDir: "linear1-archive",
