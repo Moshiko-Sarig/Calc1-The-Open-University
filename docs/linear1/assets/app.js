@@ -106,7 +106,7 @@ const SIZE_NAMES = { s: "קטן", m: "רגיל", l: "גדול" };
 
 function syncPreferenceControls() {
   const dark = root.dataset.theme === "dark";
-  themeButton.setAttribute("aria-pressed", String(dark));
+  themeButton.setAttribute("aria-checked", String(dark));
   themeButton.title = dark ? "מעבר למצב בהיר" : "מעבר למצב כהה";
   const size = root.dataset.textSize || "m";
   sizeLabel.textContent = `גודל טקסט: ${SIZE_NAMES[size]}. לחיצה משנה את הגודל.`;
