@@ -44,6 +44,15 @@ Where: under EVERY numbered definition and theorem/claim/lemma that a student mu
 - **Errors**: if you find a mathematical error, fix it, and list it in your final report.
 - Units 6–8 only: also fill the missing content listed in your task.
 
+## Writing for learners who find this hard (learning disabilities, anxiety)
+The site is read by people who are afraid of the material. Each note should let them start without fear and know where to put their effort.
+- **Picture before formula.** Open each concept with one plain sentence or a picture, then the exact definition. In a [!simple] box, start with `**בשורה אחת**: ...`: the site shows that line on the folded box, so the gist is readable without opening anything.
+- **Say how to read symbols.** The first time a symbol appears, write how it is read aloud ("$\forall$ קוראים 'לכל'"). The site also lists the symbols of each note, from `support.js`.
+- **Separate core from depth.** Technical side remarks (n>N versus n≥N, edge cases, alternative notations) go into `> [!deep]- העמקה: ...`, which folds and says it can be skipped on a first reading.
+- **Remind, do not only cite.** In a proof, "לפי למה 3.4.3" becomes a link with a preview automatically, but a short reminder in words ("מכפלה בשורת אפסים היא שורת אפסים") still helps.
+- **One worked example, then a half-done one, then "נסו בעצמכם".** Doing is where understanding happens.
+- **Calm tone.** No "חובה!", "קריטי", "ברור ש", "קל לראות". An exam tip says why it matters, not that it is mandatory.
+
 ## Exam layer
 Exam data: /Users/moshiko/Calc1-The-Open-University/exams/exams.json (45 exams; each question has n, q, units, topics, prove, kind, summary, note). Link to a question as `[2022א·88, שאלה 1](#/exams/16/q1)` (exam n=16, q=1; label = semester·moed).
 - In each unit gate page ("שער יחידה N.md"), add a section `## סוגי שאלות במבחן` before "## בדיקת שליטה": 3–6 bullets, each a recurring question type of this unit with 1–3 links to real exam questions and the one-line method. Base it on exams.json (filter by units).

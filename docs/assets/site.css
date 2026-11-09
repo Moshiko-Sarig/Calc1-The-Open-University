@@ -6038,3 +6038,171 @@ details.callout > summary.callout-title { min-height: 32px; }
   :root .archive-image,
   :root[data-theme] .archive-image { filter: none; mix-blend-mode: normal; }
 }
+
+/* ---------- Learning support (assets/support.js) --------------------------- */
+
+/* Two more text sizes for readers who need real magnification. */
+html[data-text-size="xl"] { font-size: 125%; --cell: 21px; }
+html[data-text-size="xxl"] { font-size: 137.5%; --cell: 23px; }
+@media (max-width: 760px) {
+  html[data-text-size="xl"] { --cell: 19px; }
+  html[data-text-size="xxl"] { --cell: 21px; }
+}
+
+/* Wide spacing: more room between lines, letters and words. The lines no
+   longer sit on the grid, so the sheet turns to plain paper with it. */
+html[data-spacing="wide"] .sheet .prose {
+  line-height: calc(var(--cell) * 2.5);
+  letter-spacing: 0.035em;
+  word-spacing: 0.12em;
+}
+html[data-spacing="wide"] .sheet .prose :is(p, li) { max-width: 38em; }
+html[data-spacing="wide"] .sheet .callout { line-height: 2.1; }
+html[data-spacing="wide"] .sheet,
+html[data-paper="plain"] .sheet {
+  background-image: none;
+}
+
+/* Focus mode: only the note itself (the menu button still opens the tree). */
+@media (min-width: 1061px) {
+  html[data-focus="on"] .layout { grid-template-columns: minmax(0, 1fr); }
+  html[data-focus="on"] .course-nav { display: none; }
+}
+html[data-focus="on"] .page-rail { display: none; }
+html[data-focus="on"] .page-grid { grid-template-columns: minmax(0, var(--measure)); }
+html[data-focus="on"] .toc-inline { display: none; }
+
+html[data-cheer="off"] .home-encouragement { display: none; }
+
+/* Reading options dialog */
+.reading-options {
+  width: min(430px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  padding: 20px 22px 22px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.25);
+}
+.reading-options::backdrop { background: rgb(0 0 0 / 0.35); }
+.ro-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ro-head h2 { margin: 0; font-size: 1.25rem; }
+.ro-note { margin: 4px 0 14px; color: var(--ink-3); font-size: var(--fs-s); }
+.ro-group { margin: 0 0 14px; padding: 0; border: 0; }
+.ro-group legend { padding: 0; margin-block-end: 6px; font-weight: 600; }
+.ro-choices { display: flex; flex-wrap: wrap; gap: 6px; }
+.ro-choice { position: relative; }
+.ro-choice input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.ro-choice span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 4px 14px;
+  border: 1px solid var(--line-control);
+  border-radius: 999px;
+  background: var(--bg);
+}
+.ro-choice input:checked + span { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.ro-choice input:focus-visible + span { box-shadow: var(--focus); }
+
+/* The gist of a folded plain-words box, readable without opening it */
+details.callout > summary.callout-title { flex-wrap: wrap; }
+.callout-teaser {
+  flex-basis: 100%;
+  padding-inline-start: calc(0.5em + 8px);
+  font-weight: 400;
+  color: var(--ink);
+}
+details.callout[open] > summary > .callout-teaser { display: none; }
+
+/* "העמקה": material a first reading can skip */
+.callout-deep {
+  border-style: dashed;
+  border-inline-start-style: solid;
+  border-inline-start-color: var(--ink-3);
+}
+.callout-deep > .callout-title { color: var(--ink-2); font-weight: 600; }
+
+/* Symbols of a note and how to read them */
+.symbols-box > .callout-title { color: var(--accent); }
+.symbols-list { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); column-gap: 18px; }
+.symbols-list li { display: flex; gap: 10px; align-items: baseline; }
+.symbols-list li .math { min-width: 3.2em; text-align: center; }
+
+/* A cited statement ("לפי למה 3.4.3") is a quiet link with a preview */
+.prose a.ref-link {
+  color: inherit;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--accent);
+}
+.prose a.ref-link:hover { color: var(--accent); }
+
+/* Read aloud */
+.chip-button { cursor: pointer; font: inherit; }
+.chip-button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.reading-now {
+  background: color-mix(in srgb, var(--accent-soft) 85%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-soft) 85%, transparent);
+  border-radius: 3px;
+}
+
+/* "How did this note go?" and the stuck ladder */
+.note-check,
+.stuck-ladder {
+  margin-block: 0 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.note-check h2 { margin: 0; font-size: 1.1rem; }
+.note-check-hint { margin: 2px 0 10px; color: var(--ink-3); font-size: var(--fs-s); }
+.note-check-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.note-check-btn {
+  min-height: 44px;
+  padding: 6px 16px;
+  border: 1px solid var(--line-control);
+  border-radius: 999px;
+  background: var(--bg);
+}
+.note-check-btn[aria-pressed="true"] { font-weight: 700; }
+.note-check-got[aria-pressed="true"] { border-color: var(--calm); color: var(--calm); background: var(--calm-soft); }
+.note-check-again[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.note-check-stuck[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); background: var(--gold-soft); }
+.note-check-message:not(:empty) { margin: 10px 0 0; }
+.note-check-message:empty { margin: 0; }
+.stuck-ladder > summary { cursor: pointer; font-weight: 700; }
+.stuck-ladder ol { margin: 10px 0 0; padding-inline-start: 1.4em; }
+.stuck-ladder li + li { margin-block-start: 6px; }
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.24em;
+  cursor: pointer;
+}
+
+/* Status dots in the tree and on the home page */
+.tree-status:not(.visually-hidden) {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  margin-inline-start: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.tree-status-got { background: var(--calm); }
+.tree-status-again { background: var(--accent); }
+.tree-status-stuck { background: var(--gold); }
+.home-marked { margin-block: 0 32px; }
+.home-marked h2 { font-size: 1.2rem; }
+.home-marked ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.home-marked .chip { gap: 6px; }
+.home-marked .tree-status { margin: 0; }
+
+@media print {
+  .note-check, .stuck-ladder, .symbols-box, .chip-button { display: none; }
+}

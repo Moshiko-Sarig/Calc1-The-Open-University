@@ -102,7 +102,8 @@ const root = document.documentElement;
 const themeButton = document.querySelector("[data-theme-toggle]");
 const sizeButton = document.querySelector("[data-text-size-toggle]");
 const sizeLabel = document.querySelector("#textSizeLabel");
-const SIZE_NAMES = { s: "קטן", m: "רגיל", l: "גדול" };
+const SIZE_NAMES = { s: "קטן", m: "רגיל", l: "גדול", xl: "גדול מאוד", xxl: "ענק" };
+const SIZE_ORDER = ["s", "m", "l", "xl", "xxl"];
 
 function syncPreferenceControls() {
   const dark = root.dataset.theme === "dark";
@@ -159,14 +160,19 @@ themeButton.addEventListener("click", () => {
 });
 
 sizeButton.addEventListener("click", () => {
-  const order = ["s", "m", "l"];
-  const next = order[(order.indexOf(root.dataset.textSize || "m") + 1) % order.length];
+  const next = SIZE_ORDER[(SIZE_ORDER.indexOf(root.dataset.textSize || "m") + 1) % SIZE_ORDER.length];
   root.dataset.textSize = next;
   store.set("infi-text-size", next);
+  relayoutReading();
+});
+
+// Size, spacing and paper change the grid cell: re-fit formulas and the grid.
+function relayoutReading() {
   syncPreferenceControls();
   markWideFormulas();
   requestAnimationFrame(alignSheetGrid);
-});
+}
+window.addEventListener("infi:reading-options", relayoutReading);
 
 syncPreferenceControls();
 
@@ -1172,6 +1178,7 @@ function renderHome() {
   app.querySelector("[data-next-study-message]").addEventListener("click", () => {
     studyMessage.textContent = nextStudyMessage();
   });
+  window.InfiSupport?.decorateHome(app);
   typesetMath();
 }
 
@@ -1270,6 +1277,7 @@ function renderPage(page, section) {
   details.hidden = !(source || page.aliases?.length);
   decorateHeadings(page);
   buildToc(page);
+  window.InfiSupport?.decorate(app, page);
   window.InfiDemos?.mount(app);
   window.InfiStudy?.decorate(app);
   window.InfiExams?.decorate(app);
@@ -2283,6 +2291,7 @@ window.addEventListener("infi:demo-resized", () => {
 });
 
 renderTree();
+window.InfiSupport?.decorateTree();
 route({ initial: true });
 document.fonts?.ready?.then(() => alignSheetGrid());
 // MathJax loads asynchronously; whatever is on screen when it becomes ready

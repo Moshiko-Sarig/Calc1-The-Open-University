@@ -672,8 +672,17 @@ const calloutTypes = {
   hint: "רמז",
   solution: "פתרון",
   exam: "במבחן",
-  plan: "התוכנית בשלוש שורות"
+  plan: "התוכנית בשלוש שורות",
+  deep: "העמקה: אפשר לדלג בקריאה ראשונה"
 };
+
+// The "in one line" sentence of a plain-words box, shown on the folded box
+// itself so a reader gets the gist without opening anything.
+function oneLineTeaser(lines, resolveLink) {
+  const first = lines.find((line) => line.trim());
+  const match = first?.match(/^\s*\*\*בשורה אחת\*\*\s*:?\s*(.+)$/);
+  return match ? renderInline(match[1].trim(), resolveLink) : "";
+}
 
 function renderTypedCallout(quote, resolveLink) {
   const start = quote.findIndex((part) => part.trim());
@@ -691,7 +700,9 @@ function renderTypedCallout(quote, resolveLink) {
   const firstSimple = type === "simple" && !renderContext.openedSimple;
   if (firstSimple) renderContext.openedSimple = true;
   const open = head[2] === "+" || firstSimple ? " open" : "";
-  return `<details class="${cls}"${open}><summary class="callout-title">${title}</summary><div class="callout-body">${body}</div></details>`;
+  const teaser = type === "simple" ? oneLineTeaser(quote.slice(start + 1), resolveLink) : "";
+  const teaserHtml = teaser ? `<span class="callout-teaser">${teaser}</span>` : "";
+  return `<details class="${cls}"${open}><summary class="callout-title"><span class="callout-title-text">${title}</span>${teaserHtml}</summary><div class="callout-body">${body}</div></details>`;
 }
 
 const pluginLabels = {
@@ -1312,8 +1323,12 @@ export function buildCourse(nextCourse) {
     edges
   };
 
+  const archive = course.archiveDir ? JSON.parse(fs.readFileSync(path.join(root, course.archiveDir, "questions.json"), "utf8")) : null;
   const payload = {
-    archiveSummary: course.archiveDir ? JSON.parse(fs.readFileSync(path.join(root, course.archiveDir, "questions.json"), "utf8")).summary : null,
+    archiveSummary: archive?.summary || null,
+    // How many archive questions touch each unit, so a gateway can say where
+    // the exams put their weight.
+    archiveUnits: (archive?.units || []).map((unit) => ({ number: unit.number, questions: unit.question_count, exams: unit.exam_count })),
     generatedAt: new Date().toISOString(),
     notice: course.notice,
     course: publicCourseInfo(),

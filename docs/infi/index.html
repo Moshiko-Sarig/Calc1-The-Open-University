@@ -24,7 +24,13 @@
             theme = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
           }
           root.dataset.theme = theme;
-          if (size === "s" || size === "m" || size === "l") root.dataset.textSize = size;
+          if (/^(s|m|l|xl|xxl)$/.test(size || "")) root.dataset.textSize = size;
+          // Reading options (assets/support.js): spacing, paper, focus mode,
+          // opened explanations, encouragement.
+          var options = { spacing: "wide", paper: "plain", focus: "on", explain: "open", cheer: "off" };
+          for (var key in options) {
+            if (localStorage.getItem("infi-" + key) === options[key]) root.dataset[key] = options[key];
+          }
         } catch (error) {
           /* storage blocked: keep defaults */
         }
@@ -72,6 +78,7 @@
     <script defer src="./assets/demos.js"></script>
     <script defer src="./assets/study.js"></script>
     <script defer src="./assets/exams.js"></script>
+    <script defer src="./assets/support.js"></script>
     <script defer src="./assets/app.js"></script>
   </head>
   <body>
