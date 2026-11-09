@@ -899,6 +899,8 @@ mark {
 }
 
 .note {
+  grid-column: 1;
+  grid-row: 1;
   min-width: 0;
 }
 
@@ -1028,14 +1030,71 @@ a.chip:hover {
 
 /* Table of contents */
 
-.toc {
+.page-rail {
+  grid-column: 2;
+  grid-row: 1;
   position: sticky;
   inset-block-start: calc(var(--header-h) + 24px);
   max-height: calc(100vh - var(--header-h) - 48px);
   overflow-y: auto;
-  padding-block: 4px;
-  font-size: var(--fs-s);
   scrollbar-width: thin;
+}
+
+.unit-navigation {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.unit-navigation > p {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: var(--fs-s);
+  font-weight: 700;
+}
+
+.unit-navigation ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.unit-navigation a {
+  display: flex;
+  align-items: baseline;
+  align-content: center;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  min-height: 44px;
+  padding: 6px 8px;
+  border-inline-start: 3px solid transparent;
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  text-decoration: none;
+}
+
+.unit-navigation a:hover,
+.unit-navigation a[aria-current="true"] {
+  background: var(--accent-soft);
+}
+
+.unit-navigation-number {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.unit-navigation a[aria-current="true"] {
+  border-inline-start-color: var(--accent);
+}
+
+.toc {
+  padding-block: 16px 4px;
+  font-size: var(--fs-s);
 }
 
 .toc-title {
@@ -3329,21 +3388,6 @@ bdi {
   stroke-width: 2;
 }
 
-/* ---------- Note pages: unit divider tabs on the sheet's free edge --------- */
-
-.unit-tab.is-current {
-  width: 31px;
-  border-color: var(--c);
-  background: var(--c);
-  color: var(--surface);
-}
-
-@media (max-width: 1060px) {
-}
-
-@media print {
-}
-
 /* ---------- Proofs: toolbar, step by step, "why?" -------------------------- */
 
 .proof-bar {
@@ -4057,6 +4101,36 @@ bdi {
     grid-template-columns: minmax(0, var(--measure));
   }
 
+  .page-rail {
+    grid-column: 1;
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .page-rail:not(:has(.unit-navigation)) {
+    display: none;
+  }
+
+  .page-grid > .note {
+    grid-row: auto;
+  }
+
+  .unit-navigation ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .unit-navigation-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   .toc {
     display: none;
   }
@@ -4393,6 +4467,7 @@ bdi {
 
   .site-header,
   .course-nav,
+  .page-rail,
   .toc,
   .toc-inline,
   .note-foot,
@@ -5824,12 +5899,6 @@ details.callout > summary.callout-title { min-height: 32px; }
 
 .sheet:not(:has(.demo-plot)) {
   background-image: linear-gradient(to bottom, var(--sheet-rule) 1px, transparent 1px);
-}
-
-.unit-tab.is-current {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--on-accent);
 }
 
 /* Course archive: the course's existing paper, type and navigation. */

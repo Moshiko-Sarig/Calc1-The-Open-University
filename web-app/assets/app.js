@@ -1089,16 +1089,18 @@ function renderHome() {
   typesetMath();
 }
 
-// Divider tabs along the sheet's free edge, one per unit, as in a binder.
-function unitTabs(page) {
-  const tabs = groups
+function unitNavigation(page) {
+  const links = groups
     .filter((group) => group.number && group.gatewayId && pages.get(group.gatewayId))
     .map((group) => {
       const current = group.id === page.groupId;
-      return `<a class="unit-tab${current ? " is-current" : ""}" href="${pageHref(pages.get(group.gatewayId))}" style="--c:${groupColor(group.id)}"${current ? ' aria-current="true"' : ""} title="${escapeHtml(group.subtitle || "")}"><span class="visually-hidden">${escapeHtml(words.unit)} </span>${group.number}<span class="visually-hidden">: ${escapeHtml(group.subtitle || "")}</span></a>`;
+      return `<li><a href="${pageHref(pages.get(group.gatewayId))}"${current ? ' aria-current="true"' : ""}><span class="unit-navigation-number">${escapeHtml(group.title)}</span><span class="unit-navigation-name">${escapeHtml(group.subtitle || "")}</span></a></li>`;
     })
     .join("");
-  return tabs ? `<nav class="unit-tabs" aria-label="חוצצי ${escapeHtml(words.theUnits)}"><div class="unit-tabs-rail">${tabs}</div></nav>` : "";
+  return links ? `<nav class="unit-navigation" aria-labelledby="unitNavigationTitle">
+    <p id="unitNavigationTitle">מעבר בין ${escapeHtml(words.units)}</p>
+    <ul>${links}</ul>
+  </nav>` : "";
 }
 
 function renderPage(page, section) {
@@ -1128,10 +1130,16 @@ function renderPage(page, section) {
 
   app.innerHTML = `
     <div class="page-grid">
+      <div class="page-rail">
+        ${unitNavigation(page)}
+        <aside class="toc" aria-label="בדף הזה" data-toc hidden>
+          <p class="toc-title">בדף הזה</p>
+          <nav aria-label="תוכן הדף"><ol data-toc-list></ol></nav>
+        </aside>
+      </div>
       <article class="note" aria-labelledby="pageTitle">
         <nav class="breadcrumbs" aria-label="מיקום בקורס"><ol>${crumbs.join("")}</ol></nav>
         <div class="sheet" data-sheet>
-          ${unitTabs(page)}
           <header class="note-head">
             <h1 id="pageTitle" class="note-title">${page.titleHtml || escapeHtml(page.title)}</h1>
             <div class="note-meta">${meta}</div>
@@ -1163,10 +1171,6 @@ function renderPage(page, section) {
           }
         </footer>
       </article>
-      <aside class="toc" aria-label="בדף הזה" data-toc hidden>
-        <p class="toc-title">בדף הזה</p>
-        <nav aria-label="תוכן הדף"><ol data-toc-list></ol></nav>
-      </aside>
     </div>`;
 
   decorateHeadings(page);
