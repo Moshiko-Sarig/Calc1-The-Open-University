@@ -258,7 +258,7 @@ function renderTree() {
   }
   tree.innerHTML =
     `<nav class="tree-primary" aria-label="ניווט ראשי">${DRAWER_LINKS.map(([view, href, label]) => `<a href="${href}" data-nav="${view}">${label}</a>`).join("")}${courseSwitchLink("tree-course-switch")}</nav>` +
-    `<a class="tree-practice" href="#/practice" data-nav="practice">${icon("star")}<span><strong>תרגול</strong><small>כרטיסי חזרה ופאזלי הוכחה</small></span></a>` +
+    `<a class="tree-practice" href="#/practice" data-nav="practice">${icon("star")}<span><strong>תרגול</strong><small>כרטיסי חזרה${data.examTheorems?.length ? " ופאזלי הוכחה" : ""}</small></span></a>` +
     `<div class="tree-guides">${keyGuides().map((g) => `<a class="tree-guide" href="${pageHref(g.page)}" data-id="${g.page.id}"><strong>${escapeHtml(g.match)}</strong><small>${escapeHtml(g.short)}</small></a>`).join("")}</div>` +
     groups
       .map((group) => {
@@ -990,7 +990,7 @@ function renderHome() {
         <div class="home-intro-main">
           <p class="home-intro-kicker">האוניברסיטה הפתוחה <span aria-hidden="true"> / </span> קורס ${escapeHtml(course.courseCode)}</p>
           <h1 id="homeTitle">${escapeHtml(course.fullName)}</h1>
-          <p class="home-intro-subtitle">הסברים, הוכחות ותרגול לקראת הבחינה.</p>
+          <p class="home-intro-subtitle">${exam ? "הסברים, הוכחות ותרגול לקראת הבחינה." : "הסברים ותרגול לקראת הבחינה."}</p>
           <div class="home-intro-actions">
             ${firstUnit ? `<a class="button button-primary" href="${pageHref(firstUnit)}">להתחלת הלימוד <span aria-hidden="true">←</span></a>` : ""}
             ${exam ? `<a class="home-quick-link" href="${pageHref(exam)}">${escapeHtml(words.theTheorems)}</a>` : ""}

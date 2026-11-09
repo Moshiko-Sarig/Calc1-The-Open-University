@@ -18,10 +18,6 @@ const STATEMENTS = [
   "3.9.1", "3.9.2", "3.9.3", "3.9.4", "3.9.5", "3.9.6", "3.9.7", "3.9.8", "3.9.9", "3.9.10",
   "3.10.1", "3.10.2", "3.10.3", "3.10.4", "3.10.5", "3.10.6", "3.10.7"
 ];
-const KEY_THEOREMS = [
-  "3.3.7", "3.4.3", "3.4.5", "3.5.1", "3.5.5", "3.6.4", "3.6.8", "3.8.1", "3.8.3", "3.8.4",
-  "3.9.3", "3.9.5", "3.9.7", "3.9.10", "3.10.1", "3.10.3", "3.10.6"
-];
 const SECTIONS = ["3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "3.7", "3.8", "3.9", "3.10"];
 const CORE_NOTES = ["3.4", "3.5", "3.6", "3.8", "3.9", "3.10"];
 const NOTE_DEMOS = { "3.4": "matrix-product", "3.9": "inverse-steps", "3.10": "linear-map" };
@@ -88,10 +84,13 @@ test("every marked proof has a plan, and no box sits inside a proof", () => {
   }
 });
 
-test("each key theorem of chapter 3 is listed and linked to its marked proof", () => {
-  const rows = payload.examTheorems.filter((row) => row.number.startsWith("3."));
-  assert.deepEqual(rows.map((row) => row.number), KEY_THEOREMS);
-  for (const row of rows) assert.ok(row.proofPageId, row.number);
+test("chapter 3 links three useful results from its gateway", () => {
+  const group = payload.navGroups.find((item) => item.number === 3);
+  const gateway = payload.pages.find((page) => page.id === group.gatewayId);
+  assert.match(gateway.html, /שלושה משפטים שכדאי להכיר/);
+  for (const number of ["3.5.1", "3.8.4", "3.10.6"]) {
+    assert.ok(gateway.links.includes(payload.statements[number].pageId), number);
+  }
 });
 
 test("chapter 3 has its own flashcards", () => {

@@ -1122,7 +1122,7 @@ const startOrder = () => [
   "כספת העל",
   "מקורות וחומרי גלם",
   "גרפים והמחשות"
-];
+].filter(Boolean);
 
 function rankBy(list, title) {
   const index = list.findIndex((key) => title.includes(key));
@@ -1251,7 +1251,7 @@ export function buildCourse(nextCourse) {
   const navGroups = buildNavGroups(pages, resolver);
   linkSequence(navGroups, pagesById);
 
-  const examList = pages.find((page) => page.title.includes(course.theoremListTitle));
+  const examList = course.theoremListTitle && pages.find((page) => page.title.includes(course.theoremListTitle));
   // Only unit notes count: the exam list also links to hub pages in its footer.
   const examLinked = new Set(
     (examList ? examList.links : []).filter((id) => /^unit-/.test(pagesById.get(id)?.groupId || ""))
@@ -1321,7 +1321,7 @@ export function buildCourse(nextCourse) {
     mapPageId: findByTitle(pages, ["מפת הקורס"]),
     dependencyPageId: findByTitle(pages, ["מפת תלות"]),
     proofPageId: findByTitle(pages, ["תבניות הוכחה"]),
-    examListPageId: findByTitle(pages, [course.theoremListTitle]),
+    examListPageId: examList?.id || "",
     counterPageId: findByTitle(pages, ["דוגמאות נגד"]),
     units,
     navGroups,

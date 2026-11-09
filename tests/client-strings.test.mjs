@@ -56,7 +56,8 @@ test("every course defines the same words, so no sentence is left with a hole", 
     assert.deepEqual(Object.keys(course.words).sort(), Object.keys(first.words).sort());
   }
   for (const course of COURSES) {
-    for (const key of ["courseCode", "demosLead", "theoremBand", "examUseNote", "searchExample"]) assert.ok(course[key], `${course.id}.${key}`);
+    for (const key of ["courseCode", "demosLead", "examUseNote", "searchExample"]) assert.ok(course[key], `${course.id}.${key}`);
+    if (course.theoremListTitle) assert.ok(course.theoremBand, course.id);
     assert.ok(course.sources.length > 0);
   }
 });

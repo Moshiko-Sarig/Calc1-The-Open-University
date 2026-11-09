@@ -59,14 +59,16 @@ test("claim 2.3.2 explains the b on the line case as part of the flow", () => {
   assert.doesNotMatch(note("2.3"), /דיוק ביחס לנוסח הספר/);
 });
 
-const KEY_THEOREMS = ["2.2.1", "2.3.3", "2.3.7", "2.3.8", "2.5.2", "2.6.3", "2.6.6", "2.7.8", "2.7.9", "2.7.10", "2.7.11"];
 const CORE_NOTES = ["2.5", "2.6", "2.7"];
 const count = (text, pattern) => (text.match(pattern) || []).length;
 
-test("each key theorem of chapter 2 is listed and linked to its marked proof", () => {
-  const rows = payload.examTheorems.filter((row) => row.number.startsWith("2."));
-  assert.deepEqual(rows.map((row) => row.number), KEY_THEOREMS);
-  for (const row of rows) assert.ok(row.proofPageId, row.number);
+test("chapter 2 links three useful results from its gateway", () => {
+  const group = payload.navGroups.find((item) => item.number === 2);
+  const gateway = payload.pages.find((page) => page.id === group.gatewayId);
+  assert.match(gateway.html, /שלושה משפטים שכדאי להכיר/);
+  for (const number of ["2.5.3", "2.6.3", "2.7.11"]) {
+    assert.ok(gateway.links.includes(payload.statements[number].pageId), number);
+  }
 });
 
 test("every marked proof in 2.5–2.7 has a plan just before it", () => {

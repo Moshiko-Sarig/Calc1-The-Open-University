@@ -46,8 +46,6 @@ const ALL_STATEMENTS = [
   ...range(14, 4)
 ];
 
-const KEY_THEOREMS = ["1.1.6", "1.2.2", "1.2.4", "1.2.6", "1.7.3", "1.10.5", "1.11.2", "1.11.3", "1.12.1", "1.12.2", "1.13.1", "1.14.1", "1.14.2", "1.14.3", "1.14.4"];
-
 const NOTES = [
   "פעולות על קבוצה",
   "שדות",
@@ -74,14 +72,21 @@ test("statements reach the client in the book's order, so definition cards do to
   assert.deepEqual([...ALL_STATEMENTS].sort(compareNumbers), ALL_STATEMENTS);
 });
 
-test("each key theorem is linked to its marked proof", () => {
-  assert.deepEqual(payload.examTheorems.map((row) => row.number).filter((number) => number.startsWith("1.")).sort(compareNumbers), KEY_THEOREMS);
-  for (const row of payload.examTheorems) assert.ok(row.proofPageId, row.number);
+test("chapter 1 links three useful results from its gateway", () => {
+  const group = payload.navGroups.find((item) => item.number === 1);
+  const gateway = payload.pages.find((page) => page.id === group.gatewayId);
+  assert.match(gateway.html, /שלושה משפטים שכדאי להכיר/);
+  for (const number of ["1.7.3", "1.10.5", "1.12.2"]) {
+    assert.ok(gateway.links.includes(payload.statements[number].pageId), number);
+  }
 });
 
-test("the key theorem list says plainly that it is not official", () => {
-  const list = payload.pages.find((page) => page.id === payload.examListPageId);
-  assert.match(list.html, /לא רשימה רשמית/);
+test("linear algebra has no dedicated theorem list or proof puzzles", () => {
+  assert.equal(payload.examListPageId, "");
+  assert.deepEqual(payload.examTheorems, []);
+  assert.deepEqual(payload.pastTheorems, []);
+  assert.ok(payload.pages.every((page) => !page.hasExamTheorem));
+  assert.ok(payload.pages.every((page) => !page.title.includes("משפטי מפתח")));
 });
 
 test("chapter 1 has at least 25 flashcards of its own", () => {

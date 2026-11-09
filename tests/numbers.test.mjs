@@ -85,7 +85,7 @@ tags: [לינארית1, פרק1]
 מספר בסוגריים בכותרת.
 `;
 
-const LIST = `# משפטי מפתח - לינארית 1
+const LIST = `# רשימת משפטים לבדיקה
 
 | מספר | סוג | התוכן | ההוכחה בכספת |
 |---|---|---|---|
@@ -100,9 +100,9 @@ before(() => {
   fs.mkdirSync(path.join(vault, "פרק 1 - בדיקה"), { recursive: true });
   fs.mkdirSync(path.join(vault, "00 - מרכז הכספת"), { recursive: true });
   fs.writeFileSync(path.join(vault, "פרק 1 - בדיקה", "פתק בדיקה.md"), NOTE);
-  fs.writeFileSync(path.join(vault, "00 - מרכז הכספת", "משפטי מפתח - לינארית 1.md"), LIST);
+  fs.writeFileSync(path.join(vault, "00 - מרכז הכספת", "רשימת משפטים לבדיקה.md"), LIST);
   const linear = COURSES.find((course) => course.id === "linear1");
-  payload = buildCourse({ ...linear, vaultDir: vault, outDir: path.join(dir, "out") });
+  payload = buildCourse({ ...linear, theoremListTitle: "רשימת משפטים לבדיקה", vaultDir: vault, outDir: path.join(dir, "out") });
 });
 
 test("a heading with a three-level number is indexed under the whole number", () => {

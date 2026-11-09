@@ -886,7 +886,7 @@
         <header class="practice-head">
           <p class="practice-kicker">לפני הבחינה</p>
           <h1 id="pageTitle" tabindex="-1">תרגול</h1>
-          <p class="practice-lead">כרטיסי חזרה עם חזרה מרווחת${list.length ? `, ופאזל הוכחה לכל אחד מ־${list.length} המשפטים ${esc(course.theoremListLabel)}` : ""}. בכל הוכחה בפתקים יש גם כפתור "שלב אחר שלב". ההתקדמות נשמרת בדפדפן הזה.</p>
+          <p class="practice-lead">כרטיסי חזרה עם חזרה מרווחת${list.length ? `, ופאזל הוכחה לכל אחד מ־${list.length} המשפטים ${esc(course.theoremListLabel)}. בכל הוכחה בפתקים יש גם כפתור "שלב אחר שלב"` : ""}. ההתקדמות נשמרת בדפדפן הזה.</p>
         </header>
         <div class="hub-cards">
           ${(app().keyGuides?.() || [])
@@ -905,10 +905,10 @@
             ${randomTheorem ? `<a class="demo-btn" href="#/practice/proof/${encodeURIComponent(randomTheorem.number)}">פאזל אקראי</a>` : ""}
           </article>` : ""}
         </div>
-        <section aria-labelledby="hubListTitle">
-          <h2 id="hubListTitle" class="hub-list-title">${list.length ? `${list.length} ${esc(words.theTheorems)}` : esc(words.theTheorems)}</h2>
-          ${rows || `<p>עדיין אין כאן משפטים. הם יתווספו יחד עם הפתקים.</p>`}
-        </section>
+        ${list.length ? `<section aria-labelledby="hubListTitle">
+          <h2 id="hubListTitle" class="hub-list-title">${list.length} ${esc(words.theTheorems)}</h2>
+          ${rows}
+        </section>` : ""}
       </div>`;
     queueTypeset([root]);
   }
