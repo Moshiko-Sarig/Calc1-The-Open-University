@@ -1028,6 +1028,26 @@ a.chip:hover {
   font-size: var(--fs-s);
 }
 
+.note-details {
+  margin-block-start: 24px;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+}
+
+.note-start {
+  margin-block-start: 12px;
+}
+
+.note-details summary {
+  min-height: 44px;
+  padding-block: 10px;
+  cursor: pointer;
+}
+
+.note-details .callout-source {
+  margin: 8px 0 0;
+}
+
 /* Table of contents */
 
 .page-rail {
@@ -2421,9 +2441,7 @@ bdi {
   border: 1px solid var(--paper-edge);
   border-radius: 6px;
   background-color: var(--paper);
-  background-image:
-    linear-gradient(to right, var(--sheet-grid) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--sheet-grid) 1px, transparent 1px);
+  background-image: linear-gradient(to bottom, color-mix(in srgb, var(--sheet-rule) 45%, transparent) 1px, transparent 1px);
   background-size: var(--cell) var(--cell);
   background-position: right 0 top var(--grid-offset, 0px);
   box-shadow: var(--shadow-sheet);
@@ -5034,7 +5052,7 @@ details.callout > summary.callout-title { min-height: 32px; }
   margin-top: 27px;
 }
 .home-intro-actions .button { min-height: 46px; }
-.home-quick-link, .home-start-link {
+.home-quick-link {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -5044,7 +5062,7 @@ details.callout > summary.callout-title { min-height: 32px; }
   text-decoration: none;
   text-underline-offset: .2em;
 }
-.home-quick-link:hover, .home-start-link:hover { text-decoration: underline; }
+.home-quick-link:hover { text-decoration: underline; }
 
 /* The home page: every course is a notebook lying on squared paper. */
 .landing {
@@ -5081,9 +5099,9 @@ details.callout > summary.callout-title { min-height: 32px; }
    the page on their way to infinity. */
 .infinity-figure {
   display: block;
-  width: 100%;
+  width: min(100%, 34rem);
   height: auto;
-  margin-block-start: 20px;
+  margin: clamp(28px, 5vw, 56px) auto 0;
   overflow: visible;
   direction: ltr;
 }
@@ -5260,10 +5278,17 @@ details.callout > summary.callout-title { min-height: 32px; }
 .course-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
-  gap: 32px;
-  margin: clamp(28px, 4vw, 48px) 0 0;
+  gap: 16px;
+  margin: 16px auto 0;
+  max-width: 62rem;
   padding: 0;
   list-style: none;
+}
+@media (min-width: 850px) {
+  .course-grid > li {
+    display: grid;
+    grid-template-rows: 1fr auto;
+  }
 }
 .course-card {
   --label-paper: #faf8f2;
@@ -5272,10 +5297,9 @@ details.callout > summary.callout-title { min-height: 32px; }
   --spine: 46px;
   position: relative;
   display: flex;
-  align-items: flex-end;
-  min-height: clamp(430px, 58vh, 580px);
-  padding: clamp(190px, 16vw, 230px) 28px 22px 22px;
-  padding-inline-start: calc(var(--spine) + 22px);
+  align-items: stretch;
+  padding: 10px;
+  padding-inline-start: calc(var(--spine) + 10px);
   overflow: hidden;
   border-radius: 4px 12px 12px 4px;
   background: var(--cover);
@@ -5330,21 +5354,17 @@ details.callout > summary.callout-title { min-height: 32px; }
   background: var(--paper);
 }
 .course-cover-mark {
-  position: absolute;
-  inset-block-start: -0.16em;
-  inset-inline-end: 0.08em;
-  color: color-mix(in srgb, white 18%, var(--cover));
+  color: #fff;
   font-family: var(--font-display);
-  font-size: clamp(13rem, 25vw, 25rem);
+  font-size: 1.5rem;
   line-height: 1;
-  pointer-events: none;
 }
 .course-label {
   position: relative;
   display: grid;
   gap: 8px;
   width: 100%;
-  padding: 20px 22px;
+  padding: 14px 16px;
   border-radius: 3px;
   background: var(--label-paper);
 }
@@ -5402,18 +5422,26 @@ details.callout > summary.callout-title { min-height: 32px; }
 }
 @media (max-width: 480px) {
   .landing-main {
-    padding-inline: 16px;
+    padding: 22px 16px 48px;
   }
   .course-card {
     --spine: 34px;
-    padding-inline: calc(var(--spine) + 14px) 18px;
+    padding-inline-start: calc(var(--spine) + 8px);
   }
   .course-cover-spine i {
     width: 12px;
     height: 12px;
   }
   .course-label {
-    padding: 18px;
+    padding: 10px 12px;
+  }
+  .course-card-counts {
+    display: none;
+  }
+}
+@media (max-width: 360px) {
+  .landing-intro h1 {
+    font-size: 2.1rem;
   }
 }
 @keyframes notebook-in {
@@ -5550,7 +5578,6 @@ details.callout > summary.callout-title { min-height: 32px; }
     margin-inline-end: 0;
   }
 }
-.home-start-link { gap: .45rem; }
 .home-intro-meta {
   margin: 27px 0 0;
   color: var(--ink-3);
@@ -5570,18 +5597,6 @@ details.callout > summary.callout-title { min-height: 32px; }
   font-size: var(--fs-s);
   font-weight: 600;
 }
-.home-resume-link {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 3px 8px;
-  padding-block: 4px;
-  color: var(--ink);
-  text-decoration: none;
-}
-.home-resume-link small { grid-column: 1 / -1; color: var(--ink-3); font-size: var(--fs-xs); }
-.home-resume-link strong { font-size: 1.04rem; line-height: 1.5; }
-.home-resume-link > span { color: var(--accent); font-size: 1.1rem; }
-.home-resume-link:hover strong { color: var(--accent); text-decoration: underline; }
 .home-recent-label { margin-top: 22px; }
 .home-recent-list { list-style: none; margin: 0; padding: 0; }
 .home-recent-list li { margin-block: 1px; }
@@ -5897,8 +5912,15 @@ details.callout > summary.callout-title { min-height: 32px; }
   content: none;
 }
 
-.sheet:not(:has(.demo-plot)) {
-  background-image: linear-gradient(to bottom, var(--sheet-rule) 1px, transparent 1px);
+@media (max-width: 768px) {
+  .page-grid {
+    gap: 12px;
+  }
+
+  .breadcrumbs .breadcrumb-topic,
+  .breadcrumbs [aria-current="page"] {
+    display: none;
+  }
 }
 
 /* Course archive: the course's existing paper, type and navigation. */

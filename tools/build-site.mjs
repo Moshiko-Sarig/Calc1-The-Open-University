@@ -292,7 +292,8 @@ function renderInline(value, resolveLink) {
   });
 
   text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
-    return `<a href="${escapeAttribute(unescapeHtml(href))}" target="_blank" rel="noreferrer">${label}</a>`;
+    const attributes = href.startsWith("#/") ? "" : ' target="_blank" rel="noreferrer"';
+    return `<a href="${escapeAttribute(unescapeHtml(href))}"${attributes}>${label}</a>`;
   });
 
   text = text
@@ -1373,15 +1374,14 @@ export function renderCourseCards(results) {
   return results
     .map(({ course: item, payload }) => {
       const href = hrefFromHome(item);
-      const stats = [`קורס ${item.courseCode}`, ...courseStats(item, payload)].map((stat) => `<span class="course-card-stat">${escapeHtml(stat)}</span>`).join(" · ");
+      const stats = courseStats(item, payload).map((stat) => `<span class="course-card-stat">${escapeHtml(stat)}</span>`).join(" · ");
       return `        <li>
           <a class="course-card" href="${href}" style="--cover:${item.coverColor}">
-            <span class="course-cover-spine" aria-hidden="true"><i></i><i></i><i></i></span>
-            <span class="course-cover-mark" aria-hidden="true">${escapeHtml(item.brandMark)}</span>
+            <span class="course-cover-spine" aria-hidden="true"><i></i><span class="course-cover-mark" aria-hidden="true">${escapeHtml(item.brandMark)}</span><i></i></span>
             <div class="course-label">
               <h3>${escapeHtml(item.fullName)}</h3>
               <p>${escapeHtml(item.summary)}</p>
-              <span class="course-card-stats">${stats}</span>
+              <span class="course-card-stats">קורס ${escapeHtml(item.courseCode)}<span class="course-card-counts"> · ${stats}</span></span>
               <span class="course-card-go">לכניסה לקורס <span aria-hidden="true">←</span></span>
             </div>
           </a>

@@ -187,6 +187,30 @@ function rememberPage(id) {
   store.set(storageKey("recent"), JSON.stringify(list));
 }
 
+function readingHref(page) {
+  const href = pageHref(page);
+  const saved = store.get(storageKey("reading"));
+  return saved?.startsWith(href + "/") ? saved : href;
+}
+
+let lastReadingHref = "";
+
+function rememberReadingPosition() {
+  const page = currentRoute.view === "page" && pages.get(currentRoute.id);
+  if (!page) return;
+  const readingLine = Math.min(180, window.innerHeight / 3);
+  let section = "";
+  for (const heading of app.querySelectorAll(".prose h2[id], .prose h3[id]")) {
+    if (!heading.getClientRects().length) continue;
+    if (heading.getBoundingClientRect().top > readingLine) break;
+    section = heading.id;
+  }
+  const href = pageHref(page, section);
+  if (href === lastReadingHref) return;
+  lastReadingHref = href;
+  store.set(storageKey("reading"), href);
+}
+
 // ---------------------------------------------------------------------------
 // Course navigation tree and mobile drawer
 // ---------------------------------------------------------------------------
@@ -284,7 +308,7 @@ function renderTree() {
           <ul class="tree-list" id="${listId}" ${open ? "" : "hidden"}>${items}</ul>
         </div>`;
       })
-      .join("") + `<p class="tree-legend">${icon("star", "icon tree-star")} כולל ${escapeHtml(words.theoremFromList)}</p>`;
+      .join("") + (data.examTheorems?.length ? `<p class="tree-legend">${icon("star", "icon tree-star")} כולל ${escapeHtml(words.theoremFromList)}</p>` : "");
 }
 
 tree.addEventListener("click", (event) => {
@@ -971,11 +995,10 @@ function renderHome() {
 
   const panel = last
     ? `<p class="home-resume-label">המשך הלמידה</p>
-       <a class="home-resume-link" href="${pageHref(last)}"><small>${escapeHtml(groupHeading(groupById.get(last.groupId)))}</small><strong>${escapeHtml(last.navTitle)}</strong><span aria-hidden="true">←</span></a>
+       <p class="home-start-text"><strong>${escapeHtml(last.navTitle)}</strong></p>
        ${recent.length > 1 ? `<p class="home-recent-label">ביקרתם לאחרונה</p><ul class="home-recent-list">${recent.slice(1, 4).map((page) => `<li><a href="${pageHref(page)}">${escapeHtml(page.navTitle)}</a></li>`).join("")}</ul>` : ""}`
     : `<p class="home-resume-label">מאיפה מתחילים?</p>
-       <p class="home-start-text">מתחילים ${escapeHtml(words.inUnit)} 1 ומתקדמים לפי הסדר. בכל פתק יש קודם הסבר במילים פשוטות, ואז ההגדרה, הדוגמאות והתרגול.</p>
-       ${firstUnit ? `<a class="home-start-link" href="${pageHref(firstUnit)}">${escapeHtml(words.toUnit)} 1: ${escapeHtml(unitGroups[0].subtitle)} <span aria-hidden="true">←</span></a>` : ""}`;
+       <p class="home-start-text">מתחילים ${escapeHtml(words.inUnit)} 1. בכל פתק אפשר לקרוא הסבר, לראות דוגמה ולתרגל.</p>`;
 
   const demos = demoGallery();
   const game = demos.find((item) => item.name === "epsilon-delta");
@@ -992,7 +1015,7 @@ function renderHome() {
           <h1 id="homeTitle">${escapeHtml(course.fullName)}</h1>
           <p class="home-intro-subtitle">${exam ? "הסברים, הוכחות ותרגול לקראת הבחינה." : "הסברים ותרגול לקראת הבחינה."}</p>
           <div class="home-intro-actions">
-            ${firstUnit ? `<a class="button button-primary" href="${pageHref(firstUnit)}">להתחלת הלימוד <span aria-hidden="true">←</span></a>` : ""}
+            ${last || firstUnit ? `<a class="button button-primary" href="${last ? escapeHtml(readingHref(last)) : pageHref(firstUnit)}">${last ? "להמשיך מאיפה שעצרתי" : "להתחלת הלימוד"} <span aria-hidden="true">←</span></a>` : ""}
             ${exam ? `<a class="home-quick-link" href="${pageHref(exam)}">${escapeHtml(words.theTheorems)}</a>` : ""}
             ${course.features.exams ? `<a class="home-quick-link" href="#/exams">${course.features.questionArchive ? "מבחנים ומטלות" : "מבחני עבר"}</a>` : ""}
             ${game ? `<a class="home-quick-link" href="${game.href}">משחק ε‑δ</a>` : ""}
@@ -1009,6 +1032,14 @@ function renderHome() {
         <aside class="home-resume" aria-label="${last ? "המשך קריאה" : "תחילת הלימוד"}">${panel}</aside>
       </section>
 
+      <section class="book-toc" aria-labelledby="unitsTitle">
+        <header class="book-toc-head">
+          <h2 id="unitsTitle">תוכן העניינים</h2>
+          <p>${countOf(new Set(unitGroups.map((g) => g.volume).filter(Boolean)).size, "כרך אחד", "כרכים")}, ${countOf(unitGroups.length, words.oneUnit, words.units)}</p>
+        </header>
+        ${unitContents}
+      </section>
+
       ${
         keyGuides().length
           ? `<section class="guide-band" aria-labelledby="guidesTitle">
@@ -1021,14 +1052,6 @@ function renderHome() {
             </section>`
           : ""
       }
-
-      <section class="book-toc" aria-labelledby="unitsTitle">
-        <header class="book-toc-head">
-          <h2 id="unitsTitle">תוכן העניינים</h2>
-          <p>${countOf(new Set(unitGroups.map((g) => g.volume).filter(Boolean)).size, "כרך אחד", "כרכים")}, ${countOf(unitGroups.length, words.oneUnit, words.units)}</p>
-        </header>
-        ${unitContents}
-      </section>
 
       ${
         demos.length
@@ -1116,7 +1139,8 @@ function renderPage(page, section) {
 
   const crumbs = [`<li><a href="#/">בית</a></li>`];
   if (group) {
-    const crumbTarget = gateway && gateway.id !== page.id ? `<a href="${pageHref(gateway)}">${escapeHtml(groupHeading(group))}</a>` : `<span>${escapeHtml(groupHeading(group))}</span>`;
+    const label = escapeHtml(group.title) + (group.number ? `<span class="breadcrumb-topic"> · ${escapeHtml(group.subtitle || "")}</span>` : "");
+    const crumbTarget = gateway && gateway.id !== page.id ? `<a href="${pageHref(gateway)}">${label}</a>` : `<span>${label}</span>`;
     crumbs.push(`<li>${crumbTarget}</li>`);
   }
   crumbs.push(`<li aria-current="page">${escapeHtml(pageLabel(page))}</li>`);
@@ -1143,7 +1167,7 @@ function renderPage(page, section) {
           <header class="note-head">
             <h1 id="pageTitle" class="note-title">${page.titleHtml || escapeHtml(page.title)}</h1>
             <div class="note-meta">${meta}</div>
-            ${page.aliases?.length ? `<p class="note-aliases">נקרא גם: ${page.aliases.map(escapeHtml).join(" · ")}</p>` : ""}
+            ${page.id === gateway?.id && next?.groupId === group.id ? `<a class="button button-primary note-start" href="${pageHref(next)}">לפתק הראשון <span aria-hidden="true">←</span></a>` : ""}
             <div class="grid-probe" aria-hidden="true"><div class="note-title"><span class="bl"></span>א</div></div>
           </header>
           <details class="toc-inline" data-toc-inline hidden>
@@ -1151,6 +1175,10 @@ function renderPage(page, section) {
             <nav aria-label="תוכן הדף"><ol data-toc-list></ol></nav>
           </details>
           <div class="prose">${page.html}<div class="grid-probe" aria-hidden="true"><p><span class="bl"></span>א</p><h2><span class="bl"></span>א</h2><h3><span class="bl"></span>א</h3><div class="grid-cell" style="height: var(--cell)"></div></div></div>
+          <details class="note-details" hidden>
+            <summary>פרטי הפתק</summary>
+            ${page.aliases?.length ? `<p class="note-aliases">נקרא גם: ${page.aliases.map(escapeHtml).join(" · ")}</p>` : ""}
+          </details>
         </div>
         <footer class="note-foot">
           ${
@@ -1173,6 +1201,10 @@ function renderPage(page, section) {
       </article>
     </div>`;
 
+  const details = app.querySelector(".note-details");
+  const source = app.querySelector(".prose > .callout-source:first-child");
+  if (source) details.append(source);
+  details.hidden = !(source || page.aliases?.length);
   decorateHeadings(page);
   buildToc(page);
   window.InfiDemos?.mount(app);
@@ -1223,10 +1255,11 @@ function mountLearningPath(page, group, gateway) {
   const findHeading = (pattern) => headings.find((h) => pattern.test(h.textContent));
   const intuition = prose.querySelector(".callout-simple");
   const example = findHeading(/דוגמ[הת]|עם מספרים/) || Array.from(prose.querySelectorAll(".callout-simple")).find((box) => /עם מספרים/.test(box.textContent));
+  const demo = prose.querySelector("[data-demo]");
   const formal = findHeading(/הגדר|המשפט|ניסוח/) || headings[0];
   const practice = findHeading(/תרגול קצר|תרגול מודרך|בדיקת שליטה|בדיקה עצמית|כרטיס דיוק/);
   const exam = prose.querySelector(".callout-exam") || findHeading(/סוגי שאלות במבחן|במבחן/);
-  const items = [["אינטואיציה", intuition], ["דוגמה במספרים", example], ["הגדרה ומשפטים", formal], ["תרגול", practice], ["במבחן", exam]].filter(([, target]) => target);
+  const items = [["אינטואיציה", intuition], ["דוגמה במספרים", example], ["המחשה", demo], ["הגדרה ומשפטים", formal], ["תרגול", practice], ["במבחן", exam]].filter(([, target]) => target);
   if (course.features.exams && !exam && gateway && gateway.id !== page.id) items.push([`שאלות מבחן ${words.inUnit}`, null]);
   if (items.length < 2) return;
   const nav = document.createElement("nav");
@@ -1993,7 +2026,10 @@ window.addEventListener(
   () => {
     if (!scrollTicking) {
       scrollTicking = true;
-      requestAnimationFrame(updateScrollUi);
+      requestAnimationFrame(() => {
+        updateScrollUi();
+        rememberReadingPosition();
+      });
     }
   },
   { passive: true }
