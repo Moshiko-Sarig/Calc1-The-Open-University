@@ -1069,7 +1069,10 @@ function renderHome() {
         <div class="home-intro-main">
           <p class="home-intro-kicker">האוניברסיטה הפתוחה <span aria-hidden="true"> / </span> קורס ${escapeHtml(course.courseCode)}${introSketch ? ` <svg class="home-intro-sketch" width="48" height="28" viewBox="0 0 56 32" fill="none" aria-hidden="true" focusable="false">${introSketch}</svg>` : ""}</p>
           <h1 id="homeTitle">${escapeHtml(course.fullName)}</h1>
-          <p class="home-intro-subtitle">${exam ? "הסברים, הוכחות ותרגול לקראת הבחינה." : "הסברים ותרגול לקראת הבחינה."}</p>
+          <div class="home-encouragement">
+            <p aria-live="polite" data-study-message>${escapeHtml(nextStudyMessage())}</p>
+            <button type="button" data-next-study-message>משפט נוסף</button>
+          </div>
           <div class="home-intro-actions">
             ${last || firstUnit ? `<a class="button button-primary" href="${last ? escapeHtml(readingHref(last)) : pageHref(firstUnit)}">${last ? "להמשיך מאיפה שעצרתי" : "להתחלת הלימוד"} <span aria-hidden="true">←</span></a>` : ""}
             ${exam ? `<a class="home-quick-link" href="${pageHref(exam)}">${escapeHtml(words.theTheorems)}</a>` : ""}
@@ -1084,10 +1087,6 @@ function renderHome() {
           ]
             .filter(Boolean)
             .join(' <span aria-hidden="true">·</span> ')}</p>
-          <div class="home-encouragement">
-            <p aria-live="polite" data-study-message>${escapeHtml(nextStudyMessage())}</p>
-            <button type="button" data-next-study-message>משפט נוסף</button>
-          </div>
         </div>
         <aside class="home-resume" aria-label="${last ? "המשך קריאה" : "תחילת הלימוד"}">${panel}</aside>
       </section>
