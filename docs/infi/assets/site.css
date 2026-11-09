@@ -5616,6 +5616,41 @@ details.callout > summary.callout-title { min-height: 32px; }
   line-height: 1.8;
 }
 .home-intro-meta span { margin-inline: .35rem; color: var(--line-2); }
+.home-encouragement {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  max-width: 36rem;
+  margin-block-start: 14px;
+  padding-inline-start: 12px;
+  border-inline-start: 2px solid var(--line-2);
+}
+
+.home-encouragement p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  line-height: 1.65;
+}
+
+.home-encouragement button {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: var(--fs-xs);
+  text-decoration: underline;
+  text-underline-offset: .18em;
+  cursor: pointer;
+}
+
+.home-encouragement button:hover {
+  color: var(--accent);
+}
+
 .home-resume {
   min-width: 0;
   padding-block: 3px;
