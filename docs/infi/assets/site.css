@@ -5029,6 +5029,37 @@ details.callout > summary.callout-title { min-height: 32px; }
   font-weight: 500;
 }
 .home-intro-kicker span { padding-inline: .3em; color: var(--line-2); }
+.home-intro-sketch {
+  display: inline-block;
+  margin-inline-start: 6px;
+  vertical-align: middle;
+  stroke: var(--ink-3);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.home-sketch-trace {
+  stroke: var(--accent);
+}
+
+.home-sketch-point {
+  fill: var(--accent);
+  stroke: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .home-sketch-trace {
+    stroke-dasharray: 1;
+    animation: home-sketch-draw 700ms ease-out both;
+  }
+}
+
+@keyframes home-sketch-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
 .home-intro h1 {
   max-width: 17ch;
   margin: 0;

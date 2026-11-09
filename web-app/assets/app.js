@@ -871,6 +871,7 @@ const DEMO_GALLERY = [
     name: "linear-map",
     title: "מטריצה מזיזה את הרשת",
     text: "משנים את ארבעת המספרים של מטריצה 2×2 ורואים את הריבוע שבונים e₁ ו-e₂ הופך למקבילית, או נמחץ לקו כשהעמודות תלויות.",
+    introSketch: `<path d="M8 26 H28 V6 H8 Z" stroke-dasharray="2 3"/><path class="home-sketch-trace" pathLength="1" d="M8 26 H28 L41 6 H21 Z"/>`,
     sketch: `<path class="sk sk-graphite sk-thin" d="M20 70 H150 M30 84 V6"/><path class="sk sk-gray sk-thin" stroke-dasharray="3 4" d="M30 70 L74 52 M30 70 L58 26"/><path class="sk sk-green" d="M30 70 L102 52 L130 8 L58 26 Z"/><path class="sk sk-blue sk-bold" d="M30 70 L102 52"/><path class="sk sk-red sk-bold" d="M30 70 L58 26"/><circle class="sk-dot-green" cx="30" cy="70" r="3"/>`
   },
   {
@@ -915,6 +916,7 @@ const DEMO_GALLERY = [
     name: "secant",
     title: "מהמיתר למשיק",
     text: "מקטינים את h עד שהמיתר הופך למשיק.",
+    introSketch: `<path d="M8 4 V28 H50" stroke-opacity=".55"/><path d="M11 25 Q29 25 45 5"/><path class="home-sketch-trace" pathLength="1" d="M15 28 L47 9.1"/><circle class="home-sketch-point" cx="28.5" cy="20" r="1.7"/>`,
     sketch: `<path class="sk sk-graphite sk-thin" d="M4 84 H156"/><path class="sk sk-blue" d="M14 8 Q80 150 146 8"/><path class="sk sk-red" d="M30 86 L150 10"/><path class="sk sk-green sk-thin" stroke-dasharray="5 5" d="M24 84 L150 30"/><circle class="sk-dot-blue" cx="62" cy="65" r="3.6"/><circle class="sk-dot-red" cx="112" cy="40" r="3.6"/>`
   },
   {
@@ -1001,6 +1003,7 @@ function renderHome() {
        <p class="home-start-text">מתחילים ${escapeHtml(words.inUnit)} 1. בכל פתק אפשר לקרוא הסבר, לראות דוגמה ולתרגל.</p>`;
 
   const demos = demoGallery();
+  const introSketch = demos.find((item) => item.introSketch)?.introSketch;
   const game = demos.find((item) => item.name === "epsilon-delta");
   // One demo leads the section (the ε‑δ game where a course has it); the rest
   // follow in the order of the course's units.
@@ -1011,7 +1014,7 @@ function renderHome() {
     <div class="home">
       <section class="home-intro" aria-labelledby="homeTitle">
         <div class="home-intro-main">
-          <p class="home-intro-kicker">האוניברסיטה הפתוחה <span aria-hidden="true"> / </span> קורס ${escapeHtml(course.courseCode)}</p>
+          <p class="home-intro-kicker">האוניברסיטה הפתוחה <span aria-hidden="true"> / </span> קורס ${escapeHtml(course.courseCode)}${introSketch ? ` <svg class="home-intro-sketch" width="48" height="28" viewBox="0 0 56 32" fill="none" aria-hidden="true" focusable="false">${introSketch}</svg>` : ""}</p>
           <h1 id="homeTitle">${escapeHtml(course.fullName)}</h1>
           <p class="home-intro-subtitle">${exam ? "הסברים, הוכחות ותרגול לקראת הבחינה." : "הסברים ותרגול לקראת הבחינה."}</p>
           <div class="home-intro-actions">
