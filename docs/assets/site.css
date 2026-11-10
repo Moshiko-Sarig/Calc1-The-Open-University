@@ -79,6 +79,17 @@
   --disabled-line: var(--line-2);
   --focus: 0 0 0 3px var(--surface), 0 0 0 5px var(--accent);
   --header-bg: var(--bg);
+  /* Fixed-colour chrome that reads the same in both themes */
+  --switch-thumb: #fbfaf7;
+  --switch-thumb-ink: #202329;
+  --switch-track-on: #3b6ea5;
+  --on-cover: #fbfaf7; /* letters on the coloured binder covers */
+  --label-paper: #faf8f2; /* the cream label on a binder card */
+  --label-ink: #202329;
+  --label-ink-2: #464c57;
+  --card-pages: #e6e1d5; /* the block of page edges at a binder's open side */
+  --backdrop: rgb(0 0 0 / 0.35);
+  --mask-solid: #000; /* mask alpha only: black means fully shown */
 
   --c-start: #30598f;
   --c-unit-1: #355976;
@@ -110,6 +121,9 @@
 
 :root[data-theme="dark"] {
   --bg: #111111;
+  --label-paper: #222222;
+  --label-ink: var(--ink);
+  --label-ink-2: var(--ink-2);
   --surface: #1e1e1e;
   --surface-2: #242424;
   --surface-3: #282828;
@@ -497,9 +511,9 @@ mark {
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink-3);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
+/* The focus edge is instant, never faded in, so keyboard users see it at once */
 .search-field:focus-within {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-soft); /* a 2px blue edge: the input itself draws no ring */
@@ -603,8 +617,8 @@ mark {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: white;
-  color: #202329;
+  background: var(--switch-thumb);
+  color: var(--switch-thumb-ink);
   transition: transform 180ms ease;
 }
 
@@ -614,7 +628,7 @@ mark {
 }
 
 [data-theme="dark"] .theme-switch-track {
-  background: #3b6ea5;
+  background: var(--switch-track-on);
 }
 
 [data-theme="dark"] .theme-switch-thumb {
@@ -653,7 +667,7 @@ mark {
   inset-block-start: calc(100% + 8px);
   inset-inline: 0;
   z-index: 80;
-  width: min(640px, calc(100vw - 24px));
+  width: 640px; /* desktop only: at 1000px and under the panel is fixed with an 8px inset */
   max-height: min(70vh, 560px);
   overflow: auto;
   padding: 6px;
@@ -3215,8 +3229,8 @@ bdi {
   background-position: 0 calc(var(--rule) * 0.08);
   font-size: var(--fs-sm);
   line-height: var(--rule);
-  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--rule)), transparent);
-  mask-image: linear-gradient(to bottom, #000 calc(100% - var(--rule)), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, var(--mask-solid) calc(100% - var(--rule)), transparent);
+  mask-image: linear-gradient(to bottom, var(--mask-solid) calc(100% - var(--rule)), transparent);
 }
 
 .link-preview-body > * {
@@ -4305,8 +4319,16 @@ bdi {
     background: var(--bg);
     box-shadow: var(--shadow-2);
     transform: translateX(105%);
-    visibility: hidden;
     transition: transform 0.22s ease, visibility 0s linear 0.22s;
+  }
+
+  /* The closed drawer leaves the tab order only once app.js runs and can open it */
+  html.js .course-nav {
+    visibility: hidden;
+  }
+
+  html.js .nav-open .course-nav {
+    visibility: visible;
   }
 
   .nav-open .course-nav {
@@ -4582,7 +4604,10 @@ bdi {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
+    /* none, not a 0.01ms duration: a forced duration would give every element
+       an implicit "transition: all", so focus edges and state colours would
+       still fade instead of switching at once */
+    transition: none !important;
   }
 
   /* The theme cross-fade has no movement and spares the eyes a flash, so it
@@ -4706,6 +4731,14 @@ bdi {
 .freq-num {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+/* The unit number is a link: at least a 24px target, inside the row's own height */
+.freq-num a {
+  display: inline-flex;
+  align-items: center;
+  min-width: 24px;
+  min-height: 24px;
 }
 
 .freq-name {
@@ -5021,8 +5054,8 @@ bdi {
 
 @media print {
   .exam-scan-sheet {
-    border-color: #ccc;
-    background: white;
+    border-color: var(--line);
+    background: var(--img-bg);
   }
 
   :root .exam-scan-sheet img,
@@ -5440,9 +5473,6 @@ details.callout > summary.callout-title { min-height: 32px; }
   }
 }
 .course-card {
-  --label-paper: #faf8f2;
-  --label-ink: #202329;
-  --label-ink-2: #464c57;
   --spine: 46px;
   position: relative;
   display: flex;
@@ -5456,11 +5486,6 @@ details.callout > summary.callout-title { min-height: 32px; }
   text-decoration: none;
   transition: transform .22s ease;
 }
-[data-theme="dark"] .course-card {
-  --label-paper: #222222;
-  --label-ink: var(--ink);
-  --label-ink-2: var(--ink-2);
-}
 [dir="rtl"] .course-card {
   border-radius: 12px 4px 4px 12px;
 }
@@ -5471,7 +5496,7 @@ details.callout > summary.callout-title { min-height: 32px; }
   inset-block: 12px;
   inset-inline-end: 0;
   width: 6px;
-  background: #e6e1d5;
+  background: var(--card-pages);
   transform-origin: left center;
   transition: transform .22s ease;
 }
@@ -5503,7 +5528,7 @@ details.callout > summary.callout-title { min-height: 32px; }
   background: var(--paper);
 }
 .course-cover-mark {
-  color: #fff;
+  color: var(--on-cover);
   font-family: var(--font-display);
   font-size: 1.5rem;
   line-height: 1;
@@ -5547,7 +5572,7 @@ details.callout > summary.callout-title { min-height: 32px; }
   padding: 0 18px;
   border-radius: var(--radius-s);
   background: var(--cover);
-  color: #fff;
+  color: var(--on-cover);
   font-weight: 700;
 }
 .course-card-go > span {
@@ -6266,7 +6291,7 @@ details.callout > summary.callout-title { min-height: 32px; }
 .archive-filters label { display: grid; gap: 6px; font-size: 14px; min-width: 100px; }
 .archive-filters select, .archive-filters input { min-height: 44px; max-width: 100%; width: 100%; font: inherit; color: inherit; background: var(--surface, transparent); border: 1px solid currentColor; border-radius: var(--radius-s); padding: 8px; }
 .archive-search { flex: 1; }
-.archive-row { padding-block: 16px; border-bottom: 1px solid var(--line, #bbb); }
+.archive-row { padding-block: 16px; border-bottom: 1px solid var(--line); }
 .archive-row h2, .archive-row p { margin-block: 4px; }
 .archive-question {
   /* Isolate the scan blending to its own sheet, including expanded solutions. */
@@ -6307,7 +6332,7 @@ details.callout > summary.callout-title { min-height: 32px; }
   .archive-question { padding: 16px 12px; }
 }
 @media print {
-  .archive-question { background: white; border-color: #ccc; color: black; }
+  .archive-question { background: var(--img-bg); border-color: var(--line); color: var(--ink); }
   :root .archive-image,
   :root[data-theme] .archive-image { filter: none; mix-blend-mode: normal; }
 }
@@ -6349,7 +6374,7 @@ html[data-cheer="off"] .home-encouragement { display: none; }
 
 /* Reading options dialog */
 .reading-options {
-  width: min(430px, calc(100vw - 32px));
+  width: min(430px, calc(100% - 32px)); /* a modal dialog: 100% is the viewport without its scrollbar */
   max-height: calc(100vh - 48px);
   padding: 20px 22px 22px;
   border: 1px solid var(--line-2);
@@ -6358,7 +6383,7 @@ html[data-cheer="off"] .home-encouragement { display: none; }
   color: var(--ink);
   box-shadow: var(--shadow-float);
 }
-.reading-options::backdrop { background: rgb(0 0 0 / 0.35); }
+.reading-options::backdrop { background: var(--backdrop); }
 .ro-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .ro-head h2 { margin: 0; font-size: 1.25rem; }
 .ro-note { margin: 4px 0 14px; color: var(--ink-3); font-size: var(--fs-s); }

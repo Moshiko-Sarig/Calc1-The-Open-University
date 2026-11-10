@@ -17,6 +17,7 @@
       // flashes in the wrong theme or text size.
       (function () {
         var root = document.documentElement;
+        root.classList.add("js");
         try {
           var theme = localStorage.getItem("infi-theme");
           var size = localStorage.getItem("infi-text-size");
