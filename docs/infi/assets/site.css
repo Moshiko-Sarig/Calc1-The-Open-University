@@ -30,9 +30,11 @@
   --fs-xs: 0.8125rem;
   --fs-s: 0.875rem;
   --fs-sm: 0.9375rem;
-  --radius-s: 6px;
-  --radius: 10px;
-  --radius-l: 16px;
+  /* Notebook corners: 0-3px on everything that sits on the paper (DESIGN.md).
+     --radius-l is kept as a name so older rules read the same corner. */
+  --radius-s: 2px;
+  --radius: 3px;
+  --radius-l: 3px;
 
   /* Light theme: a soft paper ladder, nothing at pure white (OKLCH L 91 to 98,
      chroma under 0.02 on the warm paper hue); accents and unit hues keep their
@@ -60,12 +62,16 @@
   --calm-line: #bdd3c0;
   --danger: #913931;
   --mark: #f1e2b6;
-  --shadow-1: 0 1px 2px rgba(20, 22, 28, 0.06), 0 1px 1px rgba(20, 22, 28, 0.04);
-  --shadow-2: 0 10px 30px rgba(20, 22, 28, 0.12), 0 2px 6px rgba(20, 22, 28, 0.06);
-  --shadow-sheet: 0 1px 4px rgba(20, 22, 28, 0.05);
-  --shadow-card: 0 1px 2px rgba(20, 22, 28, 0.08), 0 6px 14px rgba(20, 22, 28, 0.06);
-  --shadow-card-hover: 0 2px 4px rgba(20, 22, 28, 0.1), 0 10px 22px rgba(20, 22, 28, 0.1);
-  --shadow-index: 0 2px 4px rgba(20, 22, 28, 0.08), 0 16px 34px rgba(20, 22, 28, 0.1);
+  /* Paper does not float: things on the sheet get a paper edge, not a soft
+     drop shadow. Only layers that really sit above the page (search results,
+     link previews, the drawer, reading options) use --shadow-float. */
+  --shadow-1: 0 1px 0 var(--paper-edge);
+  --shadow-sheet: 0 1px 0 var(--paper-edge);
+  --shadow-card: 0 1px 0 var(--line-2);
+  --shadow-card-hover: 0 2px 0 var(--line-2);
+  --shadow-index: 0 1px 0 var(--paper-edge), 0 3px 0 -1px var(--line-2);
+  --shadow-float: 0 10px 30px rgba(20, 22, 28, 0.12), 0 2px 6px rgba(20, 22, 28, 0.06);
+  --shadow-2: var(--shadow-float);
   --scrim: rgba(12, 14, 18, 0.45);
   --img-bg: #ffffff; /* figures and scans are drawn on white */
   --disabled-bg: var(--surface-2);
@@ -96,6 +102,8 @@
   --hole-edge: #d6d1c5;
   --sheet-grid: color-mix(in srgb, var(--grid-line) 58%, transparent);
   --sheet-rule: color-mix(in srgb, var(--grid-line) 70%, transparent);
+  /* Ruled paper for chrome pages (exams, lists): the note sheet's own lines */
+  --paper-rules: linear-gradient(to bottom, color-mix(in srgb, var(--sheet-rule) 45%, transparent) 1px, transparent 1px);
 
   color-scheme: light;
 }
@@ -125,12 +133,13 @@
   --calm-line: #2c5640;
   --danger: #f0a29c;
   --mark: #5a4612;
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.65);
-  --shadow-2: 0 16px 40px rgba(0, 0, 0, 0.75), 0 2px 8px rgba(0, 0, 0, 0.55);
+  --shadow-1: 0 1px 0 var(--paper-edge);
   --shadow-sheet: 0 0 0 1px rgba(255, 255, 255, 0.03);
-  --shadow-card: var(--shadow-1);
-  --shadow-card-hover: var(--shadow-2);
-  --shadow-index: var(--shadow-2);
+  --shadow-card: 0 1px 0 var(--line-2);
+  --shadow-card-hover: 0 2px 0 var(--line-2);
+  --shadow-index: 0 1px 0 var(--paper-edge), 0 3px 0 -1px var(--line-2);
+  --shadow-float: 0 16px 40px rgba(0, 0, 0, 0.75), 0 2px 8px rgba(0, 0, 0, 0.55);
+  --shadow-2: var(--shadow-float);
   --scrim: rgba(0, 0, 0, 0.6);
   --header-bg: var(--bg);
 
@@ -152,6 +161,7 @@
   --hole-edge: #3a3a3a;
   --sheet-grid: rgba(255, 255, 255, 0.05);
   --sheet-rule: rgba(255, 255, 255, 0.055);
+  --paper-rules: linear-gradient(to bottom, color-mix(in srgb, var(--sheet-rule) 45%, transparent) 1px, transparent 1px);
 
   color-scheme: dark;
 }
@@ -265,7 +275,7 @@ kbd {
   padding: 0.05em 0.45em;
   border: 1px solid var(--line-2);
   border-block-end-width: 2px;
-  border-radius: 5px;
+  border-radius: var(--radius-s);
   background: var(--surface);
   color: var(--ink-3);
 }
@@ -445,7 +455,7 @@ mark {
   width: 36px;
   height: 36px;
   flex: none;
-  border-radius: 9px;
+  border-radius: var(--radius);
   background: var(--ink);
   color: var(--bg);
   font-family: var(--font-display);
@@ -788,7 +798,7 @@ mark {
   width: 28px;
   height: 28px;
   flex: none;
-  border-radius: 8px;
+  border-radius: var(--radius-s);
   background: color-mix(in srgb, var(--c) 14%, transparent);
   color: var(--c);
   font-size: var(--fs-s);
@@ -985,7 +995,7 @@ mark {
   min-height: 30px;
   padding: 0 11px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-s);
   background: var(--surface);
   color: var(--ink-2);
   font-size: var(--fs-s);
@@ -1063,7 +1073,7 @@ a.chip:hover {
 .unit-navigation {
   padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
 
@@ -1091,7 +1101,7 @@ a.chip:hover {
   min-height: 44px;
   padding: 6px 8px;
   border-inline-start: 3px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-s);
   background: var(--paper);
   color: var(--accent);
   font-size: var(--fs-xs);
@@ -1317,7 +1327,7 @@ a.chip:hover {
   gap: 4px;
   margin-inline-start: 4px;
   padding: 1px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-s);
   font-family: var(--font-body);
   font-size: var(--fs-xs);
   font-weight: 600;
@@ -1608,7 +1618,7 @@ details.callout > summary:focus-visible {
 
 .prose :not(pre) > code {
   padding: 0.1em 0.38em;
-  border-radius: 5px;
+  border-radius: var(--radius-s);
   background: var(--surface-2);
   color: var(--ink);
   font-family: var(--font-mono);
@@ -2060,7 +2070,7 @@ bdi {
   place-items: center;
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: var(--radius-s);
   background: var(--surface);
   color: var(--gold);
 }
@@ -2104,7 +2114,7 @@ bdi {
 
 .tool-card:hover {
   border-color: var(--accent-line);
-  box-shadow: var(--shadow-1);
+  background: var(--surface-2);
   color: var(--ink);
 }
 
@@ -2441,7 +2451,7 @@ bdi {
   padding: calc(var(--cell) * 2) var(--sheet-pad-end) calc(var(--cell) * 3) var(--sheet-pad-start);
   padding-inline: var(--sheet-pad-start) var(--sheet-pad-end);
   border: 1px solid var(--paper-edge);
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   background-color: var(--paper);
   background-image: linear-gradient(to bottom, color-mix(in srgb, var(--sheet-rule) 45%, transparent) 1px, transparent 1px);
   background-size: var(--cell) var(--cell);
@@ -2669,7 +2679,7 @@ bdi {
   display: inline-block;
   margin-inline-end: 0.6em;
   padding: 0.12em 0.75em;
-  border-radius: 999px;
+  border-radius: var(--radius-s);
   background: var(--accent-soft);
   color: var(--accent);
   font-size: 0.72em;
@@ -2854,7 +2864,7 @@ bdi {
 .demo-tex {
   position: absolute;
   padding: 0 0.25em;
-  border-radius: 4px;
+  border-radius: var(--radius-s);
   background: color-mix(in srgb, var(--paper) 82%, transparent);
   color: var(--pencil-graphite);
   font-size: calc(var(--cell, 17px) * 0.82);
@@ -2866,7 +2876,7 @@ bdi {
   position: absolute;
   padding: 1px 7px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   background: var(--surface);
   box-shadow: var(--shadow-1);
   color: var(--ink);
@@ -2986,7 +2996,7 @@ bdi {
   width: 22px;
   height: 22px;
   border: 2px solid var(--line-control);
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   background: var(--surface);
 }
 
@@ -3040,7 +3050,7 @@ bdi {
   min-height: 40px;
   padding: 6px 16px;
   border: 1px solid var(--accent);
-  border-radius: 999px;
+  border-radius: var(--radius-s);
   background: var(--accent);
   color: var(--on-accent);
   font: inherit;
@@ -3142,7 +3152,7 @@ bdi {
   padding: 12px 16px 6px;
   border: 1px solid var(--paper-edge);
   border-top: 4px solid var(--preview-tone, var(--accent));
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--paper);
   box-shadow: var(--shadow-2);
   color: var(--ink);
@@ -3443,7 +3453,7 @@ bdi {
   min-height: 34px;
   padding: 3px 14px;
   border: 1px solid var(--accent-line);
-  border-radius: 999px;
+  border-radius: var(--radius-s);
   background: var(--accent-soft);
   color: var(--accent);
   font: inherit;
@@ -3529,7 +3539,7 @@ bdi {
   margin-inline-start: 6px;
   padding: 0 9px;
   border: 1px dashed currentColor;
-  border-radius: 999px;
+  border-radius: var(--radius-s);
   background: transparent;
   color: var(--pencil-red);
   font: inherit;
@@ -3555,7 +3565,7 @@ bdi {
   padding: 8px 12px;
   border: 1px solid color-mix(in srgb, var(--pencil-red) 30%, transparent);
   border-inline-start: 3px solid var(--pencil-red);
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   background: color-mix(in srgb, var(--pencil-red) 5%, var(--paper));
   font-size: 0.92em;
   line-height: 1.75;
@@ -3604,7 +3614,7 @@ bdi {
   padding: 8px 12px;
   border-inline-start: 3px solid var(--margin-line);
   background: var(--surface-2);
-  border-radius: 4px;
+  border-radius: var(--radius-s);
 }
 
 .qa-card p {
@@ -3634,52 +3644,18 @@ bdi {
   display: block;
   color: var(--ink);
   text-decoration: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .hub-card-link:hover {
   border-color: var(--accent-line);
-  box-shadow: var(--shadow-2);
+  background: var(--surface-2);
   color: var(--ink);
-  transform: translateY(-2px);
 }
 
 .hub-card h3 {
   margin: 0 0 4px;
   font-size: 1.1rem;
-}
-
-.tree-practice {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--gold-line);
-  border-radius: var(--radius);
-  background: var(--gold-soft);
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.tree-practice .icon {
-  flex: none;
-  color: var(--gold);
-}
-
-.tree-practice span {
-  display: grid;
-}
-
-.tree-practice small {
-  color: var(--ink-2);
-  font-size: var(--fs-xs);
-}
-
-.tree-practice:hover,
-.tree-practice[aria-current="page"] {
-  border-color: var(--gold);
-  color: var(--ink);
 }
 
 .practice {
@@ -3785,39 +3761,74 @@ bdi {
 }
 
 .hub-theorems {
-  display: grid;
-  gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+/* The theorem list reads like the table of contents: number, name, a dotted
+   leader and two plain links, one ruled line per theorem. */
 .hub-theorems li {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px 14px;
-  padding: 10px 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
+  display: flex;
+  align-items: baseline;
+  gap: 4px 12px;
+  min-height: 44px;
+  padding-block: 9px;
+  border-block-end: 1px solid var(--sheet-rule);
 }
 
 .hub-number {
-  min-width: 3.4em;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--accent-soft);
+  flex: none;
+  min-width: 3.2em;
   color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
-  text-align: center;
 }
 
 .hub-text {
   display: grid;
+  flex: 0 1 auto;
   gap: 2px;
   min-width: 0;
+}
+
+.hub-text strong {
+  font-family: var(--font-display);
+  font-size: 1.12rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.hub-leader {
+  flex: 1 1 16px;
+  min-width: 16px;
+  border-block-end: 2px dotted color-mix(in srgb, var(--ink-3) 45%, transparent);
+}
+
+.hub-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding-inline: 4px;
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--accent-line);
+  text-underline-offset: 0.22em;
+  white-space: nowrap;
+}
+
+.hub-link.is-quiet {
+  color: var(--ink-2);
+  text-decoration-color: var(--line-2);
+}
+
+.hub-link:hover {
+  color: var(--accent-hover);
+  text-decoration-color: currentColor;
 }
 
 .hub-statement {
@@ -3828,16 +3839,116 @@ bdi {
 
 .hub-actions {
   display: flex;
+  flex: none;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 2px 10px;
 }
 
 .hub-done {
   color: var(--pencil-green);
   font-size: var(--fs-xs);
   font-weight: 700;
+}
+
+/* The practice hub is one notebook sheet, like the table of contents on the
+   course home: the tools are ruled index lines of the same height, each with
+   its own rectangular button, then the theorem list. */
+.practice-hub {
+  max-width: 54rem;
+  margin-block-start: 8px;
+  padding: clamp(20px, 4vw, 40px) clamp(16px, 5vw, 48px) clamp(24px, 4vw, 44px);
+  border: 1px solid var(--paper-edge);
+  border-radius: 0;
+  background: var(--paper);
+}
+
+.practice-hub .practice-head {
+  margin: 0 0 20px;
+}
+
+.hub-tools {
+  margin: 0 0 36px;
+  padding: 0;
+  border-block-start: 2px solid var(--ink);
+  list-style: none;
+}
+
+.hub-tool {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(7rem, auto) 11.5rem;
+  align-items: center;
+  gap: 8px 20px;
+  padding-block: 16px;
+  border-block-end: 1px solid var(--sheet-rule);
+}
+
+.hub-tool h2 {
+  margin: 0 0 2px;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  line-height: 1.35;
+}
+
+.hub-tool p {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  line-height: 1.6;
+}
+
+.hub-tool .hub-big {
+  color: var(--ink-2) !important;
+  white-space: nowrap;
+}
+
+.hub-tool .hub-big strong {
+  margin-inline-end: 4px;
+  color: var(--ink);
+  font-size: 2rem;
+}
+
+.hub-tool .button {
+  grid-column: 3;
+  width: 100%;
+}
+
+.hub-tool-guide h2 {
+  font-size: 1.12rem;
+}
+
+.practice-hub .hub-list-title {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+}
+
+.practice-hub .hub-unit h3 {
+  margin: 26px 0 2px;
+  color: var(--ink-3);
+  font-size: var(--fs-s);
+  font-weight: 600;
+}
+
+@media (max-width: 760px) {
+  .practice-hub {
+    margin-inline: calc(-1 * clamp(0px, 2vw, 8px));
+    padding-inline: 16px;
+  }
+
+  .hub-tool {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .hub-tool-text {
+    grid-column: 1 / -1;
+  }
+
+  .hub-tool .button {
+    grid-column: 2;
+    width: auto;
+  }
 }
 
 /* the puzzle: strips of paper to put in order */
@@ -3865,7 +3976,7 @@ bdi {
   position: relative;
   padding: 8px 12px;
   padding-inline-start: 40px;
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   background: color-mix(in srgb, var(--pencil-green) 8%, var(--surface));
   box-shadow: inset 3px 0 0 var(--pencil-green);
   counter-increment: strip;
@@ -3971,7 +4082,7 @@ bdi {
   min-height: 240px;
   padding: 14px 22px 18px;
   border: 1px solid var(--paper-edge);
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   background-color: var(--paper);
   background-image: linear-gradient(to bottom, transparent calc(var(--rule) - 1px), var(--grid-line) calc(var(--rule) - 1px));
   background-size: 100% var(--rule);
@@ -4082,12 +4193,25 @@ bdi {
   }
 
   .hub-theorems li {
-    grid-template-columns: auto minmax(0, 1fr);
+    flex-wrap: wrap;
+  }
+
+  .hub-text {
+    flex: 1 1 0;
+  }
+
+  .hub-leader {
+    display: none;
   }
 
   .hub-actions {
-    grid-column: 1 / -1;
+    flex-basis: 100%;
     justify-content: flex-start;
+    padding-inline-start: calc(3.2em + 12px);
+  }
+
+  .hub-link {
+    min-height: 44px;
   }
 
   .review-grades {
@@ -4213,10 +4337,6 @@ bdi {
     z-index: 85;
     display: block;
     background: var(--scrim);
-  }
-
-  .primary-nav a[data-nav="graph"] {
-    display: none;
   }
 
   .graph-layout {
@@ -4346,7 +4466,7 @@ bdi {
 
   .sheet {
     --sheet-pad-end: var(--cell);
-    border-radius: 4px;
+    border-radius: var(--radius-s);
   }
 
   .sheet::after {
@@ -4596,7 +4716,7 @@ bdi {
 
 .freq-bar {
   height: 10px;
-  border-radius: 5px;
+  border-radius: 1px;
   background: linear-gradient(to left, var(--gold) var(--w), var(--surface-3) var(--w));
 }
 
@@ -4733,7 +4853,7 @@ bdi {
   align-items: center;
   padding: 1px 8px;
   border: 1px solid color-mix(in srgb, var(--c, var(--line-2)) 45%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-s);
   color: var(--c, var(--ink-2));
   font-size: var(--fs-xs);
   text-decoration: none;
@@ -5050,17 +5170,8 @@ details.callout > summary.callout-title { min-height: 32px; }
   stroke: none;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .home-sketch-trace {
-    stroke-dasharray: 1;
-    animation: home-sketch-draw 700ms ease-out both;
-  }
-}
-
-@keyframes home-sketch-draw {
-  from { stroke-dashoffset: 1; }
-  to { stroke-dashoffset: 0; }
-}
+/* The sketch beside the course code stays still: the course home has no
+   entrance motion (DESIGN.md). */
 
 .home-intro h1 {
   max-width: 17ch;
@@ -5222,11 +5333,12 @@ details.callout > summary.callout-title { min-height: 32px; }
   font-size: clamp(1.0625rem, 1rem + 0.25vw, 1.2rem);
   line-height: 1.65;
 }
+/* "מה יש באתר" carries the same weight as the course picker: the same width,
+   a centred heading of the same size, and its four points written on one
+   ruled notebook page with the red margin line. */
 .landing-overview {
-  max-width: 56rem;
-  margin: clamp(28px, 4vw, 40px) auto 0;
-  padding-inline-start: 22px;
-  border-inline-start: 2px solid var(--margin-line);
+  max-width: 62rem;
+  margin: clamp(36px, 5vw, 56px) auto 0;
 }
 .landing-overview h2,
 .landing-courses > h2 {
@@ -5236,9 +5348,17 @@ details.callout > summary.callout-title { min-height: 32px; }
   font-weight: 700;
   line-height: 1.2;
 }
+.landing-overview h2 {
+  text-align: center;
+}
 .landing-overview ol {
-  margin: 14px 0 0;
-  padding: 0;
+  margin: 16px 0 0;
+  padding: clamp(10px, 2vw, 18px) clamp(16px, 3vw, 32px);
+  border: 1px solid var(--paper-edge);
+  border-inline-start: 2px solid var(--margin-line);
+  background-color: var(--paper);
+  background-image: var(--paper-rules);
+  background-size: var(--cell) var(--cell);
   list-style: none;
   counter-reset: overview;
 }
@@ -5247,8 +5367,8 @@ details.callout > summary.callout-title { min-height: 32px; }
   grid-template-columns: 1.6rem minmax(0, 1fr);
   column-gap: 12px;
   align-items: start;
-  padding-block: 14px;
-  border-block-end: 1px solid var(--line);
+  padding-block: 16px;
+  border-block-end: 1px solid var(--sheet-rule);
   counter-increment: overview;
 }
 .landing-overview li:last-of-type {
@@ -5258,19 +5378,19 @@ details.callout > summary.callout-title { min-height: 32px; }
   .landing-overview ol {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    column-gap: 32px;
-    margin-top: 8px;
+    column-gap: 40px;
   }
-  .landing-overview li,
-  .landing-overview li:last-of-type {
+  .landing-overview li {
+    padding-block: 18px;
+  }
+  .landing-overview li:nth-last-of-type(-n + 2) {
     border-block-end: 0;
-    padding-block: 12px 2px;
   }
 }
 .landing-overview li::before {
   content: counter(overview);
   padding-top: 1px;
-  color: var(--ink-3);
+  color: var(--accent);
   font-family: var(--font-display);
   font-size: 1.45rem;
   line-height: 1.15;
@@ -5283,15 +5403,17 @@ details.callout > summary.callout-title { min-height: 32px; }
   line-height: 1.25;
 }
 .landing-overview li p {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   color: var(--ink-2);
-  line-height: 1.65;
+  font-size: 1.0625rem;
+  line-height: 1.7;
 }
 .landing-note {
-  margin: 6px 0 0;
-  color: var(--ink-3);
+  margin: 12px 0 0;
+  color: var(--ink-2);
   font-size: var(--fs-sm);
   line-height: 1.6;
+  text-align: center;
 }
 .landing-courses {
   margin-top: clamp(32px, 4vw, 48px);
@@ -5423,7 +5545,7 @@ details.callout > summary.callout-title { min-height: 32px; }
   min-height: 44px;
   margin-top: 6px;
   padding: 0 18px;
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   background: var(--cover);
   color: #fff;
   font-weight: 700;
@@ -5471,28 +5593,8 @@ details.callout > summary.callout-title { min-height: 32px; }
     font-size: 2.1rem;
   }
 }
-/* Only a slide: the text stays visible if the animation never runs. */
-@keyframes notebook-in {
-  from {
-    transform: translateY(24px);
-  }
-}
-@media (prefers-reduced-motion: no-preference) {
-  .landing-intro h1,
-  .landing-lead,
-  .landing-overview,
-  .landing-courses > h2,
-  .course-grid > li {
-    animation: notebook-in .5s ease both;
-  }
-  .landing-intro h1 { animation-delay: 60ms; }
-  .landing-lead { animation-delay: 120ms; }
-  .landing-overview { animation-delay: 180ms; }
-  .landing-courses > h2 { animation-delay: 240ms; }
-  .course-grid > li { animation-delay: 300ms; }
-  .course-grid > li:nth-child(2) { animation-delay: 380ms; }
-  .course-grid > li:nth-child(n + 3) { animation-delay: 460ms; }
-}
+/* The landing text and cards do not slide in: motion is kept for things a
+   reader works with (DESIGN.md). The curves above still draw themselves. */
 @media (prefers-reduced-motion: reduce) {
   .course-card,
   .course-card::after,
@@ -5519,7 +5621,7 @@ details.callout > summary.callout-title { min-height: 32px; }
   grid-auto-rows: calc(var(--cell) * 2);
   padding-inline: 4px;
   border-inline: 2px solid var(--ink);
-  border-radius: 6px;
+  border-radius: var(--radius-s);
   font-variant-numeric: tabular-nums;
 }
 .demo-matrix span {
@@ -5576,7 +5678,7 @@ details.callout > summary.callout-title { min-height: 32px; }
   font-weight: 700;
   outline: 1.5px solid currentColor;
   outline-offset: -3px;
-  border-radius: 4px;
+  border-radius: var(--radius-s);
 }
 
 /* The link to the other course: set apart from this course's own views. */
@@ -5681,10 +5783,38 @@ details.callout > summary.callout-title { min-height: 32px; }
   display: none;
 }
 
+/* All pages and the link graph: one quiet line above the course tree. */
+.tree-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 6px;
+  margin: 0 0 8px;
+  padding: 0 8px 8px;
+  border-block-end: 1px solid var(--line);
+  color: var(--line-2);
+  font-size: var(--fs-s);
+}
+
+.tree-more a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.tree-more a:hover,
+.tree-more a[aria-current="page"] {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.22em;
+}
+
 @media (max-width: 760px) {
   .tree-primary {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
     margin: 0 0 10px;
   }
@@ -5752,7 +5882,7 @@ details.callout > summary.callout-title { min-height: 32px; }
 }
 
 /* Key guides: the book-question conclusions and the lecturer's methods are
-   pinned on the home page, in the drawer and on the practice page. */
+   pinned on the home page and on the practice page. */
 .guide-band {
   margin-block: 36px 8px;
 }
@@ -5775,13 +5905,11 @@ details.callout > summary.callout-title { min-height: 32px; }
   background: var(--calm-soft);
   color: var(--ink);
   text-decoration: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .guide-card:hover {
-  box-shadow: var(--shadow-2);
   color: var(--ink);
-  transform: translateY(-2px);
 }
 
 .guide-card > span:nth-child(2) {
@@ -5804,7 +5932,7 @@ details.callout > summary.callout-title { min-height: 32px; }
   place-items: center;
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: var(--radius-s);
   background: var(--surface);
   color: var(--calm);
 }
@@ -5819,46 +5947,6 @@ details.callout > summary.callout-title { min-height: 32px; }
   color: var(--calm);
   font-size: 1.3rem;
   font-weight: 700;
-}
-
-.tree-guides {
-  display: grid;
-  gap: 6px;
-  margin: 0 0 10px;
-}
-
-.tree-guide {
-  display: grid;
-  gap: 2px;
-  min-height: 44px;
-  padding: 8px 12px;
-  border: 1px solid var(--calm-line);
-  border-inline-start: 4px solid var(--calm);
-  border-radius: var(--radius);
-  background: var(--calm-soft);
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.tree-guide strong {
-  font-size: var(--fs-sm);
-}
-
-.tree-guide small {
-  color: var(--ink-2);
-  font-size: var(--fs-xs);
-}
-
-.tree-guide[aria-current="page"],
-.tree-guide:hover {
-  border-color: var(--calm);
-  color: var(--ink);
-}
-
-.hub-card-guide {
-  border-color: var(--calm-line);
-  border-inline-start: 5px solid var(--calm);
-  background: var(--calm-soft);
 }
 
 /* ---------- A calmer page ---------------------------------------------------
@@ -5899,32 +5987,6 @@ details.callout > summary.callout-title { min-height: 32px; }
   color: var(--ink-3);
 }
 
-.tree-practice,
-.tree-guide {
-  border: 0;
-  border-radius: var(--radius-s);
-  background: transparent;
-  padding: 7px 8px;
-  min-height: 0;
-}
-
-.tree-guides {
-  gap: 0;
-}
-
-.tree-practice {
-  margin-bottom: 2px;
-}
-
-.tree-practice:hover,
-.tree-practice[aria-current="page"],
-.tree-guide:hover,
-.tree-guide[aria-current="page"] {
-  border-color: transparent;
-  background: var(--surface-2);
-  color: var(--ink);
-}
-
 .tree-num {
   width: auto;
   min-width: 1.5em;
@@ -5939,12 +6001,6 @@ details.callout > summary.callout-title { min-height: 32px; }
   box-shadow: none;
 }
 
-.hub-card-guide {
-  border: 1px solid var(--line);
-  border-inline-start-width: 1px;
-  background: var(--surface);
-}
-
 .note-meta {
   gap: 4px 12px;
 }
@@ -5957,17 +6013,123 @@ details.callout > summary.callout-title { min-height: 32px; }
   background: transparent;
 }
 
-.note-meta .chip + .chip::before {
+/* Dots only between the plain facts (unit, volume, reading time). The exam
+   mark and the read-aloud button carry their own edge, so a wrapped line never
+   starts with a stray dot. */
+.note-meta .chip:not(.chip-exam, .chip-button) + .chip:not(.chip-exam, .chip-button)::before {
   content: "·";
   margin-inline-end: 12px;
   color: var(--line-2);
   font-weight: 400;
 }
 
+.note-meta .chip-button {
+  min-height: 32px;
+  padding-inline: 2px;
+  color: var(--ink-2);
+  font-size: var(--fs-s);
+}
+
+.note-meta .chip-button:hover {
+  color: var(--accent);
+}
+
+/* The row of links under the title on narrow screens: "בדף הזה" and, when the
+   page has them, the symbols. Each opens its box in place; closed, the boxes
+   take no room, so the first theorem starts on the first screen. */
+.note-quick {
+  display: none;
+}
+
+.note-quick-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--accent-line);
+  text-underline-offset: 0.22em;
+  cursor: pointer;
+}
+
+.note-quick-link:hover {
+  color: var(--accent-hover);
+  text-decoration-color: currentColor;
+}
+
+.note-quick-link .icon {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.18s ease;
+}
+
+.note-quick-link[aria-expanded="true"] .icon {
+  transform: rotate(-90deg);
+}
+
+@media (max-width: 1240px) {
+  .note-quick:not([hidden]) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 18px;
+    margin-block-start: calc(var(--cell) * 0.5);
+  }
+
+  .note-quick-link + .note-quick-link {
+    position: relative;
+  }
+
+  /* Positioned, so the link's underline does not run under the dot */
+  .note-quick-link + .note-quick-link::before {
+    content: "·";
+    position: absolute;
+    inset-inline-start: -12px;
+    color: var(--line-2);
+    font-weight: 400;
+  }
+
+  .note-quick-link[hidden] + .note-quick-link::before {
+    content: none;
+  }
+
+  .sheet .toc-inline > summary {
+    display: none;
+  }
+
+  .sheet .toc-inline:not([open]),
+  .sheet .symbols-box:not([open]) {
+    display: none;
+  }
+
+  .sheet .toc-inline[open] {
+    padding-block-start: 10px;
+    border-color: var(--paper-edge);
+    background: var(--paper);
+  }
+
+  html[data-focus="on"] [data-toc-toggle] {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .note-meta .chip-volume {
+    display: none;
+  }
+}
+
 .note-meta .chip-exam {
   padding: 1px 8px;
   border: 1px solid var(--gold-line);
-  border-radius: 999px;
+  border-radius: var(--radius-s);
   background: var(--gold-soft);
 }
 
@@ -5986,6 +6148,115 @@ details.callout > summary.callout-title { min-height: 32px; }
   }
 }
 
+/* ---------- Chrome on the sheet ----------------------------------------------
+   Exams and the course home sit on the same paper as the notes: a paper edge,
+   ruled lines and a red margin, not rounded cards. (DESIGN.md) */
+
+.freq-list,
+.exam-q-list:not(:empty),
+.exam-cards {
+  gap: 0;
+  padding-inline: clamp(12px, 2.5vw, 22px) clamp(10px, 2vw, 18px);
+  border: 1px solid var(--paper-edge);
+  border-inline-start: 2px solid var(--margin-line);
+  background-color: var(--paper);
+  background-image: var(--paper-rules);
+  background-size: var(--cell) var(--cell);
+}
+
+.freq-row,
+.exam-q {
+  padding: 8px 2px;
+  border: 0;
+  border-block-end: 1px solid var(--sheet-rule);
+  border-radius: 0;
+  background: transparent;
+}
+
+.freq-row:last-child,
+.exam-q:last-child,
+.exam-cards .exam-card:last-child {
+  border-block-end: 0;
+}
+
+.freq-num a,
+.freq-num {
+  color: var(--accent);
+  font-family: var(--font-display);
+}
+
+.freq-bar {
+  height: 8px;
+}
+
+.heatmap td,
+.heatmap th {
+  border-color: var(--paper-edge);
+}
+
+/* Course home: the pieces around the table of contents are cut from the same
+   paper; a thin coloured rule says what kind of piece it is. */
+.guide-card,
+.home-practice .hub-card,
+.tool-card,
+.exam-band {
+  border: 1px solid var(--paper-edge);
+  border-radius: 0;
+  background: var(--paper);
+}
+
+.guide-card {
+  border-inline-start: 2px solid var(--calm);
+}
+
+.exam-band {
+  border-inline-start: 2px solid var(--gold);
+}
+
+.exam-band-icon {
+  background: transparent;
+}
+
+.guide-card:hover,
+.home-practice .hub-card-link:hover,
+.tool-card:hover {
+  border-color: var(--accent-line);
+  background: var(--surface);
+}
+
+.guide-card:hover {
+  border-inline-start-color: var(--calm);
+}
+
+/* ---------- Motion: only where the reader is working ------------------------
+   Flashcards, the proof puzzle, live demos and folding boxes answer a click
+   with a short fade; nothing else moves (no entrance or scroll motion on the
+   landing or the course home). Opacity only on the sheet, so the grid
+   alignment that measures box heights never sees a moving box. */
+@keyframes live-fade-in {
+  from { opacity: 0; }
+}
+
+@keyframes live-card-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sheet details[open] > :not(summary),
+  .practice details[open] > :not(summary) {
+    animation: live-fade-in 180ms ease-out;
+  }
+
+  .index-card-front,
+  .index-card-back:not([hidden]) {
+    animation: live-card-in 200ms ease-out;
+  }
+
+  .strip-placed {
+    animation: live-fade-in 160ms ease-out;
+  }
+}
+
 /* Course archive: the course's existing paper, type and navigation. */
 .archive { max-width: 960px; margin-inline: auto; padding-block: 24px; }
 .archive h1 { font-size: 28px; }
@@ -5993,7 +6264,7 @@ details.callout > summary.callout-title { min-height: 32px; }
 .archive-meta, .archive-row > p { color: var(--ink-2); }
 .archive-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-block: 24px 16px; }
 .archive-filters label { display: grid; gap: 6px; font-size: 14px; min-width: 100px; }
-.archive-filters select, .archive-filters input { min-height: 44px; max-width: 100%; width: 100%; font: inherit; color: inherit; background: var(--surface, transparent); border: 1px solid currentColor; border-radius: 4px; padding: 8px; }
+.archive-filters select, .archive-filters input { min-height: 44px; max-width: 100%; width: 100%; font: inherit; color: inherit; background: var(--surface, transparent); border: 1px solid currentColor; border-radius: var(--radius-s); padding: 8px; }
 .archive-search { flex: 1; }
 .archive-row { padding-block: 16px; border-bottom: 1px solid var(--line, #bbb); }
 .archive-row h2, .archive-row p { margin-block: 4px; }
@@ -6082,10 +6353,10 @@ html[data-cheer="off"] .home-encouragement { display: none; }
   max-height: calc(100vh - 48px);
   padding: 20px 22px 22px;
   border: 1px solid var(--line-2);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink);
-  box-shadow: 0 18px 50px rgb(0 0 0 / 0.25);
+  box-shadow: var(--shadow-float);
 }
 .reading-options::backdrop { background: rgb(0 0 0 / 0.35); }
 .ro-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -6102,7 +6373,7 @@ html[data-cheer="off"] .home-encouragement { display: none; }
   min-height: 40px;
   padding: 4px 14px;
   border: 1px solid var(--line-control);
-  border-radius: 999px;
+  border-radius: var(--radius-s);
   background: var(--bg);
 }
 .ro-choice input:checked + span { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
@@ -6155,7 +6426,7 @@ details.callout[open] > summary > .callout-teaser { display: none; }
   margin-block: 0 18px;
   padding: 16px 18px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--surface);
 }
 .note-check h2 { margin: 0; font-size: 1.1rem; }
@@ -6165,7 +6436,7 @@ details.callout[open] > summary > .callout-teaser { display: none; }
   min-height: 44px;
   padding: 6px 16px;
   border: 1px solid var(--line-control);
-  border-radius: 999px;
+  border-radius: var(--radius-s);
   background: var(--bg);
 }
 .note-check-btn[aria-pressed="true"] { font-weight: 700; }

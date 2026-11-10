@@ -60,6 +60,12 @@
     const text = (html || "")
       .replace(/<span class="badge[\s\S]*?<\/span>/g, "")
       .replace(/<[^>]+>/g, "")
+      // read entities back as characters; the caller escapes the name again
+      .replace(/&quot;/g, '"')
+      .replace(/&#0?39;|&apos;/g, "'")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&")
       .replace(new RegExp(`\\((?:[^()]*?(?:${KINDS})[^()]*?|\\s*\\d+(?:\\.\\d+){1,2}[^()]*)\\)`, "g"), "")
       .replace(new RegExp(`^(?:${KINDS})\\s+\\d+(?:\\.\\d+){1,2}\\s*[—–:-]?\\s*`), "")
       .replace(/^דוגמה(?:\s+מלאה)?\s+\d+\s*[—–:-]\s*/, "")
@@ -78,10 +84,16 @@
     return !name || GENERIC_NAME.test(name) || name.length < 3 ? pages.get(st.pageId)?.navTitle || "" : name;
   }
 
+  // A statement's text without its tags, with entities such as &quot; read
+  // back as characters (the caller escapes it again for the page).
+  function statementText(html) {
+    return new DOMParser().parseFromString(html, "text/html").body.textContent || "";
+  }
+
   function theoremName(t) {
     const fromIndex = statementName(t.number);
     if (fromIndex) return fromIndex;
-    const short = t.statementHtml.replace(/<[^>]+>/g, "");
+    const short = statementText(t.statementHtml);
     return short.length <= 48 ? short : app().pages.get(t.noteId)?.navTitle || "";
   }
 
@@ -869,11 +881,14 @@
               const entry = progress[t.number];
               const badge = entry?.done ? `<span class="hub-done">✓ שיא: ${mistakesText(entry.best)}</span>` : "";
               const name = theoremName(t);
-              const plain = t.statementHtml.replace(/<[^>]+>/g, "").trim();
+              const plain = statementText(t.statementHtml).trim();
+              // One index line per theorem, like the course's table of contents:
+              // number, name, a dotted leader, and two plain links at the end.
               return `<li>
                 <span class="hub-number">${esc(t.number)}${t.part ? ` ${esc(t.part)}` : ""}</span>
                 <span class="hub-text"><strong>${esc(name)}</strong>${plain && plain !== name ? `<span class="hub-statement">${t.statementHtml}</span>` : ""}</span>
-                <span class="hub-actions">${badge}<a class="proof-btn" href="#/practice/proof/${encodeURIComponent(t.number)}">פאזל</a><a class="proof-btn is-quiet" href="${proofHref(t)}">להוכחה</a></span>
+                <span class="hub-leader" aria-hidden="true"></span>
+                <span class="hub-actions">${badge}<a class="hub-link" href="#/practice/proof/${encodeURIComponent(t.number)}">פאזל</a><a class="hub-link is-quiet" href="${proofHref(t)}">להוכחה</a></span>
               </li>`;
             })
             .join("")}</ul>
@@ -882,29 +897,39 @@
       .join("");
     const randomTheorem = list[Math.floor(Math.random() * list.length)];
     root.innerHTML = `
-      <div class="practice">
+      <div class="practice practice-hub">
         <header class="practice-head">
           <p class="practice-kicker">לפני הבחינה</p>
           <h1 id="pageTitle" tabindex="-1">תרגול</h1>
           <p class="practice-lead">כרטיסי חזרה עם חזרה מרווחת${list.length ? `, ופאזל הוכחה לכל אחד מ־${list.length} המשפטים ${esc(course.theoremListLabel)}. בכל הוכחה בדפים יש גם כפתור "שלב אחר שלב"` : ""}. ההתקדמות נשמרת בדפדפן הזה.</p>
         </header>
-        <div class="hub-cards">
-          ${(app().keyGuides?.() || [])
-            .map((g) => `<a class="hub-card hub-card-link hub-card-guide" href="${app().pageHref(g.page)}"><h2>${esc(g.title)}</h2><p>${esc(g.text)}</p></a>`)
-            .join("")}
-          <article class="hub-card">
-            <h2>כרטיסי חזרה</h2>
+        <ul class="hub-tools" aria-label="כלי התרגול">
+          <li class="hub-tool">
+            <div class="hub-tool-text">
+              <h2>כרטיסי חזרה</h2>
+              <p>${summary.due} לחזרה · ${summary.fresh} חדשים · ${summary.learned} מתוך ${summary.total} כבר נלמדו</p>
+            </div>
             <p class="hub-big"><strong>${summary.due + summary.fresh}</strong> להיום</p>
-            <p>${summary.due} לחזרה · ${summary.fresh} חדשים · ${summary.learned} מתוך ${summary.total} כבר נלמדו</p>
-            <a class="demo-btn" href="#/practice/cards">להתחיל חזרה</a>
-          </article>
-          ${list.length ? `<article class="hub-card">
-            <h2>פאזלי הוכחה</h2>
+            <a class="button button-primary" href="#/practice/cards">להתחיל חזרה <span aria-hidden="true">←</span></a>
+          </li>
+          ${list.length ? `<li class="hub-tool">
+            <div class="hub-tool-text">
+              <h2>פאזלי הוכחה</h2>
+              <p>מסדרים את שלבי ההוכחה לפי הסדר. כל טעות נספרת, ויש רמז כשנתקעים.</p>
+            </div>
             <p class="hub-big"><strong>${solved}</strong> מתוך ${list.length}</p>
-            <p>מסדרים את שלבי ההוכחה לפי הסדר. כל טעות נספרת, ויש רמז כשנתקעים.</p>
-            ${randomTheorem ? `<a class="demo-btn" href="#/practice/proof/${encodeURIComponent(randomTheorem.number)}">פאזל אקראי</a>` : ""}
-          </article>` : ""}
-        </div>
+            ${randomTheorem ? `<a class="button" href="#/practice/proof/${encodeURIComponent(randomTheorem.number)}">פאזל אקראי <span aria-hidden="true">←</span></a>` : ""}
+          </li>` : ""}
+          ${(app().keyGuides?.() || [])
+            .map((g) => `<li class="hub-tool hub-tool-guide">
+            <div class="hub-tool-text">
+              <h2>${esc(g.title)}</h2>
+              <p>${esc(g.text)}</p>
+            </div>
+            <a class="button" href="${app().pageHref(g.page)}">לקריאה <span aria-hidden="true">←</span></a>
+          </li>`)
+            .join("")}
+        </ul>
         ${list.length ? `<section aria-labelledby="hubListTitle">
           <h2 id="hubListTitle" class="hub-list-title">${list.length} ${esc(words.theTheorems)}</h2>
           ${rows}

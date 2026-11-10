@@ -275,6 +275,30 @@
     [/\\ldots|\\cdots|\\dots/, "\\ldots", "וכן הלאה, באותה דרך"]
   ];
 
+  // On narrow screens the closed symbols box is not drawn; a link in the row
+  // under the title opens it in place (see .note-quick in site.css).
+  function mountSymbolsToggle(scope, box) {
+    const row = scope.querySelector("[data-note-quick]");
+    if (!row) return;
+    box.id = "noteSymbols";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "note-quick-link";
+    button.setAttribute("aria-expanded", "false");
+    button.setAttribute("aria-controls", box.id);
+    button.innerHTML = `איך קוראים את הסימנים <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 6l-6 6 6 6" /></svg>`;
+    button.addEventListener("click", () => {
+      box.open = !box.open;
+      if (box.open) {
+        box.scrollIntoView({ block: "nearest" });
+        box.querySelector("summary")?.focus({ preventScroll: true });
+      }
+    });
+    box.addEventListener("toggle", () => button.setAttribute("aria-expanded", String(box.open)));
+    row.append(button);
+    row.hidden = false;
+  }
+
   function symbolsBox(prose) {
     const tex = Array.from(prose.querySelectorAll(".math"))
       .map((m) => m.textContent)
@@ -446,6 +470,7 @@
       const lead = Array.from(prose.children).find((el) => el.tagName === "P" && /^מה חשוב כאן/.test(el.textContent.trim()));
       if (lead) lead.after(symbols);
       else prose.prepend(symbols);
+      mountSymbolsToggle(scope, symbols);
     }
     applyExplain(prose);
     mountReadAloud(scope, prose);

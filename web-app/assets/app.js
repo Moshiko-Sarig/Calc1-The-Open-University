@@ -244,13 +244,21 @@ function saveExpanded() {
   }
 }
 
-// On narrow screens the header links are hidden, so the drawer repeats them.
+// The header carries search and the destinations a reader looks for before an
+// exam (practice, exams, the other course). On phones the header hides them,
+// so the drawer repeats them, together with the home link the name gives.
 const DRAWER_LINKS = [
   ["home", "#/", "בית"],
-  ["index", "#/index", "כל הדפים"],
-  ["exams", "#/exams", course.features.questionArchive ? "מבחנים ומטלות" : "מבחנים"],
-  ["graph", "#/graph", "גרף קשרים"]
+  ["practice", "#/practice", "תרגול"],
+  ["exams", "#/exams", course.features.questionArchive ? "מבחנים ומטלות" : "מבחנים"]
 ].filter(([view]) => view !== "exams" || course.features.exams);
+
+// Ways through the whole course that are not in the header: one quiet line at
+// the top of the course tree, on every screen size.
+const TREE_MORE_LINKS = [
+  ["index", "#/index", "כל הדפים"],
+  ["graph", "#/graph", "גרף קשרים"]
+];
 
 // The template's header lists every view; a course without exams drops that link.
 if (!course.features.exams) document.querySelectorAll('[data-nav="exams"]').forEach((link) => link.remove());
@@ -258,8 +266,8 @@ if (course.features.questionArchive) document.querySelectorAll('[data-nav="exams
 document.querySelector(".primary-nav")?.insertAdjacentHTML("beforeend", courseSwitchLink("course-switch"));
 
 // Two guides the course leans on in every exam: what may be cited from the
-// book, and how the lecturer chooses a method. They are pinned in the drawer,
-// on the home page and on the practice page.
+// book, and how the lecturer chooses a method. They are pinned on the home page
+// and on the practice page; in the drawer they stay in their own group.
 const KEY_GUIDES = [
   {
     match: "מסקנות משאלות הספר",
@@ -288,8 +296,7 @@ function renderTree() {
   }
   tree.innerHTML =
     `<nav class="tree-primary" aria-label="ניווט ראשי">${DRAWER_LINKS.map(([view, href, label]) => `<a href="${href}" data-nav="${view}">${label}</a>`).join("")}${courseSwitchLink("tree-course-switch")}</nav>` +
-    `<a class="tree-practice" href="#/practice" data-nav="practice">${icon("star")}<span><strong>תרגול</strong><small>כרטיסי חזרה${data.examTheorems?.length ? " ופאזלי הוכחה" : ""}</small></span></a>` +
-    `<div class="tree-guides">${keyGuides().map((g) => `<a class="tree-guide" href="${pageHref(g.page)}" data-id="${g.page.id}"><strong>${escapeHtml(g.match)}</strong><small>${escapeHtml(g.short)}</small></a>`).join("")}</div>` +
+    `<nav class="tree-more" aria-label="עוד בקורס">${TREE_MORE_LINKS.map(([view, href, label]) => `<a href="${href}" data-nav="${view}">${label}</a>`).join('<span aria-hidden="true">·</span>')}</nav>` +
     groups
       .map((group) => {
         const listId = `tree-${group.id}`;
@@ -1216,7 +1223,7 @@ function renderPage(page, section) {
 
   const meta = [
     group ? `<span class="chip" style="--c:${groupColor(group.id)}"><span class="chip-dot" aria-hidden="true"></span>${escapeHtml(group.number ? `${words.unit} ${group.number}` : group.title)}</span>` : "",
-    page.unitVolume ? `<span class="chip">${icon("book")} ${escapeHtml(page.unitVolume)}</span>` : "",
+    page.unitVolume ? `<span class="chip chip-volume">${icon("book")} ${escapeHtml(page.unitVolume)}</span>` : "",
     `<span class="chip">${icon("clock")} כ־${page.readMinutes} דקות לימוד</span>`,
     page.hasExamTheorem && data.examListPageId ? `<a class="chip chip-exam" href="${pageHref(pages.get(data.examListPageId))}">${icon("star")} כולל ${escapeHtml(words.theoremFromList)}</a>` : ""
   ].join("");
@@ -1236,10 +1243,13 @@ function renderPage(page, section) {
           <header class="note-head">
             <h1 id="pageTitle" class="note-title">${page.titleHtml || escapeHtml(page.title)}</h1>
             <div class="note-meta">${meta}</div>
+            <div class="note-quick" data-note-quick hidden>
+              <button type="button" class="note-quick-link" data-toc-toggle aria-expanded="false" aria-controls="noteTocInline" hidden>בדף הזה ${icon("chevron")}</button>
+            </div>
             ${page.id === gateway?.id && next?.groupId === group.id ? `<a class="button button-primary note-start" href="${pageHref(next)}">לדף הראשון <span aria-hidden="true">←</span></a>` : ""}
             <div class="grid-probe" aria-hidden="true"><div class="note-title"><span class="bl"></span>א</div></div>
           </header>
-          <details class="toc-inline" data-toc-inline hidden>
+          <details class="toc-inline" id="noteTocInline" data-toc-inline hidden>
             <summary>בדף הזה ${icon("chevron")}</summary>
             <nav aria-label="תוכן הדף"><ol data-toc-list></ol></nav>
           </details>
@@ -1317,6 +1327,25 @@ function revealMatch(query) {
 
 // Links only to material that actually exists on this page; the full note
 // remains available and the learner can choose how much to reveal.
+// Where the side contents list folds into the page (narrow screens), the note
+// opens with one short row of links ("בדף הזה", and the symbols when the page
+// has them) instead of two closed boxes, so the text starts on the first screen.
+const narrowTocQuery = window.matchMedia("(max-width: 1240px)");
+
+function mountTocToggle() {
+  const toc = app.querySelector("[data-toc-inline]");
+  const toggle = app.querySelector("[data-toc-toggle]");
+  const row = app.querySelector("[data-note-quick]");
+  if (!toc || !toggle || !row) return;
+  toggle.hidden = false;
+  row.hidden = false;
+  toggle.addEventListener("click", () => {
+    toc.open = !toc.open;
+    if (toc.open) toc.querySelector("a, button")?.focus({ preventScroll: true });
+  });
+  toc.addEventListener("toggle", () => toggle.setAttribute("aria-expanded", String(toc.open)));
+}
+
 function mountLearningPath(page, group, gateway) {
   if (!group?.number) return;
   const prose = app.querySelector(".prose");
@@ -1362,7 +1391,7 @@ function mountLearningPath(page, group, gateway) {
   // Where the contents list is folded into the page (narrow screens), the
   // learning path goes inside it, so the text starts on the first screen.
   const inlineToc = app.querySelector("[data-toc-inline]");
-  if (inlineToc && !inlineToc.hidden && getComputedStyle(inlineToc).display !== "none") {
+  if (inlineToc && !inlineToc.hidden && narrowTocQuery.matches && document.documentElement.dataset.focus !== "on") {
     nav.classList.add("learning-path-inline");
     inlineToc.querySelector("nav")?.before(nav);
   } else {
@@ -1598,6 +1627,7 @@ function buildToc(page) {
   app.querySelectorAll("[data-toc-list]").forEach((list) => (list.innerHTML = items));
   app.querySelector("[data-toc]").hidden = false;
   app.querySelector("[data-toc-inline]").hidden = false;
+  mountTocToggle();
 
   app.querySelectorAll("[data-toc-target]").forEach((link) => {
     link.addEventListener("click", (event) => {
