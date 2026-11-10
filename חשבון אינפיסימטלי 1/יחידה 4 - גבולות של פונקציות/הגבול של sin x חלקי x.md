@@ -68,6 +68,8 @@ $$\cos x \le \frac{\sin x}{x} \le 1$$
 | $\lim_{x\to0}\dfrac{1-\cos x}{x^2} = \dfrac12$ | כפל בצמוד: $\frac{1-\cos^2x}{x^2(1+\cos x)}=\left(\frac{\sin x}{x}\right)^2\frac{1}{1+\cos x}\to\frac12$ |
 | $\lim_{x\to0}\dfrac{1-\cos x}{x} = 0$ | מהקודם: $x\cdot\frac{1-\cos x}{x^2}\to0\cdot\frac12$ |
 | $\lim_{x\to\infty}x\sin\dfrac1x = 1$ | החלפת משתנה $u=\frac1x\to0^+$: $\frac{\sin u}{u}$ |
+| $\lim_{x\to0}\dfrac{\sin(x^2)}{x} = 0$ | $x\cdot\frac{\sin(x^2)}{x^2}\to0\cdot1$; הזווית היא $x^2$, ולכן מנרמלים ב-$x^2$ |
+| $\lim_{x\to0}\dfrac{\sin(\sin x)}{x} = 1$ | $\frac{\sin(\sin x)}{\sin x}\cdot\frac{\sin x}{x}$; בגורם הראשון $u=\sin x\to0$, ו-$\sin x\ne0$ כאשר $0<\|x\|<\pi$ |
 
 **דפוס הזיהוי במבחן**: זווית קטנה בתוך sin/tan/1−cos, חלקי חזקה מתאימה של אותה זווית — מנרמלים כך שהזווית תופיע גם במכנה, ומפעילים את הטבלה. ולעומת זאת: $\lim_{x\to\infty}\frac{\sin x}{x}=0$ הוא **לא** הגבול הזה — שם sin חסום והמכנה בורח ([[סדרות חסומות וסדרות אפסות|חסומה×אפסה]]). לבדוק תמיד לאן $x$ שואף!
 
