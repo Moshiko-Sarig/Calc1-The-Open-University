@@ -1327,7 +1327,7 @@ function mountLearningPath(page, group, gateway) {
   const example = findHeading(/דוגמ[הת]|עם מספרים/) || Array.from(prose.querySelectorAll(".callout-simple")).find((box) => /עם מספרים/.test(box.textContent));
   const demo = prose.querySelector("[data-demo]");
   const formal = findHeading(/הגדר|המשפט|ניסוח/) || headings[0];
-  const practice = findHeading(/תרגול קצר|תרגול מודרך|בדיקת שליטה|בדיקה עצמית|כרטיס דיוק/);
+  const practice = findHeading(/תרגול קצר|תרגול מודרך|בדיקת שליטה|בדיקה עצמית|כרטיס דיוק|סיכום מהיר/);
   const exam = prose.querySelector(".callout-exam") || findHeading(/סוגי שאלות במבחן|במבחן/);
   const items = [["אינטואיציה", intuition], ["דוגמה במספרים", example], ["המחשה", demo], ["הגדרה ומשפטים", formal], ["תרגול", practice], ["במבחן", exam]].filter(([, target]) => target);
   if (course.features.exams && !exam && gateway && gateway.id !== page.id) items.push([`שאלות מבחן ${words.inUnit}`, null]);

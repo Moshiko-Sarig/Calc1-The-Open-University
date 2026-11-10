@@ -654,11 +654,16 @@ function sectionize(html) {
       if (!body.replaceAll(PLUGIN_MARKER, "").trim()) return "";
       const title = (heading ? heading[1] : "").replace(/<[^>]+>/g, "");
       let kind = "note-section";
-      if (/כרטיס דיוק/.test(title)) kind += " section-card";
+      let shown = part;
+      if (/כרטיס דיוק/.test(title)) {
+        kind += " section-card";
+        // The notes keep their own name for this section; readers see a plain one.
+        shown = part.replace(/^(<h2[^>]*>)\s*כרטיס דיוק/, "$1סיכום מהיר");
+      }
       else if (/^\s*קשרים\s*$/.test(title)) kind += " section-related";
       else if (/בדיקת שליטה|חזרה|שלוש נקודות/.test(title)) kind += " section-review";
       const labelled = id ? ` aria-labelledby="${id}"` : "";
-      return `<section class="${kind}"${labelled}>${part.replaceAll(PLUGIN_MARKER, "")}</section>`;
+      return `<section class="${kind}"${labelled}>${shown.replaceAll(PLUGIN_MARKER, "")}</section>`;
     })
     .filter(Boolean)
     .join("\n");
