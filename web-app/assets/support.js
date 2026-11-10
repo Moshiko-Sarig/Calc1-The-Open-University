@@ -144,7 +144,7 @@
     "נתקעתם בשורה מסוימת? כתבו אותה לעצמכם. שאלה מדויקת היא חצי תשובה.",
     "אין צורך להבין הכול בקריאה הראשונה. גם קריאה שנייה ושלישית הן חלק רגיל מהלמידה."
   ];
-  const GOT_WORDS = ["יפה מאוד. שווה לחזור לזה בעוד כמה ימים, כדי שזה יישאר.", "כל הכבוד. אפשר להמשיך לפתק הבא."];
+  const GOT_WORDS = ["יפה מאוד. שווה לחזור לזה בעוד כמה ימים, כדי שזה יישאר.", "כל הכבוד. אפשר להמשיך לדף הבא."];
 
   const statusKey = () => `${app().data.course?.storagePrefix || "infi"}-note-status`;
 
@@ -181,9 +181,9 @@
     const current = statuses()[page.id] || "";
     return `
       <section class="note-check" aria-labelledby="noteCheckTitle" data-note-check>
-        <h2 id="noteCheckTitle">איך הלך הפתק?</h2>
-        <p class="note-check-hint">סימון פרטי שנשמר רק בדפדפן הזה. הוא מופיע בתפריט הפתקים ובדף הבית.</p>
-        <div class="note-check-buttons" role="group" aria-label="מצב הפתק">
+        <h2 id="noteCheckTitle">איך הלך הדף?</h2>
+        <p class="note-check-hint">סימון פרטי שנשמר רק בדפדפן הזה. הוא מופיע בתפריט הדפים ובדף הבית.</p>
+        <div class="note-check-buttons" role="group" aria-label="מצב הדף">
           ${Object.entries(STATUS)
             .map(([value, s]) => `<button type="button" class="note-check-btn note-check-${value}" data-status="${value}" aria-pressed="${current === value}">${esc(s.label)}</button>`)
             .join("")}
@@ -214,14 +214,14 @@
     const { pages, pageHref } = app();
     const steps = [];
     if (prose.querySelector("details.callout-simple")) {
-      steps.push(`<button type="button" class="link-button" data-open-simple>לפתוח את כל ההסברים במילים פשוטות בפתק</button> ולקרוא רק אותם, בלי ההוכחות.`);
+      steps.push(`<button type="button" class="link-button" data-open-simple>לפתוח את כל ההסברים במילים פשוטות בדף</button> ולקרוא רק אותם, בלי ההוכחות.`);
     }
     const example = Array.from(prose.querySelectorAll("h2[id], h3[id]")).find((h) => /דוגמ/.test(h.textContent));
     if (example) steps.push(`לחזור ל<a href="${pageHref(page, example.id)}">דוגמה הפתורה</a> ולעבור עליה עם עיפרון, שורה אחרי שורה.`);
     const prev = pages.get(page.prevId);
     if (prev && prev.groupId === page.groupId) steps.push(`לחזור לנושא הקודם: <a href="${pageHref(prev)}">${esc(prev.navTitle)}</a>. הרבה פעמים הקושי מתחיל שם.`);
     const linked = linkedNotes(prose, page);
-    if (linked.length) steps.push(`לרענן את מה שהפתק נשען עליו: ${linked.join(" · ")}.`);
+    if (linked.length) steps.push(`לרענן את מה שהדף נשען עליו: ${linked.join(" · ")}.`);
     if (prose.querySelector(".symbols-box")) steps.push(`<button type="button" class="link-button" data-open-symbols>לבדוק איך קוראים את הסימנים</button>. לפעמים סימן אחד לא מוכר עוצר את כל השורה.`);
     steps.push("לסמן ״נתקעתי כאן״ ולהמשיך הלאה. אפשר לחזור לזה אחר כך, ולפעמים הנושא הבא מבהיר את הקודם.");
     return `
@@ -284,7 +284,7 @@
     const box = document.createElement("details");
     box.className = "callout symbols-box";
     box.innerHTML = `
-      <summary class="callout-title"><span class="callout-title-text">איך קוראים את הסימנים בפתק הזה (${found.length})</span></summary>
+      <summary class="callout-title"><span class="callout-title-text">איך קוראים את הסימנים בדף הזה (${found.length})</span></summary>
       <div class="callout-body">
         <p>אפשר לקרוא כל נוסחה בקול, כמו משפט בעברית. זה עוזר להבין מה היא אומרת.</p>
         <ul class="symbols-list">${found
@@ -440,7 +440,13 @@
     const weight = examWeight(page);
     if (weight) prose.insertAdjacentHTML("afterbegin", weight);
     const symbols = /^unit-/.test(page.groupId || "") ? symbolsBox(prose) : null;
-    if (symbols) prose.prepend(symbols);
+    if (symbols) {
+      // Below the "what matters here" line when the page opens with one, so
+      // the first thing a reader meets is content and not a tool.
+      const lead = Array.from(prose.children).find((el) => el.tagName === "P" && /^מה חשוב כאן/.test(el.textContent.trim()));
+      if (lead) lead.after(symbols);
+      else prose.prepend(symbols);
+    }
     applyExplain(prose);
     mountReadAloud(scope, prose);
 
@@ -489,7 +495,7 @@
     section.className = "home-marked";
     section.setAttribute("aria-labelledby", "homeMarkedTitle");
     section.innerHTML = `
-      <h2 id="homeMarkedTitle">פתקים שסימנתם לחזור אליהם</h2>
+      <h2 id="homeMarkedTitle">דפים שסימנתם לחזור אליהם</h2>
       <ul>${marked
         .map(({ page, value }) => `<li><a class="chip" href="${pageHref(page)}"><span class="tree-status tree-status-${value}" aria-hidden="true"></span>${esc(page.navTitle)}<span class="visually-hidden"> (${STATUS[value].tree})</span></a></li>`)
         .join("")}</ul>`;

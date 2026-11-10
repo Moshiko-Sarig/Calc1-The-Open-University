@@ -505,7 +505,7 @@
           <div class="puzzle-actions">
             <button type="button" class="demo-btn is-quiet" data-hint>רמז</button>
             <button type="button" class="demo-btn is-quiet" data-reshuffle>ערבוב מחדש</button>
-            <a class="demo-btn is-quiet" href="${proofHref(t)}">להוכחה בפתק</a>
+            <a class="demo-btn is-quiet" href="${proofHref(t)}">להוכחה בדף</a>
           </div>
         </section>
       </div>`;
@@ -520,7 +520,7 @@
     const state = { next: 0, mistakes: 0, hints: 0 };
 
     if (strips.length < 3) {
-      status.innerHTML = `ההוכחה הזו קצרה מדי לפאזל. נסו אותה <a href="${proofHref(t)}">שלב אחר שלב בפתק</a>.`;
+      status.innerHTML = `ההוכחה הזו קצרה מדי לפאזל. נסו אותה <a href="${proofHref(t)}">שלב אחר שלב בדף</a>.`;
       root.querySelector(".puzzle-actions [data-hint]").hidden = true;
       root.querySelector(".puzzle-actions [data-reshuffle]").hidden = true;
       queueTypeset([root]);
@@ -765,7 +765,7 @@
       session.revealed = true;
       const card = session.card;
       const back = cardBox.querySelector(".index-card-back");
-      back.innerHTML = `${card.back() || "<p>אין ניסוח שמור לכרטיס הזה.</p>"}<p class="index-card-source"><a href="${card.href}">לפתק</a></p>`;
+      back.innerHTML = `${card.back() || "<p>אין ניסוח שמור לכרטיס הזה.</p>"}<p class="index-card-source"><a href="${card.href}">לדף</a></p>`;
       back.querySelectorAll("[id]").forEach((node) => node.removeAttribute("id"));
       back.querySelectorAll(".proof").forEach((node) => node.remove());
       back.hidden = false;
@@ -886,7 +886,7 @@
         <header class="practice-head">
           <p class="practice-kicker">לפני הבחינה</p>
           <h1 id="pageTitle" tabindex="-1">תרגול</h1>
-          <p class="practice-lead">כרטיסי חזרה עם חזרה מרווחת${list.length ? `, ופאזל הוכחה לכל אחד מ־${list.length} המשפטים ${esc(course.theoremListLabel)}. בכל הוכחה בפתקים יש גם כפתור "שלב אחר שלב"` : ""}. ההתקדמות נשמרת בדפדפן הזה.</p>
+          <p class="practice-lead">כרטיסי חזרה עם חזרה מרווחת${list.length ? `, ופאזל הוכחה לכל אחד מ־${list.length} המשפטים ${esc(course.theoremListLabel)}. בכל הוכחה בדפים יש גם כפתור "שלב אחר שלב"` : ""}. ההתקדמות נשמרת בדפדפן הזה.</p>
         </header>
         <div class="hub-cards">
           ${(app().keyGuides?.() || [])

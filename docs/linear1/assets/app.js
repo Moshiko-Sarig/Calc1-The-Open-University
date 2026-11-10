@@ -247,7 +247,7 @@ function saveExpanded() {
 // On narrow screens the header links are hidden, so the drawer repeats them.
 const DRAWER_LINKS = [
   ["home", "#/", "בית"],
-  ["index", "#/index", "כל הפתקים"],
+  ["index", "#/index", "כל הדפים"],
   ["exams", "#/exams", course.features.questionArchive ? "מבחנים ומטלות" : "מבחנים"],
   ["graph", "#/graph", "גרף קשרים"]
 ].filter(([view]) => view !== "exams" || course.features.exams);
@@ -1024,7 +1024,7 @@ function renderHome() {
             <span class="book-toc-num">${group.number}</span>
             <span class="book-toc-title">${escapeHtml(group.subtitle)}</span>
             <span class="book-toc-leader" aria-hidden="true"></span>
-            <span class="book-toc-count">${countOf(group.pageIds.length, "פתק אחד", "פתקים")}</span>
+            <span class="book-toc-count">${countOf(group.pageIds.length, "דף אחד", "דפים")}</span>
           </a></li>`
         )
         .join("");
@@ -1033,7 +1033,7 @@ function renderHome() {
     .join("");
 
   const toolDescriptions = {
-    "מפת הקורס": `כל ${words.theUnits} והפתקים בעמוד אחד, לפי סדר הספרים.`,
+    "מפת הקורס": `כל ${words.theUnits} והדפים בעמוד אחד, לפי סדר הספרים.`,
     "תיקונים לספרי הקורס": "התיקונים הרשמיים לכרכים א–ג.",
     "תבניות הוכחה": "המהלכים שחוזרים בהוכחות: ε, sup, קטע סגור ונגזרת.",
     "מפת תלות משפטים": "איזה משפט נשען על איזה, מהשלמות ועד משפטי הנגזרת.",
@@ -1059,7 +1059,7 @@ function renderHome() {
        <p class="home-start-text"><strong>${escapeHtml(last.navTitle)}</strong></p>
        ${recent.length > 1 ? `<p class="home-recent-label">ביקרתם לאחרונה</p><ul class="home-recent-list">${recent.slice(1, 4).map((page) => `<li><a href="${pageHref(page)}">${escapeHtml(page.navTitle)}</a></li>`).join("")}</ul>` : ""}`
     : `<p class="home-resume-label">מאיפה מתחילים?</p>
-       <p class="home-start-text">מתחילים ${escapeHtml(words.inUnit)} 1. בכל פתק אפשר לקרוא הסבר, לראות דוגמה ולתרגל.</p>`;
+       <p class="home-start-text">מתחילים ${escapeHtml(words.inUnit)} 1. בכל דף אפשר לקרוא הסבר, לראות דוגמה ולתרגל.</p>`;
 
   const demos = demoGallery();
   const introSketch = demos.find((item) => item.introSketch)?.introSketch;
@@ -1083,7 +1083,6 @@ function renderHome() {
             ${last || firstUnit ? `<a class="button button-primary" href="${last ? escapeHtml(readingHref(last)) : pageHref(firstUnit)}">${last ? "להמשיך מאיפה שעצרתי" : "להתחלת הלימוד"} <span aria-hidden="true">←</span></a>` : ""}
             ${exam ? `<a class="home-quick-link" href="${pageHref(exam)}">${escapeHtml(words.theTheorems)}</a>` : ""}
             ${course.features.exams ? `<a class="home-quick-link" href="#/exams">${course.features.questionArchive ? "מבחנים ומטלות" : "מבחני עבר"}</a>` : ""}
-            ${game ? `<a class="home-quick-link" href="${game.href}">משחק ε‑δ</a>` : ""}
             ${courseSwitchLink("home-quick-link")}
           </div>
           <p class="home-intro-meta">${[
@@ -1218,14 +1217,14 @@ function renderPage(page, section) {
   const meta = [
     group ? `<span class="chip" style="--c:${groupColor(group.id)}"><span class="chip-dot" aria-hidden="true"></span>${escapeHtml(group.number ? `${words.unit} ${group.number}` : group.title)}</span>` : "",
     page.unitVolume ? `<span class="chip">${icon("book")} ${escapeHtml(page.unitVolume)}</span>` : "",
-    `<span class="chip">${icon("clock")} כ־${page.readMinutes} דקות קריאה</span>`,
+    `<span class="chip">${icon("clock")} כ־${page.readMinutes} דקות לימוד</span>`,
     page.hasExamTheorem && data.examListPageId ? `<a class="chip chip-exam" href="${pageHref(pages.get(data.examListPageId))}">${icon("star")} כולל ${escapeHtml(words.theoremFromList)}</a>` : ""
   ].join("");
 
   app.innerHTML = `
     <div class="page-grid">
       <div class="page-rail">
-        ${unitNavigation(page)}
+        ${page.id === gateway?.id ? unitNavigation(page) : ""}
         <aside class="toc" aria-label="בדף הזה" data-toc hidden>
           <p class="toc-title">בדף הזה</p>
           <nav aria-label="תוכן הדף"><ol data-toc-list></ol></nav>
@@ -1237,7 +1236,7 @@ function renderPage(page, section) {
           <header class="note-head">
             <h1 id="pageTitle" class="note-title">${page.titleHtml || escapeHtml(page.title)}</h1>
             <div class="note-meta">${meta}</div>
-            ${page.id === gateway?.id && next?.groupId === group.id ? `<a class="button button-primary note-start" href="${pageHref(next)}">לפתק הראשון <span aria-hidden="true">←</span></a>` : ""}
+            ${page.id === gateway?.id && next?.groupId === group.id ? `<a class="button button-primary note-start" href="${pageHref(next)}">לדף הראשון <span aria-hidden="true">←</span></a>` : ""}
             <div class="grid-probe" aria-hidden="true"><div class="note-title"><span class="bl"></span>א</div></div>
           </header>
           <details class="toc-inline" data-toc-inline hidden>
@@ -1246,14 +1245,14 @@ function renderPage(page, section) {
           </details>
           <div class="prose">${page.html}<div class="grid-probe" aria-hidden="true"><p><span class="bl"></span>א</p><h2><span class="bl"></span>א</h2><h3><span class="bl"></span>א</h3><div class="grid-cell" style="height: var(--cell)"></div></div></div>
           <details class="note-details" hidden>
-            <summary>פרטי הפתק</summary>
+            <summary>פרטי הדף</summary>
             ${page.aliases?.length ? `<p class="note-aliases">נקרא גם: ${page.aliases.map(escapeHtml).join(" · ")}</p>` : ""}
           </details>
         </div>
         <footer class="note-foot">
           ${
             prev || next
-              ? `<nav class="pager" aria-label="הפתק הקודם והבא">
+              ? `<nav class="pager" aria-label="הדף הקודם והבא">
                   ${prev ? `<a class="pager-prev" href="${pageHref(prev)}" rel="prev"><small>${icon("prev")} לנושא הקודם</small><strong>${escapeHtml(prev.navTitle)}</strong></a>` : ""}
                   ${next ? `<a class="pager-next" href="${pageHref(next)}" rel="next"><small>לנושא הבא ${icon("next")}</small><strong>${escapeHtml(next.navTitle)}</strong></a>` : ""}
                 </nav>`
@@ -1261,10 +1260,10 @@ function renderPage(page, section) {
           }
           ${
             backlinks.length
-              ? `<section class="backlinks" aria-labelledby="backlinksTitle">
-                  <h2 id="backlinksTitle">פתקים שמפנים לכאן</h2>
+              ? `<details class="backlinks">
+                  <summary>דפים שמפנים לכאן (${backlinks.length})</summary>
                   <ul>${backlinks.map((item) => `<li><a class="chip" href="${pageHref(item)}">${escapeHtml(item.navTitle)}</a></li>`).join("")}</ul>
-                </section>`
+                </details>`
               : ""
           }
         </footer>
@@ -1641,18 +1640,18 @@ function scrollToSection(section, smooth) {
 }
 
 function renderIndex() {
-  setTitle("כל הפתקים");
+  setTitle("כל הדפים");
   const total = data.pages.length;
   app.innerHTML = `
     <div class="index-page">
       <header class="page-intro">
-        <h1>כל הפתקים</h1>
-        <p>${total} פתקים, מסודרים לפי ${escapeHtml(words.unitsOf)} ובסדר הלימוד. ${icon("star", "icon tree-star")} מסמן פתק שיש בו ${escapeHtml(words.theoremFromList)}.</p>
+        <h1>כל הדפים</h1>
+        <p>${total} דפים, מסודרים לפי ${escapeHtml(words.unitsOf)} ובסדר הלימוד. ${icon("star", "icon tree-star")} מסמן דף שיש בו ${escapeHtml(words.theoremFromList)}.</p>
       </header>
-      <label class="visually-hidden" for="indexFilter">סינון פתקים לפי שם</label>
+      <label class="visually-hidden" for="indexFilter">סינון דפים לפי שם</label>
       <div class="filter-field">
         ${icon("search")}
-        <input id="indexFilter" type="search" autocomplete="off" placeholder="סינון לפי שם הפתק" />
+        <input id="indexFilter" type="search" autocomplete="off" placeholder="סינון לפי שם הדף" />
       </div>
       <p class="filter-status" aria-live="polite" data-filter-status></p>
       ${groups
@@ -1671,7 +1670,7 @@ function renderIndex() {
             )
             .join("");
           return `<section class="index-group" data-index-group style="--c:${groupColor(group.id)}">
-            <h2>${escapeHtml(group.number ? `${words.unit} ${group.number} · ${group.subtitle}` : group.title)}<small>${escapeHtml(group.number ? group.volume : group.subtitle || "")} · ${group.pageIds.length} פתקים</small></h2>
+            <h2>${escapeHtml(group.number ? `${words.unit} ${group.number} · ${group.subtitle}` : group.title)}<small>${escapeHtml(group.number ? group.volume : group.subtitle || "")} · ${group.pageIds.length} דפים</small></h2>
             <ul class="index-list">${items}</ul>
           </section>`;
         })
@@ -1693,7 +1692,7 @@ function renderIndex() {
       section.hidden = groupShown === 0;
       shown += groupShown;
     });
-    status.textContent = query ? (shown ? `${shown} פתקים מתאימים` : "אין פתקים מתאימים") : "";
+    status.textContent = query ? (shown ? `${shown} דפים מתאימים` : "אין דפים מתאימים") : "";
   });
 }
 
@@ -1710,7 +1709,7 @@ function renderAbout() {
       <div class="prose">
         <h2 id="about-sources">מקורות</h2>
         <ul>
-          ${course.sources.map((source) => `<li>${escapeHtml(source)}${source.includes("התיקונים") && corrections ? ` — <a href="${pageHref(corrections)}">בפתק התיקונים</a>` : ""}.</li>`).join("")}
+          ${course.sources.map((source) => `<li>${escapeHtml(source)}${source.includes("התיקונים") && corrections ? ` — <a href="${pageHref(corrections)}">בדף התיקונים</a>` : ""}.</li>`).join("")}
         </ul>
         ${sources ? `<p>פירוט מלא: <a href="${pageHref(sources)}">מקורות וחומרי גלם</a>.</p>` : ""}
         <h2 id="about-rights">זכויות</h2>
@@ -1719,7 +1718,7 @@ function renderAbout() {
         <h2 id="about-exam">שימוש בבחינה</h2>
         <p>${escapeHtml(course.examUseNote)}</p>
         <h2 id="about-build">עדכון אחרון</h2>
-        <p>האתר נבנה מהכספת ב־${escapeHtml(new Date(data.generatedAt).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" }))}.</p>
+        <p>האתר נבנה מקובצי הלימוד ב־${escapeHtml(new Date(data.generatedAt).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" }))}.</p>
       </div>
     </div>`;
 }
@@ -1729,8 +1728,8 @@ function renderNotFound() {
   app.innerHTML = `
     <section class="empty-state">
       <h1>הדף לא נמצא</h1>
-      <p>ייתכן שהקישור ישן או שהפתק הועבר. אפשר לחפש אותו בשורת החיפוש, או לחזור לדף הבית.</p>
-      <p><a class="button button-primary" href="#/">לדף הבית</a> <a class="button" href="#/index">לכל הפתקים</a></p>
+      <p>ייתכן שהקישור ישן או שהדף הועבר. אפשר לחפש אותו בשורת החיפוש, או לחזור לדף הבית.</p>
+      <p><a class="button button-primary" href="#/">לדף הבית</a> <a class="button" href="#/index">לכל הדפים</a></p>
     </section>`;
 }
 
@@ -1739,15 +1738,15 @@ function renderGraph() {
   app.innerHTML = `
     <div class="graph-page">
       <header class="page-intro">
-        <h1>גרף הקשרים בין הפתקים</h1>
-        <p>כל ריבוע הוא פתק, וכל קו הוא קישור בין שני פתקים. גוררים פתק כדי להזיז אותו, גלגלת העכבר מגדילה, ולחיצה פותחת את הפתק. הרשימה המלאה נמצאת גם ב<a href="#/index">כל הפתקים</a>.</p>
+        <h1>גרף הקשרים בין הדפים</h1>
+        <p>כל ריבוע הוא דף, וכל קו הוא קישור בין שני דפים. גוררים דף כדי להזיז אותו, גלגלת העכבר מגדילה, ולחיצה פותחת את הדף. הרשימה המלאה נמצאת גם ב<a href="#/index">כל הדפים</a>.</p>
       </header>
       <div class="graph-layout">
-        <div class="graph-stage"><canvas id="graphCanvas" role="img" aria-label="גרף הקשרים בין ${data.graph.nodes.length} פתקים. לרשימה נגישה עברו לדף כל הפתקים."></canvas></div>
+        <div class="graph-stage"><canvas id="graphCanvas" role="img" aria-label="גרף הקשרים בין ${data.graph.nodes.length} דפים. לרשימה נגישה עברו לדף כל הדפים."></canvas></div>
         <aside class="graph-side" aria-live="polite">
           <div data-graph-info>
-            <h2>${data.graph.nodes.length} פתקים, ${data.graph.edges.length} קשרים</h2>
-            <p>העבירו את העכבר מעל פתק כדי לראות את שמו ואת מספר הקישורים שלו.</p>
+            <h2>${data.graph.nodes.length} דפים, ${data.graph.edges.length} קשרים</h2>
+            <p>העבירו את העכבר מעל דף כדי לראות את שמו ואת מספר הקישורים שלו.</p>
           </div>
           <ul class="legend">${groups.map((group) => `<li style="--c:${groupColor(group.id)}"><i></i>${escapeHtml(group.number ? `${words.unit} ${group.number} · ${group.subtitle}` : group.title)}</li>`).join("")}</ul>
         </aside>
@@ -2213,7 +2212,7 @@ function showPreview(link) {
   if (!slug && page.id === currentRoute.id) return;
   const section = slug ? sectionPreview(page, slug) : null;
   const group = groups.find((item) => item.id === page.groupId);
-  const meta = [groupHeading(group), section ? page.navTitle : page.readMinutes ? `כ־${page.readMinutes} דקות קריאה` : ""]
+  const meta = [groupHeading(group), section ? page.navTitle : page.readMinutes ? `כ־${page.readMinutes} דקות לימוד` : ""]
     .filter(Boolean)
     .map(escapeHtml)
     .join(" · ");

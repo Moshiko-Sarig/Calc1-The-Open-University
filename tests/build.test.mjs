@@ -52,9 +52,9 @@ test("the home page has one card for every course, each opening that course's fo
 test("each card counts what that course really has", () => {
   const html = landing("docs", "index.html");
   const infi = readPayload("docs/infi");
-  assert.match(html, new RegExp(`${infi.pages.length} פתקים`));
+  assert.match(html, new RegExp(`${infi.pages.length} דפים`));
   assert.match(html, new RegExp(`${infi.exams.length} מבחני עבר`));
-  assert.match(html, new RegExp(`${readPayload("docs/linear1").pages.length} פתקים`));
+  assert.match(html, new RegExp(`${readPayload("docs/linear1").pages.length} דפים`));
 });
 
 test("every course is a notebook with its own cover colour", () => {

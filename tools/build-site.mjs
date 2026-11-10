@@ -282,7 +282,7 @@ function renderInline(value, resolveLink) {
     const target = unescapeHtml(rawTarget.trim());
     const page = target ? resolveLink(target) : renderContext.current;
     const textLabel = label || rawTarget.trim() || anchor || "";
-    if (!page) return `<span class="dead-link" title="הפתק אינו מתפרסם באתר">${textLabel}</span>`;
+    if (!page) return `<span class="dead-link" title="הדף אינו מתפרסם באתר">${textLabel}</span>`;
     const hash = anchor ? `/${encodeURIComponent(slugify(unescapeHtml(anchor)))}` : "";
     return `<a href="#/page/${page.id}${hash}">${textLabel}</a>`;
   });
@@ -482,7 +482,7 @@ function renderMarkdown(body, resolveLink) {
     const heading = line.match(/^(#{1,6})\s+(.+)$/);
     if (heading) {
       const level = heading[1].length;
-      const raw = heading[2].trim() === "Dataview" ? "כל הפתקים כאן" : heading[2].replace(/\s+#flashcards\S*/g, "");
+      const raw = heading[2].trim() === "Dataview" ? "כל הדפים כאן" : heading[2].replace(/\s+#flashcards\S*/g, "");
       const content = markExamBadge(renderInline(raw, resolveLink));
       const id = level >= 2 && level <= 4 ? ` id="${escapeAttribute(uniqueSlug(heading[2]))}"` : "";
       html.push(`<h${level}${id}>${content}</h${level}>`);
@@ -754,16 +754,16 @@ function evaluateDataview(code) {
 function renderDataview(code) {
   const results = evaluateDataview(code);
   if (!results) {
-    return `<details class="plugin-block"><summary>רשימת פתקים</summary><pre><code>${escapeHtml(code)}</code></pre></details>`;
+    return `<details class="plugin-block"><summary>רשימת דפים</summary><pre><code>${escapeHtml(code)}</code></pre></details>`;
   }
-  if (!results.length) return `<p class="dataview-empty">אין פתקים מתאימים.</p>`;
+  if (!results.length) return `<p class="dataview-empty">אין דפים מתאימים.</p>`;
   const items = results
     .map(
       (page) =>
         `<li><a href="#/page/${page.id}" data-page-link="${page.id}">${escapeHtml(page.title)}</a><small>${escapeHtml(page.unitName)}</small></li>`
     )
     .join("");
-  return `<div class="dataview-result"><div class="dataview-caption">רשימה אוטומטית · ${results.length} פתקים</div><ul>${items}</ul></div>`;
+  return `<div class="dataview-result"><div class="dataview-caption">רשימה אוטומטית · ${results.length} דפים</div><ul>${items}</ul></div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1036,7 +1036,7 @@ function renderIndexHtml() {
     SITE_TAGLINE: course.tagline,
     BRAND_MARK: course.brandMark,
     THE_UNITS: course.words.theUnits,
-    THE_UNITS_AND_NOTES: `${course.words.units} ופתקים`,
+    THE_UNITS_AND_NOTES: `${course.words.units} ודפים`,
     FOOTER_NOTICE: course.footerNotice
   };
   const scripts = course.scripts.map((name) => `    <script defer src="./assets/${name}"></script>\n`).join("");
@@ -1287,7 +1287,9 @@ export function buildCourse(nextCourse) {
     page.html = sectionize(renderMarkdown(body, resolver));
     flashcards.push(...collectFlashcards(page, body, resolver));
     page.summaryHtml = firstParagraph(page.html);
-    page.readMinutes = Math.max(1, Math.round(page.wordCount / 170));
+    // Study time, not reading time: a page of proofs and exercises goes at
+    // about 60 words a minute. Rounded to 5 so it does not look exact.
+    page.readMinutes = Math.max(5, Math.round(page.wordCount / 60 / 5) * 5);
     page.hasExamTheorem = examLinked.has(page.id);
     delete page.body;
     delete page.rawLinks;
@@ -1377,7 +1379,7 @@ function courseStats(item, payload) {
   const exams = payload.exams.length;
   return [
     units === 1 ? item.words.oneUnit : `${units} ${item.words.units}`,
-    `${payload.pages.length} פתקים`,
+    `${payload.pages.length} דפים`,
     theorems ? `${theorems} ${item.words.theorems}` : "",
     payload.archiveSummary ? `${payload.archiveSummary.exams} מבחנים ו-${payload.archiveSummary.assignments} מטלות` : item.features.exams && exams ? `${exams} מבחני עבר` : ""
   ].filter(Boolean);
