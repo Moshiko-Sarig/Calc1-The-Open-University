@@ -85,9 +85,13 @@ function pageLabel(page) {
   return /^שער /.test(page.title) ? `סקירת ${words.theUnit}` : page.navTitle;
 }
 
+// A numbered part of the course. Number 0 is the preparation chapter, which
+// is a unit in the menu but is not counted with the units of the books.
+const isUnit = (group) => Number.isInteger(group?.number);
+
 function groupHeading(group) {
   if (!group) return "";
-  return group.number ? `${words.unit} ${group.number} · ${group.subtitle}` : group.title;
+  return isUnit(group) ? `${words.unit} ${group.number} · ${group.subtitle}` : group.title;
 }
 
 function pageHref(page, section = "") {
@@ -937,6 +941,24 @@ const DEMO_GALLERY = [
     title: "משפט לגראנז'",
     text: "מזיזים את c עד שהמשיק מקביל למיתר.",
     sketch: `<path class="sk sk-blue" d="M12 62 C38 8 70 8 90 46 S134 82 150 40"/><path class="sk sk-red" d="M12 62 L150 40"/><path class="sk sk-green sk-bold" d="M26 29 L82 20"/><circle class="sk-dot-red" cx="12" cy="62" r="3.6"/><circle class="sk-dot-red" cx="150" cy="40" r="3.6"/><circle class="sk-dot-green" cx="54" cy="24.5" r="3.6"/>`
+  },
+  {
+    name: "unit-circle",
+    title: "מהמעגל לגל הסינוס",
+    text: "נקודה מסתובבת על מעגל, והגובה שלה נפרש לגרף של סינוס.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M4 45 H156 M70 8 V82"/><circle class="sk sk-gray" cx="34" cy="45" r="26"/><path class="sk sk-blue" d="M70 45 C84 3 98 3 112 45 S140 87 154 45"/><path class="sk sk-red sk-bold" d="M47 45 V22.5"/><path class="sk sk-red sk-thin" stroke-dasharray="3 3" d="M47 22.5 H82"/><circle class="sk-dot-red" cx="82" cy="22.5" r="3.4"/><circle class="sk-dot-blue" cx="47" cy="22.5" r="3.4"/>`
+  },
+  {
+    name: "compound",
+    title: "ריבית דריבית והמספר e",
+    text: "מצרפים ריבית יותר ויותר פעמים, והסכום מטפס אל e ונעצר שם.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M14 84 H156 M14 84 V6"/><path class="sk sk-green sk-thin" stroke-dasharray="5 4" d="M14 16 H156"/><path class="sk sk-green sk-thin" stroke-dasharray="5 4" d="M14 62 Q80 52 130 16"/><path class="sk sk-blue" d="M14 62 H43 V54 H72 V44 H101 V32 H130 V18"/><circle class="sk-dot-red" cx="130" cy="18" r="3.6"/>`
+  },
+  {
+    name: "inverse-mirror",
+    title: "פונקציה הפוכה כשיקוף",
+    text: "משקפים גרף בישר y = x, והפונקציה המעריכית הופכת ללוגריתם.",
+    sketch: `<path class="sk sk-graphite sk-thin" d="M6 62 H154 M56 86 V4"/><path class="sk sk-gray sk-thin" stroke-dasharray="5 4" d="M32 86 L114 4"/><path class="sk sk-blue" d="M6 58 C40 56 62 44 78 6"/><path class="sk sk-red" d="M60 86 C62 62 90 40 152 36"/><circle class="sk-dot-blue" cx="68" cy="34" r="3.4"/><circle class="sk-dot-red" cx="84" cy="50" r="3.4"/>`
   }
 ];
 
@@ -1021,10 +1043,11 @@ function renderHome() {
   const last = recent[0];
 
   // The units as a book's table of contents, one list per volume.
-  const volumes = [...new Set(unitGroups.map((group) => group.volume || ""))];
+  const listed = groups.filter(isUnit);
+  const volumes = [...new Set(listed.map((group) => group.volume || ""))];
   const unitContents = volumes
     .map((volume) => {
-      const rows = unitGroups
+      const rows = listed
         .filter((group) => (group.volume || "") === volume)
         .map(
           (group) => `<li><a class="book-toc-row" href="${pageHref(pages.get(group.gatewayId))}">
@@ -1190,7 +1213,7 @@ function renderHome() {
 
 function unitNavigation(page) {
   const links = groups
-    .filter((group) => group.number && group.gatewayId && pages.get(group.gatewayId))
+    .filter((group) => isUnit(group) && group.gatewayId && pages.get(group.gatewayId))
     .map((group) => {
       const current = group.id === page.groupId;
       return `<li><a href="${pageHref(pages.get(group.gatewayId))}"${current ? ' aria-current="true"' : ""}><span class="unit-navigation-number">${escapeHtml(group.title)}</span><span class="unit-navigation-name">${escapeHtml(group.subtitle || "")}</span></a></li>`;
@@ -1215,14 +1238,14 @@ function renderPage(page, section) {
 
   const crumbs = [`<li><a href="#/">בית</a></li>`];
   if (group) {
-    const label = escapeHtml(group.title) + (group.number ? `<span class="breadcrumb-topic"> · ${escapeHtml(group.subtitle || "")}</span>` : "");
+    const label = escapeHtml(group.title) + (isUnit(group) ? `<span class="breadcrumb-topic"> · ${escapeHtml(group.subtitle || "")}</span>` : "");
     const crumbTarget = gateway && gateway.id !== page.id ? `<a href="${pageHref(gateway)}">${label}</a>` : `<span>${label}</span>`;
     crumbs.push(`<li>${crumbTarget}</li>`);
   }
   crumbs.push(`<li aria-current="page">${escapeHtml(pageLabel(page))}</li>`);
 
   const meta = [
-    group ? `<span class="chip" style="--c:${groupColor(group.id)}"><span class="chip-dot" aria-hidden="true"></span>${escapeHtml(group.number ? `${words.unit} ${group.number}` : group.title)}</span>` : "",
+    group ? `<span class="chip" style="--c:${groupColor(group.id)}"><span class="chip-dot" aria-hidden="true"></span>${escapeHtml(isUnit(group) ? `${words.unit} ${group.number}` : group.title)}</span>` : "",
     page.unitVolume ? `<span class="chip chip-volume">${icon("book")} ${escapeHtml(page.unitVolume)}</span>` : "",
     `<span class="chip">${icon("clock")} כ־${page.readMinutes} דקות לימוד</span>`,
     page.hasExamTheorem && data.examListPageId ? `<a class="chip chip-exam" href="${pageHref(pages.get(data.examListPageId))}">${icon("star")} כולל ${escapeHtml(words.theoremFromList)}</a>` : ""
@@ -1700,7 +1723,7 @@ function renderIndex() {
             )
             .join("");
           return `<section class="index-group" data-index-group style="--c:${groupColor(group.id)}">
-            <h2>${escapeHtml(group.number ? `${words.unit} ${group.number} · ${group.subtitle}` : group.title)}<small>${escapeHtml(group.number ? group.volume : group.subtitle || "")} · ${group.pageIds.length} דפים</small></h2>
+            <h2>${escapeHtml(groupHeading(group))}<small>${escapeHtml(isUnit(group) ? group.volume : group.subtitle || "")} · ${group.pageIds.length} דפים</small></h2>
             <ul class="index-list">${items}</ul>
           </section>`;
         })
@@ -1778,7 +1801,7 @@ function renderGraph() {
             <h2>${data.graph.nodes.length} דפים, ${data.graph.edges.length} קשרים</h2>
             <p>העבירו את העכבר מעל דף כדי לראות את שמו ואת מספר הקישורים שלו.</p>
           </div>
-          <ul class="legend">${groups.map((group) => `<li style="--c:${groupColor(group.id)}"><i></i>${escapeHtml(group.number ? `${words.unit} ${group.number} · ${group.subtitle}` : group.title)}</li>`).join("")}</ul>
+          <ul class="legend">${groups.map((group) => `<li style="--c:${groupColor(group.id)}"><i></i>${escapeHtml(groupHeading(group))}</li>`).join("")}</ul>
         </aside>
       </div>
     </div>`;

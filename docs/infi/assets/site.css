@@ -92,6 +92,7 @@
   --mask-solid: #000; /* mask alpha only: black means fully shown */
 
   --c-start: #30598f;
+  --c-unit-0: #56603a;
   --c-unit-1: #355976;
   --c-unit-2: #615530;
   --c-unit-3: #794d3d;
@@ -158,6 +159,7 @@
   --header-bg: var(--bg);
 
   --c-start: #7eb6ff;
+  --c-unit-0: #c3cf8e;
   --c-unit-1: #7eb4e2;
   --c-unit-2: #e2c56e;
   --c-unit-3: #e8a888;

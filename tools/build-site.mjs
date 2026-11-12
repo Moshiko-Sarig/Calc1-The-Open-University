@@ -895,7 +895,7 @@ function collectFlashcards(page, body, resolver) {
   return cards;
 }
 
-const DEMO_NAMES = new Set(["sup", "epsilon-n", "nested-intervals", "epsilon-delta", "bisection", "uniform", "secant", "mvt", "row-reduction", "solution-count", "vector-sum", "parametric-line", "reach-target", "rows-columns", "dependence", "basis-coordinates", "matrix-product", "inverse-steps", "linear-map"]);
+const DEMO_NAMES = new Set(["sup", "epsilon-n", "nested-intervals", "epsilon-delta", "bisection", "uniform", "secant", "mvt", "row-reduction", "solution-count", "vector-sum", "parametric-line", "reach-target", "rows-columns", "dependence", "basis-coordinates", "matrix-product", "inverse-steps", "linear-map", "unit-circle", "radian", "tangent", "compound", "e-slope", "inverse-mirror", "transform", "function-machine"]);
 
 function renderDemo(name) {
   if (!DEMO_NAMES.has(name)) throw new Error(`Unknown infi-demo "${name}"`);

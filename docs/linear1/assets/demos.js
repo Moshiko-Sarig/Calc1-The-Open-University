@@ -70,11 +70,14 @@
   const NICE = [0.001, 0.002, 0.0025, 0.005, 0.01, 0.02, 0.025, 0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
 
   class Plot {
-    constructor(host, { view, rows = 14, xAxis = true, yAxis = true, xLabel = "x", yLabel = "y", xAlign = "center" }) {
+    constructor(host, { view, rows = 14, xAxis = true, yAxis = true, xLabel = "x", yLabel = "y", xAlign = "center", square = false }) {
       this.host = host;
       this.view = { ...view };
       this.rows = rows;
       this.xAlign = xAlign;
+      // One cell is the same number of units in both directions, so a circle
+      // is round and a reflection in y = x looks like one.
+      this.square = square;
       this.axesOn = { x: xAxis, y: yAxis, xLabel, yLabel };
       this.id = ++uid;
       this.canvas = h("div", { class: "demo-canvas" });
@@ -118,8 +121,14 @@
         const step = NICE[NICE.length - 1];
         return { step, start: Math.floor(lo / step) * step };
       };
-      const fx = fit(xmin, xmax, cols, this.xAlign);
-      const fy = fit(ymin, ymax, rows);
+      let fx = fit(xmin, xmax, cols, this.xAlign);
+      let fy = fit(ymin, ymax, rows);
+      if (this.square && fx.step !== fy.step) {
+        const step = Math.max(fx.step, fy.step);
+        const centred = (lo, hi, count) => Math.floor(((lo + hi) / 2 - (count * step) / 2) / step + 1e-9) * step;
+        fx = { step, start: centred(xmin, xmax, cols) };
+        fy = { step, start: centred(ymin, ymax, rows) };
+      }
       Object.assign(this, { cell, cols, dx: fx.step, dy: fy.step, xLeft: fx.start, xRight: fx.start + cols * fx.step });
       this.yBottom = fy.start;
       this.yTop = fy.start + rows * fy.step;
@@ -207,6 +216,77 @@
         name.textContent = this.axesOn.yLabel;
         this.marks.append(name);
       }
+    }
+
+    // Stretches [lo, hi] over the plot's width, leaving whole cells free on
+    // each side. The step is no longer a round number, so the demo draws its
+    // own ticks with axisX().
+    spanX(lo, hi, padStart = 2, padEnd = 2) {
+      this.dx = (hi - lo) / Math.max(1, this.cols - padStart - padEnd);
+      this.xLeft = lo - padStart * this.dx;
+      this.xRight = this.xLeft + this.cols * this.dx;
+    }
+
+    // A horizontal axis with the demo's own ticks: [{ at, label }].
+    axisX({ from = this.xLeft, to = this.xRight, y = 0, ticks = [], name = "", arrow = true } = {}) {
+      const { cell } = this;
+      const py = this.Y(y);
+      const end = Math.min(this.W - 2, this.X(to));
+      const font = cell * 0.68;
+      this.axes.append(s("line", { x1: this.X(from), y1: py, x2: end, y2: py, class: "demo-axis" }));
+      if (arrow) this.axes.append(s("path", { d: `M${end} ${py} l-${cell * 0.45} -${cell * 0.24} M${end} ${py} l-${cell * 0.45} ${cell * 0.24}`, class: "demo-axis" }));
+      for (const tick of ticks) {
+        const x = this.X(tick.at);
+        this.axes.append(s("line", { x1: x, y1: py - cell * 0.22, x2: x, y2: py + cell * 0.22, class: "demo-tick-mark" }));
+        if (tick.label == null) continue;
+        const label = s("text", { x, y: py + cell * (tick.above ? -0.45 : 0.95), class: "demo-tick", "text-anchor": "middle", "font-size": font });
+        label.textContent = tick.label;
+        this.marks.append(label);
+      }
+      if (name) {
+        const label = s("text", { x: end - cell * 0.2, y: py - cell * 0.45, class: "demo-axis-name", "text-anchor": "end", "font-size": font * 1.1 });
+        label.textContent = name;
+        this.marks.append(label);
+      }
+    }
+
+    // A vertical axis with the demo's own ticks.
+    axisY({ at = 0, from = this.yBottom, to = this.yTop, ticks = [], name = "", arrow = true } = {}) {
+      const { cell } = this;
+      const px = this.X(at);
+      const top = Math.max(2, this.Y(to));
+      const font = cell * 0.68;
+      this.axes.append(s("line", { x1: px, y1: this.Y(from), x2: px, y2: top, class: "demo-axis" }));
+      if (arrow) this.axes.append(s("path", { d: `M${px} ${top} l-${cell * 0.24} ${cell * 0.45} M${px} ${top} l${cell * 0.24} ${cell * 0.45}`, class: "demo-axis" }));
+      for (const tick of ticks) {
+        const y = this.Y(tick.at);
+        this.axes.append(s("line", { x1: px - cell * 0.22, y1: y, x2: px + cell * 0.22, y2: y, class: "demo-tick-mark" }));
+        if (tick.label == null) continue;
+        const label = s("text", { x: px - cell * 0.35, y: y + font * 0.35, class: "demo-tick", "text-anchor": "end", "font-size": font });
+        label.textContent = tick.label;
+        this.marks.append(label);
+      }
+      if (name) {
+        const label = s("text", { x: px + cell * 0.45, y: top + cell * 0.7, class: "demo-axis-name", "font-size": font * 1.1 });
+        label.textContent = name;
+        this.marks.append(label);
+      }
+    }
+
+    // A pencil line through points given in data coordinates.
+    polyline(points, { cls = "pc-blue", width = 2.2, dash = null, layer = "ink" } = {}) {
+      const d = points
+        .filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y))
+        .map(([x, y], i) => `${i ? "L" : "M"}${this.X(x).toFixed(2)} ${Math.max(-this.H, Math.min(2 * this.H, this.Y(y))).toFixed(2)}`)
+        .join("");
+      if (d) this[layer].append(s("path", { d, class: `demo-curve ${cls}`, "stroke-width": width, "stroke-dasharray": dash }));
+    }
+
+    // Raw SVG in pixels, for shapes that are not graphs (a circle, an arc).
+    shape(tag, attrs, layer = "ink") {
+      const node = s(tag, attrs);
+      this[layer].append(node);
+      return node;
     }
 
     // Samples f across [from, to]; the pencil is lifted at gaps and jumps.
@@ -890,6 +970,54 @@
     return { el: h("div", { class: "demo-check" }, input, h("label", { for: id, html: label })), input };
   }
 
+  // A button that plays a run from 0 to 1 and stops it. While it runs the
+  // status is not announced, so a screen reader hears the result, not sixty
+  // updates a second. With reduced motion the run jumps to its end.
+  function player(fig, ui, { label = "הפעלה", seconds = 6, from = () => 0, onFrame, onStop }) {
+    let raf = 0;
+    let playing = false;
+    const btn = button(label, () => (playing ? stop() : start()));
+    const sync = () => {
+      btn.textContent = playing ? "עצירה" : label;
+      ui.status.setAttribute("aria-live", playing ? "off" : "polite");
+    };
+    function stop() {
+      cancelAnimationFrame(raf);
+      if (!playing) return;
+      playing = false;
+      sync();
+      onStop?.();
+    }
+    function start() {
+      if (reduceMotion()) {
+        onFrame(1);
+        onStop?.();
+        return;
+      }
+      let begin = from();
+      if (!(begin >= 0 && begin < 0.995)) begin = 0;
+      let t0 = 0;
+      playing = true;
+      sync();
+      const step = (now) => {
+        if (!fig.isConnected) return stop();
+        t0 ||= now;
+        const k = Math.min(1, begin + (now - t0) / (seconds * 1000));
+        onFrame(k);
+        if (k < 1) raf = requestAnimationFrame(step);
+        else stop();
+      };
+      raf = requestAnimationFrame(step);
+    }
+    return {
+      el: btn,
+      stop,
+      get playing() {
+        return playing;
+      }
+    };
+  }
+
   // The frame every demo shares: title, plot, controls and a live status.
   function frame(fig, title, kicker = "המחשה") {
     const titleId = `demo-title-${++uid}`;
@@ -908,6 +1036,7 @@
       controls,
       buttons,
       panel,
+      status,
       say(html) {
         status.innerHTML = html;
       }
@@ -2717,6 +2846,927 @@
 
     update();
     return { render() { plot.layout(); draw(); } };
+  };
+
+  // ---------------------------------------------------------------------------
+  // Unit 0: the functions of the course, in motion
+  // ---------------------------------------------------------------------------
+
+  const TAU = 2 * Math.PI;
+  const rad = (deg) => (deg * Math.PI) / 180;
+  const clamp01 = (v) => Math.max(0, Math.min(1, v));
+
+  // sin and cos of the angles everyone meets first, written exactly.
+  const EXACT = [
+    [0, "0"],
+    [0.5, "1/2"],
+    [Math.SQRT1_2, "√2/2"],
+    [Math.sqrt(3) / 2, "√3/2"],
+    [1, "1"]
+  ];
+  function trigText(value) {
+    const hit = EXACT.find(([v]) => Math.abs(Math.abs(value) - v) < 1e-9);
+    if (!hit) return fmt(value, 3);
+    const text = `${value < -1e-9 ? "−" : ""}${hit[1]}`;
+    return hit[1].includes("√") ? `${text} ≈ ${fmt(value, 3)}` : text;
+  }
+
+  // A circle on the left and a graph on the right that share the vertical
+  // scale: the radius is as long as one unit of the y axis. `before` and
+  // `after` are how much of the x axis the graph needs on each side of 0.
+  // The graph fills the width that is left, so its x step is not a round
+  // number and each demo draws its own ticks; x = 0 still lies on a grid line.
+  function circleStage(plot, { before = 0, after, half }) {
+    plot.view = { xmin: -1, xmax: 1, ymin: -half, ymax: half };
+    plot.layout();
+    const radiusCells = Math.round(plot.rows / (2 * half));
+    const reserved = 2 * radiusCells + 2;
+    const free = Math.max(4, plot.cols - reserved);
+    const beforeCells = before ? Math.max(1, Math.round((free * before) / (before + after))) : 0;
+    plot.dx = Math.max(before ? before / beforeCells : 0, after / (free - beforeCells));
+    plot.xLeft = -(reserved + beforeCells) * plot.dx;
+    plot.xRight = plot.xLeft + plot.cols * plot.dx;
+    return { cx: 0.5 + (radiusCells + 1) * plot.cell, cy: plot.Y(0), r: radiusCells * plot.cell };
+  }
+
+  const onCircle = (stage, t, k = 1) => [stage.cx + stage.r * k * Math.cos(t), stage.cy - stage.r * k * Math.sin(t)];
+
+  function arcPath(stage, from, to, k = 1) {
+    const steps = Math.max(2, Math.ceil(Math.abs(to - from) / 0.04));
+    let d = "";
+    for (let i = 0; i <= steps; i += 1) {
+      const [x, y] = onCircle(stage, from + ((to - from) * i) / steps, k);
+      d += `${i ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)}`;
+    }
+    return d;
+  }
+
+  const pxLine = (plot, a, b, cls, width, dash = null, layer = "ink") =>
+    plot.shape("line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], class: `demo-line ${cls}`, "stroke-width": width, "stroke-dasharray": dash }, layer);
+  const pxDot = (plot, p, cls, hollow = false) =>
+    plot.shape("circle", { cx: p[0], cy: p[1], r: plot.cell * 0.24, class: `demo-dot ${cls}${hollow ? " is-hollow" : ""}` }, "marks");
+  function pxText(plot, p, content, { cls = "", anchor = "middle", size = 0.72 } = {}) {
+    const node = plot.shape("text", { x: p[0], y: p[1], class: `demo-label ${cls}`, "text-anchor": anchor, "font-size": plot.cell * size }, "marks");
+    node.textContent = content;
+  }
+
+  function drawCircle(plot, stage) {
+    const { cx, cy, r } = stage;
+    const pad = plot.cell * 0.7;
+    plot.shape("line", { x1: cx - r - pad, y1: cy, x2: cx + r + pad, y2: cy, class: "demo-line pc-gray", "stroke-width": 1.2 }, "axes");
+    plot.shape("line", { x1: cx, y1: cy + r + pad, x2: cx, y2: cy - r - pad, class: "demo-line pc-gray", "stroke-width": 1.2 }, "axes");
+    plot.shape("circle", { cx, cy, r, class: "demo-curve pc-gray", "stroke-width": 2 });
+  }
+
+  // The point on the unit circle, and its height and width unrolled into the
+  // graphs of sine and cosine.
+  DEMOS["unit-circle"] = (fig) => {
+    const ui = frame(fig, "מעגל היחידה נפרש לגל");
+    const plot = new Plot(ui.plotHost, { view: { xmin: -3, xmax: 7, ymin: -1.5, ymax: 1.5 }, rows: 12 });
+    const state = { deg: 60, show: 0 };
+    let stage;
+    const angle = slider({
+      label: "הזווית \\(\\theta\\)",
+      min: 0,
+      max: 360,
+      step: 1,
+      value: state.deg,
+      format: (v) => `${fmt(rad(v))} rad = ${fmt(v, 0)}°`,
+      onInput: (v) => {
+        run.stop();
+        state.deg = v;
+        update();
+      }
+    });
+    const what = choice("מה מציירים", ["סינוס (הגובה)", "קוסינוס (הרוחב)", "שניהם"], (i) => {
+      state.show = i;
+      update();
+    });
+    const known = [null, 30, 45, 60, 90, 120, 180, 270];
+    const jump = choice("זווית מוכרת", ["בחרו…", "π/6 (30°)", "π/4 (45°)", "π/3 (60°)", "π/2 (90°)", "2π/3 (120°)", "π (180°)", "3π/2 (270°)"], (i) => {
+      if (!i) return;
+      run.stop();
+      state.deg = known[i];
+      angle.set(state.deg);
+      jump.select.value = "0";
+      update();
+    });
+    const run = player(fig, ui, {
+      label: "סיבוב שלם",
+      seconds: 9,
+      from: () => state.deg / 360,
+      onFrame: (k) => {
+        state.deg = k * 360;
+        angle.set(Math.round(state.deg));
+        update();
+      },
+      onStop: () => {
+        state.deg = Math.round(state.deg);
+        update();
+      }
+    });
+    ui.controls.append(angle.el, what.el, jump.el);
+    ui.buttons.append(run.el);
+
+    function place() {
+      stage = circleStage(plot, { after: TAU + 0.15, half: 1.5 });
+    }
+
+    function draw() {
+      const t = rad(state.deg);
+      const sin = Math.sin(t);
+      const cos = Math.cos(t);
+      const showSin = state.show !== 1;
+      const showCos = state.show !== 0;
+      plot.clear();
+      const ticks = [
+        { at: Math.PI / 2, label: "π/2" },
+        { at: Math.PI, label: "π" },
+        { at: 1.5 * Math.PI, label: "3π/2" },
+        { at: TAU, label: "2π" }
+      ];
+      plot.axisX({ from: 0, ticks: plot.dx > 0.7 ? ticks.filter((_, i) => i % 2) : ticks, name: "θ" });
+      plot.axisY({ from: -1.4, to: 1.45, ticks: [{ at: 1, label: "1" }, { at: -1, label: "−1" }] });
+      drawCircle(plot, stage);
+      if (showSin) plot.curve(Math.sin, { cls: "pc-gray", width: 1.2, dash: "3 5", from: 0, to: TAU });
+      if (showCos) plot.curve(Math.cos, { cls: "pc-gray", width: 1.2, dash: "3 5", from: 0, to: TAU });
+
+      // The arc that was walked, and the same length laid along the θ axis.
+      plot.shape("path", { d: arcPath(stage, 0, t), class: "demo-curve pc-green", "stroke-width": 3.2 });
+      plot.line(0, 0, t, 0, { cls: "pc-green", width: 3.2 });
+
+      const centre = [stage.cx, stage.cy];
+      const P = onCircle(stage, t);
+      const foot = [P[0], stage.cy];
+      pxLine(plot, centre, P, "pc-gray", 1.8);
+      if (showCos) {
+        pxLine(plot, centre, foot, "pc-blue", 3.4);
+        pxText(plot, [(centre[0] + foot[0]) / 2, stage.cy + plot.cell * (sin >= 0 ? 0.85 : -0.4)], "cos θ", { cls: "pc-blue-text", size: 0.62 });
+        plot.curve(Math.cos, { cls: "pc-blue", width: 2.4, from: 0, to: t });
+        if (!showSin) plot.line(t, 0, t, cos, { cls: "pc-blue", width: 3.4 });
+        plot.dot(t, cos, { cls: "pc-blue" });
+      }
+      if (showSin) {
+        pxLine(plot, foot, P, "pc-red", 3.4);
+        pxText(plot, [P[0] + plot.cell * (cos >= 0 ? 0.3 : -0.3), (P[1] + stage.cy) / 2 + plot.cell * 0.2], "sin θ", { cls: "pc-red-text", anchor: cos >= 0 ? "start" : "end", size: 0.62 });
+        plot.curve(Math.sin, { cls: "pc-red", width: 2.4, from: 0, to: t });
+        if (!showCos) plot.line(t, 0, t, sin, { cls: "pc-red", width: 3.4 });
+        pxLine(plot, P, [plot.X(t), plot.Y(sin)], "pc-red", 1.1, "4 5");
+        plot.dot(t, sin, { cls: "pc-red" });
+      }
+      pxDot(plot, P, "pc-purple");
+    }
+
+    function update() {
+      draw();
+      const t = rad(state.deg);
+      const sin = Math.sin(t);
+      const cos = Math.cos(t);
+      const onAxis = Math.abs(sin) < 1e-9 || Math.abs(cos) < 1e-9;
+      const quadrant = ["הראשון", "השני", "השלישי", "הרביעי"][Math.min(3, Math.floor(state.deg / 90))];
+      const sign = (v) => (v > 0 ? "חיובי" : "שלילי");
+      const where = onAxis ? "הנקודה נמצאת על אחד הצירים." : `הנקודה ברביע ${quadrant}: הסינוס ${sign(sin)} והקוסינוס ${sign(cos)}.`;
+      ui.say(
+        `הזווית היא ${m(`θ = ${fmt(t)}`)} רדיאנים, כלומר ${m(`${fmt(state.deg, 0)}°`)}. הקשת הירוקה על המעגל והקטע הירוק על הציר מייצגים אותה זווית. הגובה האדום: ${m(`sin θ = ${trigText(sin)}`)}. הרוחב הכחול: ${m(`cos θ = ${trigText(cos)}`)}. ${where}`
+      );
+    }
+
+    place();
+    update();
+    return {
+      render() {
+        place();
+        draw();
+      }
+    };
+  };
+
+  // A radian: how many radii fit along the arc.
+  DEMOS.radian = (fig) => {
+    const ui = frame(fig, "רדיאן: מודדים זווית באורך הקשת");
+    const plot = new Plot(ui.plotHost, { view: { xmin: -3, xmax: 7, ymin: -1.5, ymax: 1.5 }, rows: 12 });
+    const state = { t: 1 };
+    let stage;
+    const arc = slider({
+      label: "אורך הקשת, ברדיוסים",
+      min: 0,
+      max: 6.29,
+      step: 0.01,
+      value: state.t,
+      format: (v) => fmt(Math.min(v, TAU)),
+      onInput: (v) => {
+        run.stop();
+        state.t = Math.min(v, TAU);
+        update();
+      }
+    });
+    const go = (t) => () => {
+      run.stop();
+      state.t = t;
+      arc.set(t);
+      update();
+    };
+    const run = player(fig, ui, {
+      label: "לכרוך רדיוסים על המעגל",
+      seconds: 8,
+      from: () => state.t / TAU,
+      onFrame: (k) => {
+        state.t = k * TAU;
+        arc.set(state.t);
+        update();
+      }
+    });
+    ui.controls.append(arc.el);
+    ui.buttons.append(run.el, button("רדיאן אחד", go(1), "is-quiet"), button("חצי סיבוב", go(Math.PI), "is-quiet"), button("סיבוב שלם", go(TAU), "is-quiet"));
+
+    function place() {
+      stage = circleStage(plot, { after: TAU + 0.5, half: 1.5 });
+    }
+
+    function draw() {
+      const { t } = state;
+      plot.clear();
+      const ticks = [1, 2, 3, 4, 5, 6].map((k) => ({ at: k, label: String(k) }));
+      ticks.push({ at: TAU, label: "2π", above: true });
+      plot.axisX({ from: 0, ticks, name: "θ" });
+      drawCircle(plot, stage);
+      const centre = [stage.cx, stage.cy];
+      for (let k = 1; k <= 6; k += 1) {
+        pxLine(plot, onCircle(stage, k, 0.94), onCircle(stage, k, 1.06), "pc-gray", 1.4);
+        const at = onCircle(stage, k, 1.2);
+        pxText(plot, [at[0], at[1] + plot.cell * 0.22], String(k), { size: 0.62 });
+      }
+      // One colour for each whole radius along the arc, and the same on the ruler.
+      for (let k = 0; k < t; k += 1) {
+        const end = Math.min(k + 1, t);
+        const cls = k % 2 ? "pc-orange" : "pc-green";
+        plot.shape("path", { d: arcPath(stage, k, end), class: `demo-curve ${cls}`, "stroke-width": 3.6 });
+        plot.line(k, 0, end, 0, { cls, width: 3.6 });
+      }
+      pxLine(plot, centre, onCircle(stage, 0), "pc-blue", 2.6);
+      pxText(plot, [stage.cx + stage.r / 2, stage.cy + plot.cell * 0.8], "r", { cls: "pc-blue-text", size: 0.8 });
+      pxLine(plot, centre, onCircle(stage, t), "pc-gray", 1.8);
+      pxDot(plot, onCircle(stage, t), "pc-purple");
+    }
+
+    function update() {
+      draw();
+      const { t } = state;
+      const deg = (t * 180) / Math.PI;
+      let extra = "";
+      if (Math.abs(t - 1) < 0.006) extra = " זה רדיאן אחד: קשת שאורכה בדיוק כאורך הרדיוס.";
+      else if (Math.abs(t - Math.PI) < 0.006) extra = ` חצי סיבוב הוא ${m("π ≈ 3.14")} רדיוסים, ולכן ${m("180° = π")} רדיאנים.`;
+      else if (t > TAU - 0.006) extra = ` בהיקף כולו נכנסים ${m("2π ≈ 6.28")} רדיוסים, ולכן ${m("360° = 2π")} רדיאנים.`;
+      ui.say(
+        `הקשת הצבועה ארוכה פי ${m(fmt(t))} מהרדיוס, ולכן הזווית היא ${m(`${fmt(t)} rad ≈ ${fmt(deg, 1)}°`)}. כל צבע הוא קשת באורך רדיוס אחד, והסרגל מימין סופר אותם.${extra}`
+      );
+    }
+
+    place();
+    update();
+    return {
+      render() {
+        place();
+        draw();
+      }
+    };
+  };
+
+  // tan θ as the height where the ray meets the line x = 1.
+  DEMOS.tangent = (fig) => {
+    const ui = frame(fig, "טנגנס: איפה הקרן פוגשת את המשיק");
+    const plot = new Plot(ui.plotHost, { view: { xmin: -6, xmax: 4, ymin: -2, ymax: 2 }, rows: 16 });
+    const state = { deg: 45 };
+    const LIMIT = 1.97;
+    let stage;
+    const angle = slider({
+      label: "הזווית \\(\\theta\\)",
+      min: -180,
+      max: 180,
+      step: 1,
+      value: state.deg,
+      format: (v) => `${fmt(rad(v))} rad = ${fmt(v, 0)}°`,
+      onInput: (v) => {
+        run.stop();
+        state.deg = v;
+        update();
+      }
+    });
+    const run = player(fig, ui, {
+      label: "לסובב את הקרן",
+      seconds: 12,
+      from: () => (state.deg + 180) / 360,
+      onFrame: (k) => {
+        state.deg = -180 + 360 * k;
+        angle.set(Math.round(state.deg));
+        update();
+      },
+      onStop: () => {
+        state.deg = Math.round(state.deg);
+        update();
+      }
+    });
+    ui.controls.append(angle.el);
+    ui.buttons.append(run.el);
+
+    function place() {
+      stage = circleStage(plot, { before: Math.PI + 0.1, after: Math.PI + 0.25, half: 2 });
+    }
+
+    function draw() {
+      const t = rad(state.deg);
+      const sin = Math.sin(t);
+      const cos = Math.cos(t);
+      const defined = Math.abs(cos) > 1e-9;
+      const tan = sin / cos;
+      const { cx, cy, r } = stage;
+      plot.clear();
+      const wide = plot.dx > 0.7;
+      plot.axisX({
+        from: -Math.PI - 0.1,
+        ticks: [
+          { at: -Math.PI, label: "−π" },
+          { at: -Math.PI / 2, label: wide ? null : "−π/2" },
+          { at: Math.PI / 2, label: wide ? null : "π/2" },
+          { at: Math.PI, label: "π" }
+        ],
+        name: "θ"
+      });
+      plot.axisY({ ticks: [{ at: 1, label: "1" }, { at: -1, label: "−1" }] });
+      for (const a of [-Math.PI / 2, Math.PI / 2]) plot.vline(a, { cls: "pc-gray", width: 1.2, dash: "3 5" });
+      const gap = 0.03;
+      for (const [a, b] of [[-Math.PI, -Math.PI / 2 - gap], [-Math.PI / 2 + gap, Math.PI / 2 - gap], [Math.PI / 2 + gap, Math.PI]]) {
+        plot.curve(Math.tan, { cls: "pc-orange", width: 2.2, from: a, to: b });
+      }
+
+      drawCircle(plot, stage);
+      const tx = cx + r;
+      pxLine(plot, [tx, 3], [tx, plot.H - 3], "pc-gray", 1.6);
+      pxText(plot, [tx + plot.cell * 0.25, plot.H - plot.cell * 0.35], "x = 1", { anchor: "start", size: 0.6 });
+      const centre = [cx, cy];
+      const P = onCircle(stage, t);
+      if (defined) {
+        // The line through the centre and P, up to the tangent line (or the frame).
+        const k = Math.min(1, LIMIT / Math.abs(tan));
+        pxLine(plot, cos < 0 ? P : centre, [cx + r * k, cy - r * tan * k], "pc-gray", 1.2, "4 5");
+        const shown = Math.max(-LIMIT, Math.min(LIMIT, tan));
+        pxLine(plot, [tx, cy], [tx, cy - r * shown], "pc-orange", 3.6);
+        if (Math.abs(tan) <= LIMIT) {
+          const T = [tx, cy - r * tan];
+          pxLine(plot, T, [plot.X(t), plot.Y(tan)], "pc-orange", 1.1, "4 5");
+          pxDot(plot, T, "pc-orange");
+          plot.line(t, 0, t, tan, { cls: "pc-orange", width: 3.2 });
+          plot.dot(t, tan, { cls: "pc-orange" });
+        }
+      } else {
+        pxLine(plot, [cx, 3], [cx, plot.H - 3], "pc-gray", 1.2, "4 5");
+      }
+      pxLine(plot, centre, P, "pc-purple", 2.2);
+      pxDot(plot, P, "pc-purple");
+    }
+
+    function update() {
+      draw();
+      const t = rad(state.deg);
+      const sin = Math.sin(t);
+      const cos = Math.cos(t);
+      const degrees = m(`${fmt(state.deg, 0)}°`);
+      if (Math.abs(cos) < 1e-9) {
+        ui.say(`בזווית ${degrees} הקרן אנכית ומקבילה לישר ${m("x = 1")}, ולכן אינה פוגשת אותו. כאן ${m("cos θ = 0")}, ו-${m("tan θ")} <strong>אינו מוגדר</strong>. בגרף זה הקו המקווקו: אסימפטוטה אנכית.`);
+        return;
+      }
+      const tan = sin / cos;
+      const far = Math.abs(tan) > LIMIT ? " נקודת המפגש כבר מחוץ לציור: ככל שהקרן מתקרבת למצב אנכי, הגובה גדל בלי חסם." : "";
+      ui.say(
+        `בזווית ${m(`θ = ${fmt(t)} rad`)} (${degrees}) מתקבל ${m(`tan θ = sin θ / cos θ = ${fmt(sin)} / ${fmt(cos)} = ${fmt(tan)}`)}. זה הגובה הכתום שבו הקרן פוגשת את הישר ${m("x = 1")}, וזה גם השיפוע של הקרן.${far}`
+      );
+    }
+
+    place();
+    update();
+    return {
+      render() {
+        place();
+        draw();
+      }
+    };
+  };
+
+  // Compound interest: (1 + 1/n)^n climbs towards e and never passes it.
+  DEMOS.compound = (fig) => {
+    const ui = frame(fig, "ריבית דריבית: כך מגיעים ל-\\(e\\)");
+    const plot = new Plot(ui.plotHost, { view: { xmin: 0, xmax: 1, ymin: 0, ymax: 3 }, rows: 12, xAlign: "start" });
+    const state = { n: 1 };
+    const TOP = 1000;
+    const presets = [
+      ["פעם בשנה", 1],
+      ["כל חצי שנה", 2],
+      ["כל רבעון", 4],
+      ["כל חודש", 12],
+      ["כל שבוע", 52],
+      ["כל יום", 365],
+      ["כל שעה", 8760]
+    ];
+    const count = slider({
+      label: "מספר הצירופים בשנה \\(n\\)",
+      log: true,
+      min: 1,
+      max: 100000,
+      value: state.n,
+      format: (v) => String(Math.round(v)),
+      onInput: (v) => {
+        run.stop();
+        state.n = Math.round(v);
+        often.select.value = "0";
+        update();
+      }
+    });
+    const often = choice("כל כמה זמן מצרפים", ["בחרו…", ...presets.map((p) => p[0])], (i) => {
+      if (!i) return;
+      run.stop();
+      state.n = presets[i - 1][1];
+      count.set(state.n);
+      update();
+    });
+    const run = player(fig, ui, {
+      label: "להגדיל את n",
+      seconds: 11,
+      from: () => Math.log(state.n) / Math.log(TOP),
+      onFrame: (k) => {
+        state.n = Math.max(1, Math.round(Math.pow(TOP, k)));
+        count.set(state.n);
+        update();
+      }
+    });
+    ui.controls.append(count.el, often.el);
+    ui.buttons.append(run.el);
+
+    function place() {
+      plot.layout();
+      plot.spanX(0, 1, 2, 5);
+    }
+
+    function draw() {
+      const { n } = state;
+      const growth = 1 + 1 / n;
+      const final = Math.pow(growth, n);
+      plot.clear();
+      plot.axisX({
+        from: 0,
+        ticks: [
+          { at: 0.25, label: "¼" },
+          { at: 0.5, label: "½" },
+          { at: 0.75, label: "¾" },
+          { at: 1, label: "1" }
+        ],
+        name: "שנים"
+      });
+      plot.axisY({ ticks: [{ at: 1, label: "1" }, { at: 2, label: "2" }], name: "₪" });
+      plot.line(0, Math.E, plot.xRight, Math.E, { cls: "pc-green", width: 1.4, dash: "6 5" });
+      plot.text(plot.xRight - plot.dx * 0.4, Math.E, "e ≈ 2.718", { cls: "pc-green-text", anchor: "end", dy: -0.4 });
+      plot.curve(Math.exp, { cls: "pc-green", width: 1.5, dash: "6 5", from: 0, to: 1 });
+      if (n <= 500) {
+        const steps = [[0, 1]];
+        let value = 1;
+        for (let k = 1; k <= n; k += 1) {
+          steps.push([k / n, value]);
+          value *= growth;
+          steps.push([k / n, value]);
+        }
+        plot.polyline(steps, { cls: "pc-blue", width: 2.4 });
+      } else {
+        plot.curve((t) => Math.pow(growth, Math.floor(n * t + 1e-9)), { cls: "pc-blue", width: 2.4, from: 0, to: 1 });
+      }
+      plot.line(1, final, plot.xRight, final, { cls: "pc-red", width: 1.2, dash: "2 4" });
+      plot.dot(1, final, { cls: "pc-red" });
+      plot.text(1 + plot.dx * 0.6, final, final.toFixed(4), { cls: "pc-red-text", anchor: "start", dy: 1.05, size: 0.8 });
+    }
+
+    function update() {
+      draw();
+      const { n } = state;
+      const final = Math.pow(1 + 1 / n, n);
+      const share = 100 / n;
+      const times = n === 1 ? "פעם אחת בשנה" : `${m(String(n))} פעמים בשנה`;
+      ui.say(
+        `שקל אחד בריבית שנתית של ${m("100%")}, שמצרפים ${times} (${m(`${fmt(share, share < 1 ? 4 : 2)}%`)} בכל פעם). בסוף השנה יש ${m(`(1 + 1/${n})^${n} = ${final.toFixed(5)}`)} שקלים. המרחק מ-${m("e = 2.71828…")} הוא ${m(fmt(Math.E - final, 5))}. המדרגות הכחולות מתקרבות לעקומה הירוקה ${m("eᵗ")} ואינן עוברות אותה.`
+      );
+    }
+
+    place();
+    update();
+    return {
+      render() {
+        place();
+        draw();
+      }
+    };
+  };
+
+  // Among all bases a, e is the one whose graph is as steep as it is high.
+  DEMOS["e-slope"] = (fig) => {
+    const ui = frame(fig, "למה דווקא \\(e\\): הבסיס שבו השיפוע שווה לגובה");
+    const plot = new Plot(ui.plotHost, { view: { xmin: -3, xmax: 3, ymin: -0.5, ymax: 6 }, rows: 13, square: true });
+    const state = { a: 2, x: 1 };
+    const snap = (v) => (Math.abs(v - Math.E) < 0.006 ? Math.E : v);
+    const base = slider({
+      label: "הבסיס \\(a\\)",
+      min: 1.2,
+      max: 4,
+      step: 0.01,
+      value: state.a,
+      onInput: (v) => {
+        run.stop();
+        state.a = snap(v);
+        update();
+      }
+    });
+    const at = slider({
+      label: "הנקודה \\(x\\)",
+      min: -2,
+      max: 2,
+      step: 0.1,
+      value: state.x,
+      onInput: (v) => {
+        state.x = v;
+        update();
+      }
+    });
+    const setBase = (a) => () => {
+      run.stop();
+      state.a = a;
+      base.set(a);
+      update();
+    };
+    const run = player(fig, ui, {
+      label: "לחפש את הבסיס",
+      seconds: 5,
+      onFrame: (k) => {
+        state.a = 1.5 + (Math.E - 1.5) * k;
+        base.set(state.a);
+        update();
+      }
+    });
+    ui.controls.append(base.el, at.el);
+    ui.buttons.append(run.el, button("\\(a=2\\)", setBase(2), "is-quiet"), button("\\(a=e\\)", setBase(Math.E), "is-quiet"), button("\\(a=3\\)", setBase(3), "is-quiet"));
+
+    function draw() {
+      const { a, x } = state;
+      const f = (u) => Math.pow(a, u);
+      const y = f(x);
+      const slope = Math.log(a) * y;
+      plot.clear();
+      plot.drawAxes();
+      plot.curve(f, { cls: "pc-blue", width: 2.4 });
+      plot.curve((u) => y + slope * (u - x), { cls: "pc-red", width: 1.6 });
+      plot.line(x, 0, x, y, { cls: "pc-green", width: 3.4 });
+      plot.text(x - plot.dx * 0.35, y / 2, fmt(y), { cls: "pc-green-text", anchor: "end", dy: 0.25 });
+      // One step to the right, and how much the tangent climbs over it.
+      plot.line(x, y, x + 1, y, { cls: "pc-gray", width: 1.4, dash: "3 4" });
+      plot.text(x + 0.5, y, "1", { dy: 0.9 });
+      plot.line(x + 1, y, x + 1, y + slope, { cls: "pc-red", width: 3.4 });
+      plot.text(x + 1 + plot.dx * 0.35, y + slope / 2, fmt(slope), { cls: "pc-red-text", anchor: "start", dy: 0.25 });
+      plot.dot(x, y, { cls: "pc-blue" });
+    }
+
+    function update() {
+      draw();
+      const { a, x } = state;
+      const y = Math.pow(a, x);
+      const ratio = Math.log(a);
+      const isE = a === Math.E;
+      const head = `כאשר ${m(`a = ${isE ? "e ≈ 2.718" : fmt(a)}`)}, בנקודה ${m(`x = ${fmt(x)}`)}: גובה הגרף (ירוק) הוא ${m(fmt(y, 3))}, והשיפוע של המשיק (אדום) הוא ${m(fmt(ratio * y, 3))}.`;
+      const tail = isE
+        ? ` השיפוע <strong>שווה לגובה</strong>, ובכל נקודה שתבחרו. זו התכונה שמייחדת את ${m("e")}.`
+        : ` השיפוע הוא ${m(fmt(ratio, 3))} כפול הגובה, ובכל נקודה זה אותו מספר. ${ratio < 1 ? `הוא קטן מ-1, כלומר הבסיס קטן מדי: הגדילו את ${m("a")}.` : `הוא גדול מ-1, כלומר הבסיס גדול מדי: הקטינו את ${m("a")}.`}`;
+      ui.say(head + tail);
+    }
+
+    update();
+    return {
+      render() {
+        plot.layout();
+        draw();
+      }
+    };
+  };
+
+  // The inverse function is the mirror image in the line y = x.
+  DEMOS["inverse-mirror"] = (fig) => {
+    const pairs = [
+      { name: "eˣ ↔ ln x", f: Math.exp, lo: -4, hi: 1.6, t: 1, note: `התחום של ${m("ln")} הוא הטווח של ${m("eˣ")}: המספרים החיוביים בלבד.` },
+      { name: "x² (x ≥ 0) ↔ √x", f: (x) => x * x, lo: 0, hi: 2.05, t: 1.5, note: `צמצמנו את ${m("x²")} ל-${m("x ≥ 0")}, ושם היא עולה ולכן הפיכה.` },
+      { name: "x² על כל הישר", f: (x) => x * x, lo: -2.05, hi: 2.05, tMin: 0.5, t: 1.5, broken: true },
+      { name: "sin x ↔ arcsin x", f: Math.sin, lo: -Math.PI / 2, hi: Math.PI / 2, t: 1, note: `הסינוס אינו חד־חד־ערכי על כל הישר, ולכן מצמצמים אותו לקטע ${m("[−π/2, π/2]")}. שם ההפוכה שלו היא ${m("arcsin")}.` },
+      { name: "tan x ↔ arctan x", f: Math.tan, lo: -1.33, hi: 1.33, t: 1, note: `האסימפטוטות האנכיות של ${m("tan")} ב-${m("±π/2")} הופכות לאסימפטוטות אופקיות של ${m("arctan")}.` },
+      { name: "x³ ↔ ∛x", f: (x) => x ** 3, lo: -1.6, hi: 1.6, t: 1.2, note: `${m("x³")} עולה על כל הישר, ולכן אין צורך לצמצם את התחום.` }
+    ];
+    const ui = frame(fig, "פונקציה הפוכה: שיקוף בישר \\(y=x\\)");
+    const plot = new Plot(ui.plotHost, { view: { xmin: -4.2, xmax: 4.2, ymin: -4, ymax: 4 }, rows: 16, square: true });
+    const state = { i: 0, t: pairs[0].t, k: 1 };
+    const pick = choice("זוג פונקציות", pairs.map((p) => p.name), (i) => {
+      run.stop();
+      state.i = i;
+      state.k = 1;
+      const p = pairs[i];
+      state.t = p.t;
+      input.range(p.tMin ?? p.lo, p.hi, p.t);
+      update();
+    });
+    const input = slider({
+      label: "הקלט \\(t\\)",
+      min: pairs[0].lo,
+      max: pairs[0].hi,
+      step: 0.05,
+      value: state.t,
+      onInput: (v) => {
+        state.t = v;
+        update();
+      }
+    });
+    const run = player(fig, ui, {
+      label: "לשקף",
+      seconds: 2.6,
+      onFrame: (k) => {
+        state.k = k;
+        update();
+      }
+    });
+    ui.controls.append(pick.el, input.el);
+    ui.buttons.append(run.el);
+
+    function draw() {
+      const p = pairs[state.i];
+      const { t, k } = state;
+      // A turn about the line y = x, seen from above: at k = 1 the two
+      // coordinates have changed places.
+      const c = Math.cos(Math.PI * k);
+      const flip = ([x, y]) => [(x + y) / 2 + ((x - y) / 2) * c, (x + y) / 2 - ((x - y) / 2) * c];
+      plot.clear();
+      plot.drawAxes();
+      plot.curve((x) => x, { cls: "pc-gray", width: 1.3, dash: "6 5" });
+      plot.curve(p.f, { cls: "pc-blue", width: 2.4, from: p.lo, to: p.hi });
+      const copy = [];
+      for (let i = 0; i <= 200; i += 1) {
+        const x = p.lo + ((p.hi - p.lo) * i) / 200;
+        copy.push(flip([x, p.f(x)]));
+      }
+      const mirror = p.broken ? "pc-orange" : "pc-red";
+      plot.polyline(copy, { cls: mirror, width: 2.4 });
+      const A = [t, p.f(t)];
+      const B = flip(A);
+      plot.line(A[0], A[1], B[0], B[1], { cls: "pc-gray", width: 1.2, dash: "3 4" });
+      plot.dot(A[0], A[1], { cls: "pc-blue" });
+      plot.dot(B[0], B[1], { cls: mirror });
+      if (p.broken && k === 1) {
+        plot.vline(B[0], { cls: "pc-gray", width: 1.2, dash: "3 4" });
+        plot.dot(B[0], -B[1], { cls: mirror });
+      }
+    }
+
+    function update() {
+      draw();
+      const p = pairs[state.i];
+      const { t } = state;
+      const y = p.f(t);
+      if (state.k < 1) {
+        ui.say(`העותק מסתובב סביב הישר ${m("y = x")}: כל נקודה ${m("(x, y)")} בדרך אל ${m("(y, x)")}.`);
+      } else if (p.broken) {
+        ui.say(
+          `העקומה הכתומה היא השיקוף של ${m("y = x²")}, אבל היא <strong>אינה גרף של פונקציה</strong>: לקלט ${m(fmt(y))} מתאימים שני פלטים, ${m(fmt(t))} ו-${m(fmt(-t))}, והישר האנכי פוגש אותה פעמיים. לכן ל-${m("x²")} על כל הישר אין פונקציה הפוכה, ומצמצמים את התחום.`
+        );
+      } else {
+        ui.say(
+          `כאן ${m(`f(${fmt(t)}) = ${fmt(y)}`)}, ולכן ההפוכה מחזירה את הקלט: ${m(`f⁻¹(${fmt(y)}) = ${fmt(t)}`)}. הנקודה הכחולה ${m(`(${fmt(t)}, ${fmt(y)})`)} והנקודה האדומה ${m(`(${fmt(y)}, ${fmt(t)})`)} הן תמונות ראי ביחס לישר ${m("y = x")}. ${p.note}`
+        );
+      }
+    }
+
+    update();
+    return {
+      render() {
+        plot.layout();
+        draw();
+      }
+    };
+  };
+
+  // y = a f(x - h) + k, one move at a time.
+  DEMOS.transform = (fig) => {
+    const bases = [
+      { name: "x²", f: (x) => x * x, anchor: [0, 0] },
+      { name: "|x|", f: Math.abs, anchor: [0, 0] },
+      { name: "√x", f: (x) => (x >= 0 ? Math.sqrt(x) : NaN), anchor: [0, 0] },
+      { name: "sin x", f: Math.sin, anchor: [Math.PI / 2, 1] },
+      { name: "1/x", f: (x) => 1 / x, anchor: [1, 1], pole: 0 },
+      { name: "2ˣ", f: (x) => Math.pow(2, x), anchor: [0, 1] }
+    ];
+    const ui = frame(fig, "הזזות ומתיחות: \\(y=a\\,f(x-h)+k\\)");
+    const plot = new Plot(ui.plotHost, { view: { xmin: -6, xmax: 6, ymin: -3, ymax: 4 }, rows: 14 });
+    const state = { i: 0, a: 1, h: 2, k: 1, phase: 3 };
+    const settle = () => {
+      run.stop();
+      state.phase = 3;
+    };
+    const pick = choice("הפונקציה \\(f\\)", bases.map((b) => b.name), (i) => {
+      settle();
+      state.i = i;
+      update();
+    });
+    const shift = slider({ label: "הזזה אופקית \\(h\\)", min: -4, max: 4, step: 0.5, value: state.h, onInput: (v) => (settle(), (state.h = v), update()) });
+    const stretch = slider({ label: "כפל הגובה \\(a\\)", min: -3, max: 3, step: 0.25, value: state.a, onInput: (v) => (settle(), (state.a = v), update()) });
+    const lift = slider({ label: "הזזה אנכית \\(k\\)", min: -3, max: 3, step: 0.5, value: state.k, onInput: (v) => (settle(), (state.k = v), update()) });
+    const run = player(fig, ui, {
+      label: "צעד אחר צעד",
+      seconds: 5,
+      onFrame: (q) => {
+        state.phase = 3 * q;
+        update();
+      }
+    });
+    ui.controls.append(pick.el, shift.el, stretch.el, lift.el);
+    ui.buttons.append(
+      run.el,
+      button("איפוס", () => {
+        settle();
+        Object.assign(state, { a: 1, h: 0, k: 0 });
+        shift.set(0);
+        stretch.set(1);
+        lift.set(0);
+        update();
+      }, "is-quiet")
+    );
+
+    // The three moves in order: slide sideways, multiply the height, slide up.
+    function current() {
+      const { a, h, k, phase } = state;
+      return { h: h * clamp01(phase), a: 1 + (a - 1) * clamp01(phase - 1), k: k * clamp01(phase - 2) };
+    }
+
+    function draw() {
+      const base = bases[state.i];
+      const now = current();
+      plot.clear();
+      plot.drawAxes();
+      plot.curve(base.f, { cls: "pc-gray", width: 1.5, dash: "5 5", skip: base.pole ?? null });
+      plot.curve((x) => now.a * base.f(x - now.h) + now.k, { cls: "pc-blue", width: 2.4, skip: base.pole == null ? null : base.pole + now.h });
+      const [x0, y0] = base.anchor;
+      const end = [x0 + now.h, now.a * y0 + now.k];
+      plot.polyline([[x0, y0], [end[0], y0], end], { cls: "pc-green", width: 1.4, dash: "3 4" });
+      plot.dot(x0, y0, { cls: "pc-gray", hollow: true });
+      plot.dot(end[0], end[1], { cls: "pc-blue" });
+    }
+
+    function formula() {
+      const { a, h, k } = state;
+      const inner = h === 0 ? "x" : `x ${h > 0 ? "−" : "+"} ${fmt(Math.abs(h))}`;
+      const front = a === 1 ? "" : a === -1 ? "−" : `${fmt(a)}·`;
+      const tail = k === 0 ? "" : ` ${k > 0 ? "+" : "−"} ${fmt(Math.abs(k))}`;
+      return `y = ${front}f(${inner})${tail}`;
+    }
+
+    function update() {
+      draw();
+      const base = bases[state.i];
+      const { a, h, k, phase } = state;
+      if (phase < 3) {
+        const step = phase < 1 ? `שלב 1: מזיזים ${m(fmt(Math.abs(h)))} ${h >= 0 ? "ימינה" : "שמאלה"}.` : phase < 2 ? `שלב 2: מכפילים כל גובה ב-${m(fmt(a))}.` : `שלב 3: מזיזים ${m(fmt(Math.abs(k)))} ${k >= 0 ? "למעלה" : "למטה"}.`;
+        ui.say(`הנוסחה: ${m(formula())}, כאשר ${m(`f(x) = ${base.name}`)}. ${step}`);
+        return;
+      }
+      const moves = [];
+      if (h !== 0) moves.push(`זז ${m(fmt(Math.abs(h)))} ${h > 0 ? "ימינה" : "שמאלה"}`);
+      if (a === 0) moves.push("התמוטט לישר אופקי, כי כל גובה הוכפל באפס");
+      else {
+        if (a < 0) moves.push(`התהפך סביב ציר ${m("x")}`);
+        if (Math.abs(a) > 1) moves.push(`נמתח לגובה פי ${m(fmt(Math.abs(a)))}`);
+        if (Math.abs(a) < 1) moves.push(`התכווץ לגובה פי ${m(fmt(Math.abs(a)))}`);
+      }
+      if (k !== 0) moves.push(`זז ${m(fmt(Math.abs(k)))} ${k > 0 ? "למעלה" : "למטה"}`);
+      const [x0, y0] = base.anchor;
+      const told = moves.length ? `ביחס לגרף המקווקו, הגרף הכחול ${moves.join(", ")}.` : "הגרף הכחול מכסה את הגרף המקווקו: עוד לא שיניתם דבר.";
+      const trap = h !== 0 ? ` שימו לב לסימן: ${m(h > 0 ? "x − h" : "x + |h|")} בתוך הסוגריים מזיז ${h > 0 ? "ימינה" : "שמאלה"}.` : "";
+      ui.say(`הנוסחה: ${m(formula())}, כאשר ${m(`f(x) = ${base.name}`)}. ${told} הנקודה ${m(`(${fmt(x0)}, ${fmt(y0)})`)} עברה אל ${m(`(${fmt(x0 + h)}, ${fmt(a * y0 + k)})`)}.${trap}`);
+    }
+
+    update();
+    return {
+      render() {
+        plot.layout();
+        draw();
+      }
+    };
+  };
+
+  // A function as a machine: one input, one output, and inputs it refuses.
+  DEMOS["function-machine"] = (fig) => {
+    const all = "כל המספרים הממשיים";
+    const list = [
+      { name: "f(x) = x² − 1", f: (x) => x * x - 1, domain: all, range: m("y ≥ −1") },
+      { name: "f(x) = √x", f: Math.sqrt, ok: (x) => x >= 0, why: "למספר שלילי אין שורש ריבועי ממשי", domain: m("x ≥ 0"), range: m("y ≥ 0") },
+      { name: "f(x) = 1/x", f: (x) => 1 / x, ok: (x) => Math.abs(x) > 1e-9, why: "אי אפשר לחלק באפס", domain: m("x ≠ 0"), range: m("y ≠ 0"), pole: 0 },
+      { name: "f(x) = |x| − 2", f: (x) => Math.abs(x) - 2, domain: all, range: m("y ≥ −2") },
+      { name: "f(x) = ⌊x⌋", f: Math.floor, domain: all, range: "המספרים השלמים", steps: true },
+      { name: "f(x) = sin x", f: Math.sin, domain: all, range: m("−1 ≤ y ≤ 1") }
+    ];
+    const ui = frame(fig, "פונקציה כמכונה: קלט נכנס, פלט יוצא");
+    const plot = new Plot(ui.plotHost, { view: { xmin: -4.5, xmax: 4.5, ymin: -3, ymax: 4 }, rows: 14 });
+    const state = { i: 0, x: 2, seen: [] };
+    const pick = choice("הפונקציה", list.map((item) => item.name), (i) => {
+      run.stop();
+      state.i = i;
+      state.seen = [];
+      update();
+    });
+    const input = slider({
+      label: "הקלט \\(x\\)",
+      min: -4,
+      max: 4,
+      step: 0.1,
+      value: state.x,
+      onInput: (v) => {
+        run.stop();
+        state.x = v;
+        update();
+      }
+    });
+    const run = player(fig, ui, {
+      label: "להריץ את כל הקלטים",
+      seconds: 7,
+      from: () => {
+        state.seen = [];
+        return 0;
+      },
+      onFrame: (k) => {
+        state.x = -4 + 8 * k;
+        input.set(state.x);
+        update();
+      },
+      onStop: () => {
+        state.x = Math.round(state.x * 10) / 10;
+        update();
+      }
+    });
+    ui.controls.append(pick.el, input.el);
+    ui.buttons.append(run.el);
+
+    const inDomain = (item, x) => (item.ok ? item.ok(x) : true);
+
+    function draw() {
+      const item = list[state.i];
+      const { x } = state;
+      plot.clear();
+      plot.drawAxes();
+      if (item.steps) {
+        for (let k = Math.floor(plot.xLeft); k < plot.xRight; k += 1) {
+          plot.line(k, k, k + 1, k, { cls: "pc-blue", width: 2.4 });
+          plot.dot(k + 1, k, { cls: "pc-blue", hollow: true, r: plot.cell * 0.17 });
+          plot.dot(k, k, { cls: "pc-blue", r: plot.cell * 0.17 });
+        }
+      } else {
+        plot.curve((u) => (inDomain(item, u) ? item.f(u) : NaN), { cls: "pc-blue", width: 2.4, skip: item.pole ?? null });
+      }
+      // Every output so far, marked on the y axis: together they are the image.
+      const x0 = plot.X(0);
+      const marks = state.seen.map((y) => `M${x0 - 5} ${plot.Y(y).toFixed(1)}h10`).join("");
+      if (marks) plot.shape("path", { d: marks, class: "demo-line pc-red", "stroke-width": 1.4, "stroke-opacity": 0.55 });
+      if (!inDomain(item, x)) {
+        plot.dot(x, 0, { cls: "pc-red", hollow: true });
+        return;
+      }
+      const y = item.f(x);
+      plot.line(x, 0, x, y, { cls: "pc-blue", width: 1.5, dash: "4 4" });
+      plot.line(x, y, 0, y, { cls: "pc-red", width: 1.5, dash: "4 4" });
+      plot.dot(x, 0, { cls: "pc-blue" });
+      plot.dot(0, y, { cls: "pc-red" });
+      plot.dot(x, y, { cls: "pc-purple" });
+    }
+
+    function update() {
+      const item = list[state.i];
+      const { x } = state;
+      const ok = inDomain(item, x);
+      if (ok) {
+        const y = Math.round(item.f(x) * 50) / 50;
+        if (Number.isFinite(y) && !state.seen.includes(y) && state.seen.length < 500) state.seen.push(y);
+      }
+      draw();
+      if (!ok) {
+        ui.say(`הקלט ${m(`x = ${fmt(x)}`)} <strong>אינו בתחום</strong>: ${item.why}. המכונה אינה מחזירה פלט. התחום: ${item.domain}.`);
+        return;
+      }
+      ui.say(
+        `הקלט ${m(`x = ${fmt(x)}`)} (כחול, על ציר ${m("x")}) נכנס, והפלט ${m(`f(${fmt(x)}) = ${fmt(item.f(x), 3)}`)} (אדום, על ציר ${m("y")}) יוצא. לכל קלט בתחום יש פלט אחד בלבד. התחום: ${item.domain}. הסימנים האדומים על ציר ${m("y")} הם הפלטים שכבר התקבלו, וכולם יחד הם התמונה: ${item.range}.`
+      );
+    }
+
+    update();
+    return {
+      render() {
+        plot.layout();
+        draw();
+      }
+    };
   };
 
   // ---------------------------------------------------------------------------

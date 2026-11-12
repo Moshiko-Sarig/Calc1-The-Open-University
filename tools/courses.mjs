@@ -63,7 +63,9 @@ export const COURSES = [
     examUseNote: "בבחינה מצטטים רק משפטים, טענות, דוגמאות ושאלות מהספר. סיכומים חיצוניים, כולל האתר הזה, אינם מקור שמותר לצטט בלי הוכחה.",
     // Unit titles exactly as printed in the course books (20474, volumes A–C).
     // Vault folder names are kept for Obsidian links; the site shows these.
+    // Unit 0 is not in the books: it is this site's preparation chapter on functions.
     unitTitles: {
+      0: "הכנה: פונקציות",
       1: "המספרים הממשיים",
       2: "סדרות וגבולות",
       3: "קבוצות וסדרות חסומות",
@@ -73,7 +75,7 @@ export const COURSES = [
       7: "הנגזרת",
       8: "תכונות של פונקציות גזירות"
     },
-    unitVolumes: { 1: "כרך א", 2: "כרך א", 3: "כרך א", 4: "כרך ב", 5: "כרך ב", 6: "כרך ב", 7: "כרך ג", 8: "כרך ג" },
+    unitVolumes: { 0: "לפני הקורס", 1: "כרך א", 2: "כרך א", 3: "כרך א", 4: "כרך ב", 5: "כרך ב", 6: "כרך ב", 7: "כרך ג", 8: "כרך ג" },
     titleSuffix: /\s+(?:-\s+|ב|בכספת )אינפי 1$/,
     searchExample: "5.29",
     storagePrefix: "infi",
