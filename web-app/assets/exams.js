@@ -120,6 +120,7 @@
         ${study.parts.map((part, i) => `<section class="exam-study-part" data-study-part="${i}" aria-labelledby="studyPart${i}">
           <h2 id="studyPart${i}">${part.label ? `סעיף ${esc(part.label)}` : "דרך הפתרון"}</h2>
           ${part.simple}
+          ${part.graphs?.length ? `<div class="exam-study-graphs">${part.graphs.map((graph) => graph.html).join("")}</div>` : ""}
           <div data-hints aria-live="polite"></div><p class="exam-actions"><button class="button" type="button" data-next-hint${part.hints.length ? "" : " hidden"}>רמז הבא</button><button class="button" type="button" data-plan${part.hints.length ? " hidden" : ""}>לתוכנית הפתרון</button></p>
           <div data-plan-body hidden>${part.plan}</div>
           <div data-attempt hidden><p>ניסיתם לבד? אפשר לעצור לרגע ולכתוב ניסיון, או להמשיך יחד.</p><button class="button" type="button" data-attempted>לפתרון בשלבים</button></div>
@@ -175,6 +176,7 @@
       find("[data-all-steps]").addEventListener("click", () => reveal(true));
     });
     bindRating(root, exam, q);
+    window.InfiDemos?.mount(root);
     typesetStudy(root);
   }
 

@@ -6709,3 +6709,32 @@ details.callout[open] > summary > .callout-teaser { display: none; }
 .exam-study details.callout > summary.callout-title {
   min-height: 44px;
 }
+
+/* A graph sits beside the explanation in the learning sequence, before hints. */
+.exam-study-graphs,
+.exam-study-graphs :is(.callout-body, .demo, .demo-panel) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.callout-graph {
+  border-inline-start-color: var(--accent);
+}
+
+.callout-graph > .callout-title {
+  color: var(--accent);
+}
+
+.exam-study-graphs .demo-slider input[type="range"] {
+  min-width: 0;
+  min-height: 44px;
+  touch-action: pan-y;
+}
+
+.exam-study-graphs .demo-legend {
+  overflow-wrap: anywhere;
+}
+
+.exam-study-graphs .demo-controls {
+  grid-template-columns: minmax(0, 1fr);
+}

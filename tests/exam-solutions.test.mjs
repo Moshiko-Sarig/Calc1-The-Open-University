@@ -35,6 +35,27 @@ test("41.md splits into question 3's two parts, with three hints each, and quest
   assert.match(studies[3].parts[0].mistakes, /callout-mistake/);
 });
 
+test("41.md has a folded Desmos graph after the simple explanation in q3 part ב and q6", () => {
+  const studies = parseExamSolutions(source, exam);
+  assert.deepEqual(studies[3].parts.map((part) => part.graphs.length), [0, 1]);
+  for (const part of [studies[3].parts[1], studies[6].parts[0]]) {
+    assert.equal(part.graphs.length, 1);
+    assert.equal(part.graphs[0].title, "רואים את זה בגרף");
+    assert.match(part.graphs[0].html, /<details class="callout callout-graph">/);
+    assert.match(part.graphs[0].html, /<figure class="demo" data-desmos=/);
+  }
+});
+
+test("repeated infi-demo figures in an exam have unique IDs", () => {
+  const graph = "> [!graph]- רואים את זה בגרף\n> <!-- infi-demo: epsilon-n -->\n\n";
+  const repeated = source.replaceAll("> [!plan]", graph + graph + "> [!plan]");
+  const studies = parseExamSolutions(repeated, exam);
+  const html = Object.values(studies).flatMap((study) => study.parts.flatMap((part) => part.graphs.map((item) => item.html))).join("");
+  const ids = [...html.matchAll(/id="(demo-epsilon-n[^"\s]*)"/g)].map((match) => match[1]);
+  assert.equal(ids.length, 6);
+  assert.equal(new Set(ids).size, ids.length);
+});
+
 test("letter answers and similar questions use the existing callout, link and math pipeline", () => {
   const raw = "## שאלה 6\n<!-- mc: answer=ב -->\n\n> [!question] השאלה\n> $x$\n\n> [!simple]- במילים פשוטות\n> **בשורה אחת**: נספור אחד.\n\n> [!solution]- פתרון\n> **שלב 1**: $x=1$\n\n**שאלות דומות**: [שאלה](#/exams/41/q3)\n";
   const study = parseExamSolutions(raw, exam)[6];
@@ -82,9 +103,10 @@ test("generated docs carry study markup and the study, trainer and simulation UI
   for (const q of [3, 6]) {
     for (const part of built.questions.find((item) => item.q === q).study.parts) assert.match(part.simple, /callout-simple" open/);
   }
+  assert.match(built.questions.find((q) => q.q === 3).study.parts[1].graphs[0].html, /data-desmos=/);
   assert.deepEqual(built.questions.find((q) => q.q === 6).study.mc, { 1: false, 2: false });
   const js = fs.readFileSync(path.join(root, "docs/infi/assets/exams.js"), "utf8");
   assert.ok(js.indexOf("${part.simple}") < js.indexOf("<div data-hints"), "plain words precede hints");
-  for (const marker of ["data-study-part", "data-next-hint", "data-next-step", "data-rating", "data-mc-statement", "data-sim-time", "data-score"]) assert.ok(js.includes(marker), marker);
+  for (const marker of ["exam-study-graphs", "data-study-part", "data-next-hint", "data-next-step", "data-rating", "data-mc-statement", "data-sim-time", "data-score"]) assert.ok(js.includes(marker), marker);
   assert.match(fs.readFileSync(path.join(root, "docs/infi/assets/site.css"), "utf8"), /\.callout-mistake/);
 });

@@ -679,6 +679,7 @@ const calloutTypes = {
   hint: "רמז",
   question: "השאלה",
   mistake: "טעויות נפוצות",
+  graph: "רואים את זה בגרף",
   solution: "פתרון",
   exam: "במבחן",
   plan: "התוכנית בשלוש שורות",
@@ -903,7 +904,7 @@ const DEMO_NAMES = new Set(["sup", "epsilon-n", "nested-intervals", "epsilon-del
 
 function renderDemo(name) {
   if (!DEMO_NAMES.has(name)) throw new Error(`Unknown infi-demo "${name}"`);
-  return `<figure class="demo" id="demo-${name}" data-demo="${name}"><noscript><p>ההמחשה האינטראקטיבית דורשת JavaScript.</p></noscript></figure>`;
+  return `<figure class="demo" id="${uniqueSlug(`demo-${name}`)}" data-demo="${name}"><noscript><p>ההמחשה האינטראקטיבית דורשת JavaScript.</p></noscript></figure>`;
 }
 
 // A Desmos block from the vault is drawn natively on the notebook grid by
@@ -1100,10 +1101,13 @@ export function parseExamSolutions(raw, exam, { file = `${exam.n}.md`, resolver 
   const fail = (message) => { throw new Error(`Exam solutions ${file}: ${message}`); };
   const { meta, body } = parseFrontmatter(raw.replace(/\r\n/g, "\n"));
   if (meta.exam && String(meta.exam) !== String(exam.n)) fail(`exam metadata ${meta.exam} does not match exam ${exam.n}`);
+  // One exam file is one page of ids, like a note: a demo repeated in several
+  // parts gets demo-epsilon-n, demo-epsilon-n-2, ...
+  renderContext.slugs = new Set();
   const studies = {};
   let study = null;
   let part = null;
-  const newPart = (label) => ({ label, simple: "", hints: [], plan: "", solution: "", steps: [], mistakes: "" });
+  const newPart = (label) => ({ label, simple: "", graphs: [], hints: [], plan: "", solution: "", steps: [], mistakes: "" });
   const lines = body.split("\n");
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
@@ -1152,11 +1156,12 @@ export function parseExamSolutions(raw, exam, { file = `${exam.n}.md`, resolver 
     }
     const head = /^\[!(\w+)\][+-]?\s*(.*)$/.exec(quote[0]);
     const type = head?.[1];
-    if (!["question", "simple", "hint", "plan", "solution", "mistake"].includes(type)) fail(`unknown solution box: ${quote[0]}`);
+    if (!["question", "simple", "graph", "hint", "plan", "solution", "mistake"].includes(type)) fail(`unknown solution box: ${quote[0]}`);
     if (!quote.slice(1).join("\n").trim()) fail(`empty ${type} box`);
     // The everyday explanation can fold, but always starts open for every part.
     // Hints and solutions use the study controls instead of a second disclosure.
-    const html = renderTypedCallout([`[!${type}]${type === "simple" ? "+" : ""} ${head[2]}`, ...quote.slice(1)], resolver);
+    const fold = type === "simple" ? "+" : type === "graph" ? "-" : "";
+    const html = renderTypedCallout([`[!${type}]${fold} ${head[2]}`, ...quote.slice(1)], resolver);
     if (type === "question") {
       if (study.question) fail("duplicate question box");
       study.question = html;
@@ -1166,7 +1171,10 @@ export function parseExamSolutions(raw, exam, { file = `${exam.n}.md`, resolver 
       part = newPart("");
       study.parts.push(part);
     }
-    if (type === "hint") part.hints.push({ title: head[2] || "רמז", html });
+    if (type === "graph") {
+      if (!/data-(?:desmos|demo)=/.test(html)) fail("graph box needs a desmos-live block or an infi-demo marker");
+      part.graphs.push({ title: head[2] || calloutTypes.graph, html });
+    } else if (type === "hint") part.hints.push({ title: head[2] || "רמז", html });
     else {
       const key = type === "mistake" ? "mistakes" : type;
       if (part[key]) fail(`duplicate ${type} box`);

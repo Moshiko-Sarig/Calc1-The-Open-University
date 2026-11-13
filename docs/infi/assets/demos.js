@@ -3791,10 +3791,16 @@
         if (!build) throw new Error(`unknown demo "${fig.dataset.demo}"`);
         const demo = build(fig);
         const item = { fig, demo, width: 0, cell: 0 };
-        const render = () => {
+        const render = (force = false) => {
           const width = fig.clientWidth;
           const cell = cellOf(fig);
-          if (width === item.width && cell === item.cell) return;
+          // A folded callout has no plot width. Opening it must lay out the
+          // curves again, even if its previous visible width was the same.
+          if (!width) {
+            item.width = 0;
+            return;
+          }
+          if (!force && width === item.width && cell === item.cell) return;
           item.width = width;
           item.cell = cell;
           demo.render();
@@ -3803,7 +3809,7 @@
         item.render = render;
         render();
         if ("ResizeObserver" in window) {
-          item.observer = new ResizeObserver(render);
+          item.observer = new ResizeObserver(() => render());
           item.observer.observe(fig);
         }
         live.add(item);
@@ -3815,10 +3821,24 @@
     });
   }
 
+  function refresh(root) {
+    mount(root);
+    for (const item of live) if (root.contains(item.fig)) item.render(true);
+  }
+
+  // toggle does not bubble. Capture it for graphs in nested callouts too;
+  // resize is also the fallback in browsers without ResizeObserver.
+  document.addEventListener("toggle", (event) => {
+    if (event.target.matches("details") && event.target.open) refresh(event.target);
+  }, true);
+  window.addEventListener("resize", () => {
+    for (const item of live) if (item.fig.isConnected) item.render();
+  });
+
   // A change of text size changes the grid cell without changing the width.
   new MutationObserver(() => {
     for (const item of live) item.render?.();
   }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-text-size"] });
 
-  window.InfiDemos = { mount, compileTex };
+  window.InfiDemos = { mount, refresh, compileTex };
 })();
