@@ -22,6 +22,11 @@ exam: 41
 
 ### סעיף א
 
+> [!simple]- במילים פשוטות
+> **בשורה אחת**: ...
+> **תמונה בראש**: ...
+> **עם מספרים**: ...
+
 > [!hint]- רמז 1: מאיפה מתחילים
 > ...
 > [!hint]- רמז 2: ...
@@ -34,6 +39,23 @@ exam: 41
 
 **שאלות דומות**: [2024א · מועד 81, שאלה 2](#/exams/29/q2)
 ```
+
+## The most important rule: explain it so a child could follow
+
+The owner's first priority: every solution must be explained so simply that a
+5-year-old could follow the idea. The reader is a student who is afraid of
+math. The formal, exam-level solution stays (it is what goes in the exam
+notebook), but it is never the only explanation:
+
+- **Every part opens with a `[!simple]- במילים פשוטות` box**, right after the `### סעיף` heading (or after the `[!question]` box when there are no parts), before the hints. It contains:
+  - `**בשורה אחת**: ...` what the question really asks, in everyday words, with no symbols if possible.
+  - `**תמונה בראש**: ...` an everyday picture (stairs, a path going uphill, a light blinking, children in a line) that is mathematically honest.
+  - `**עם מספרים**: ...` the idea on two or three small, concrete numbers. Compute them; they must be correct.
+  - Each scary word used in the solution (אינפימום, רציפות במידה שווה, סדרת קושי...) explained in one plain sentence.
+- **Every `*למה?*` line uses everyday words**, as if answering a child who asked "but why?". No new symbols inside it.
+- **Hints and plan in plain words too.** Name the theorem, but say in words what it gives.
+- **Short sentences.** One idea per sentence. Explain every new term the first time it appears.
+- Simple, never condescending: no "זה קל", no "ברור ש".
 
 Rules:
 
