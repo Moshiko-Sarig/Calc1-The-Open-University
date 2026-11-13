@@ -84,6 +84,10 @@ export const COURSES = [
     examsDir: "exams",
     theoremListTitle: "רשימת המשפטים לבחינה",
     theoremListLabel: "שברשימה לבחינה",
+    // Vault folder with exam questions sorted by topic, shown as its own group.
+    practiceDir: "תרגול לפי נושאים",
+    practiceTitle: "תרגול לפי נושאים",
+    practiceSubtitle: "שאלות ממבחנים עם פתרונות",
     features: { exams: true }
   },
   {

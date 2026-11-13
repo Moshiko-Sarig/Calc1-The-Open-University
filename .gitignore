@@ -5,6 +5,9 @@ Thumbs.db
 tmp/
 plans/
 output/
+# Local work products and design-tool snapshots, not used by the site build.
+/outputs/
+/.hallmark/
 guides/
 *.log
 *.pdf

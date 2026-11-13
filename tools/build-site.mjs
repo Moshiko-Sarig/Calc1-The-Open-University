@@ -146,6 +146,8 @@ function unitInfo(relPath) {
     };
   }
   if (first === "00 - מרכז הכספת") return { unitId: "center", unitName: "מרכז הכספת", unitOrder: 1 };
+  // Exam questions sorted by topic: a group of its own, after the units.
+  if (course.practiceDir && first === course.practiceDir) return { unitId: "practice", unitName: course.practiceTitle || first, unitOrder: 50 };
   if (!relPath.includes("/")) return { unitId: "overview", unitName: "שער ומקורות", unitOrder: 0 };
   return { unitId: "other", unitName: first, unitOrder: 99 };
 }
@@ -1194,6 +1196,26 @@ function buildNavGroups(pages, resolver) {
       title: `${course.unitWord} ${number}`,
       subtitle: course.unitTitles[number],
       volume: sample.unitVolume || "",
+      gatewayId: gateway?.id || ordered[0],
+      pageIds: ordered
+    });
+  }
+
+  const practice = byUnit.get("practice");
+  if (practice?.length) {
+    const gateway = practice.find((page) => /^שער /.test(page.title));
+    const ordered = [];
+    if (gateway) ordered.push(gateway.id);
+    for (const pid of studyOrder(gateway, resolver)) {
+      if (practice.some((page) => page.id === pid) && !ordered.includes(pid)) ordered.push(pid);
+    }
+    for (const page of practice.sort((x, y) => collator.compare(x.title, y.title))) {
+      if (!ordered.includes(page.id)) ordered.push(page.id);
+    }
+    groups.push({
+      id: "practice",
+      title: course.practiceTitle || course.practiceDir,
+      subtitle: course.practiceSubtitle || "",
       gatewayId: gateway?.id || ordered[0],
       pageIds: ordered
     });
