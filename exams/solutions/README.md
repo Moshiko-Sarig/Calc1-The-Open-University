@@ -27,6 +27,13 @@ exam: 41
 > **תמונה בראש**: ...
 > **עם מספרים**: ...
 
+> [!graph]- רואים את זה בגרף
+> What to move and what to watch, in plain words.
+>
+> ```desmos-live
+> { ...the graph JSON, see 41.md... }
+> ```
+
 > [!hint]- רמז 1: מאיפה מתחילים
 > ...
 > [!hint]- רמז 2: ...
@@ -56,6 +63,17 @@ notebook), but it is never the only explanation:
 - **Hints and plan in plain words too.** Name the theorem, but say in words what it gives.
 - **Short sentences.** One idea per sentence. Explain every new term the first time it appears.
 - Simple, never condescending: no "זה קל", no "ברור ש".
+
+## See it: a graph in every part where a picture helps
+
+Right after the `[!simple]` box, add a `[!graph]- רואים את זה בגרף` box (up to two per part). The site draws it as an interactive graph on the notebook grid. Add one to every part that involves a function, a sequence, an interval or a set of numbers. Leave it out only when no picture fits, such as a pure counting or logic question; the checker warns when it is missing.
+
+Inside the box: 1 to 3 sentences saying exactly what to look at and what to move ("הזיזו את $c$ ועקבו אחרי..."), in the same plain words as the simple box, then one of these:
+
+- A ` ```desmos-live ` block of JSON, every line prefixed with `> ` like the rest of the box (see 41.md). The engine understands: `f(x)=...` and `y=...` curves; `x=...` vertical lines; points `(a,b)`, which may use sliders, as in `(t,f(t))`; and sliders `a=1` with `"sliderBounds": {"min","max","step"}`. Per item you can set `"color"` (blue `#2d70b3`, red `#c74440`, green `#388c46`, gray `#6b6b6b`), `"lineStyle": "DASHED"` or `"DOTTED"`, `"pointStyle": "OPEN"` for a hollow point, and `"showLabel": true`. Write multiplication explicitly (`x\\cdot e^{-x}`), and escape backslashes in JSON (`\\frac{1}{x}`). Choose the viewport so the interesting part fills the picture.
+- An `<!-- infi-demo: name -->` marker, for one of the site's ready-made animations: `epsilon-n` (sequence limit), `epsilon-delta` (function limit), `sup` (supremum), `nested-intervals`, `bisection` (intermediate value), `uniform` (uniform continuity), `secant`, `tangent`, `mvt` (Rolle and Lagrange), `inverse-mirror`, `transform`. Use these for proofs of theorems.
+
+Good graphs show the idea of the solution, not only the function. For example: the counterexample, with the point where the claim breaks; the horizontal line of the intermediate value theorem; the two sequences of Heine converging to the same point; the tangent line Lagrange promises. Every number in the graph must match the solution.
 
 Rules:
 

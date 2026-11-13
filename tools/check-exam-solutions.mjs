@@ -20,6 +20,7 @@ const ARROWS = /[⟹⇒→⟸⇐]/;
 // Required box type, whether it is folded ("-"), and how many of it a unit has.
 const UNIT_BOXES = [
   { type: "simple", folded: true, min: 1, max: 1 },
+  { type: "graph", folded: true, min: 0, max: 2 },
   { type: "hint", folded: true, min: 2, max: 3 },
   { type: "plan", folded: false, min: 1, max: 1 },
   { type: "solution", folded: true, min: 1, max: 1 },
@@ -77,6 +78,23 @@ function parseQuestions(lines, boxes) {
   return questions;
 }
 
+// A graph box holds one ```desmos-live block of JSON or an <!-- infi-demo: name --> marker.
+function checkGraph(label, box, issues) {
+  const body = box.lines.slice(1).map((text) => text.replace(/^> ?/, "")).join("\n");
+  if (/<!--\s*infi-demo:\s*[\w-]+\s*-->/.test(body)) return;
+  const fence = body.match(/```desmos-live\n([\s\S]*?)\n```/);
+  if (!fence) {
+    issues.push({ level: "ERROR", line: box.line, msg: `${label}: [!graph] box needs a \`\`\`desmos-live block or an infi-demo marker` });
+    return;
+  }
+  try {
+    const list = JSON.parse(fence[1]).expressions?.list;
+    if (!Array.isArray(list) || !list.length) throw new Error("expressions.list is empty");
+  } catch (error) {
+    issues.push({ level: "ERROR", line: box.line, msg: `${label}: [!graph] JSON is invalid (${error.message})` });
+  }
+}
+
 function checkUnit(label, unit, issues) {
   const boxes = unit.boxes.filter((b) => b.type !== "question");
   const known = new Set(UNIT_BOXES.map((u) => u.type));
@@ -95,9 +113,12 @@ function checkUnit(label, unit, issues) {
     }
   }
   const order = boxes.map((b) => b.type).filter((t) => known.has(t)).join(",");
-  if (!/^simple,hint,hint(,hint)?,plan,solution,mistake$/.test(order) && UNIT_BOXES.every((s) => boxes.filter((b) => b.type === s.type).length >= s.min)) {
-    issues.push({ level: "ERROR", line: at, msg: `${label}: boxes are out of order (${order}); expected simple, hints, plan, solution, mistake` });
+  if (!/^simple(,graph){0,2},hint,hint(,hint)?,plan,solution,mistake$/.test(order) && UNIT_BOXES.every((s) => boxes.filter((b) => b.type === s.type).length >= s.min)) {
+    issues.push({ level: "ERROR", line: at, msg: `${label}: boxes are out of order (${order}); expected simple, graph (optional), hints, plan, solution, mistake` });
   }
+  const graphs = boxes.filter((b) => b.type === "graph");
+  if (!graphs.length) issues.push({ level: "WARNING", line: at, msg: `${label}: no [!graph] box; add one unless no picture fits` });
+  for (const box of graphs) checkGraph(label, box, issues);
   const simple = boxes.find((b) => b.type === "simple");
   if (simple) {
     const body = simple.lines.join("\n");
