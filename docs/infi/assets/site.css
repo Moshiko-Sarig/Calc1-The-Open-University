@@ -6508,3 +6508,233 @@ details.callout[open] > summary > .callout-teaser { display: none; }
 @media print {
   .note-check, .stuck-ladder, .symbols-box, .chip-button { display: none; }
 }
+
+/* Exam study follows the notebook's ink, paper and callout colours. */
+.callout-question {
+  border-inline-start-color: var(--accent);
+}
+
+.callout-mistake {
+  border-inline-start-color: var(--danger);
+}
+
+.callout-mistake > .callout-title {
+  color: var(--danger);
+}
+
+.exam-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-block: 12px;
+}
+
+:is(.exam-view, .exams-page) :is(button, .button, select, input:not([type="checkbox"])) {
+  min-height: 44px;
+}
+
+:is(.exam-view, .exams-page) :is(button, a, input, select):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.exam-coverage,
+.exam-rating,
+.exam-rating-summary {
+  font-size: var(--fs-sm);
+  color: var(--calm);
+}
+
+.exam-rating {
+  padding-inline: 6px;
+  border-inline-start: 2px solid currentColor;
+}
+
+.exam-rating-partial {
+  color: var(--gold);
+}
+
+.exam-rating-stuck {
+  color: var(--danger);
+}
+
+.exam-study-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.exam-study,
+.exam-study-scan,
+.exam-study-part,
+.exam-solution {
+  min-width: 0;
+}
+
+.exam-study-part {
+  margin-block: 24px;
+}
+
+.exam-study-part > h2 {
+  margin-block: 12px;
+}
+
+.exam-study .callout {
+  margin-block: 12px;
+}
+
+.exam-solution {
+  padding: 16px;
+  border-inline-start: 3px solid var(--accent);
+  background: var(--surface);
+}
+
+.exam-solution-step + .exam-solution-step {
+  margin-block-start: 20px;
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--line);
+}
+
+.exam-step-status {
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+}
+
+.exam-self-rating,
+.exam-mc-answer {
+  margin: 20px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  min-width: 0;
+}
+
+.exam-self-rating [aria-pressed="true"] {
+  color: var(--calm);
+  border-color: var(--calm);
+  background: var(--calm-soft);
+}
+
+.exam-feedback-correct {
+  color: var(--calm);
+}
+
+.exam-feedback-incorrect {
+  color: var(--danger);
+}
+
+.exam-sim-controls {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 2;
+  padding: 12px 16px;
+  border: 1px solid var(--paper-edge);
+  background: var(--paper);
+}
+
+.exam-sim-controls p {
+  margin-block: 4px;
+}
+
+[data-sim-time] {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+}
+
+.exam-sim-scans {
+  max-width: 54rem;
+  margin: 20px auto;
+}
+
+.exam-score-choice {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+}
+
+.exam-score-input {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.exam-score-input input {
+  width: 6rem;
+  padding: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+}
+
+@media (max-width: 1000px) {
+  .exam-study-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .exam-question-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 4px;
+  }
+
+  .exam-question-nav .button {
+    flex: 0 0 auto;
+  }
+
+  .exam-solution {
+    padding: 12px;
+  }
+}
+
+:is(.exam-view, .exams-page) [hidden] {
+  display: none !important;
+}
+
+.exam-study-view .page-intro h1 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+}
+
+.exam-question-nav [aria-current="page"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.exam-study details.callout > summary.callout-title {
+  min-height: 44px;
+}
+
+/* A graph sits beside the explanation in the learning sequence, before hints. */
+.exam-study-graphs,
+.exam-study-graphs :is(.callout-body, .demo, .demo-panel) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.callout-graph {
+  border-inline-start-color: var(--accent);
+}
+
+.callout-graph > .callout-title {
+  color: var(--accent);
+}
+
+.exam-study-graphs .demo-slider input[type="range"] {
+  min-width: 0;
+  min-height: 44px;
+  touch-action: pan-y;
+}
+
+.exam-study-graphs .demo-legend {
+  overflow-wrap: anywhere;
+}
+
+.exam-study-graphs .demo-controls {
+  grid-template-columns: minmax(0, 1fr);
+}
