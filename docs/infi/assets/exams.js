@@ -27,6 +27,7 @@
   const storageKey = `${course.storagePrefix}-exam-ratings`;
   let ratings = readStored(storageKey);
   let simulationTimer = null;
+  let navObserver = null;
   const simulations = new Map();
   const mcSession = { correct: 0, total: 0 };
 
@@ -65,11 +66,22 @@
     return count ? `<p class="exam-coverage">פתרונות מלאים · ${count} מתוך ${exam.questions.length} שאלות</p>` : "";
   }
 
+  function questionTabs(exam, current) {
+    return `<nav class="exam-actions exam-question-nav" aria-label="שאלות במבחן">${exam.questions.map((q) => `<a class="button" href="${examHref(exam.n, q.q)}" data-question-tab="${q.q}"${q.q === current?.q ? ` aria-current="page"` : ""}><span>ש${q.q}</span><span data-tab-rating>${ratingMark(exam, q)}</span><span class="exam-tab-solution">${q.study ? "יש פתרון" : "סריקה"}</span></a>`).join("")}</nav>`;
+  }
+
+  function questionPager(exam, q) {
+    const index = exam.questions.indexOf(q);
+    const prev = exam.questions[index - 1];
+    const next = exam.questions[index + 1];
+    return `<nav class="exam-actions" aria-label="המשך הלימוד">${prev ? `<a class="button" href="${examHref(exam.n, prev.q)}">השאלה הקודמת</a>` : ""}${next ? `<a class="button" href="${examHref(exam.n, next.q)}">השאלה הבאה</a>` : ""}<a class="button" href="#/exams">כל המבחנים</a></nav>`;
+  }
+
   function reviewList() {
     const rows = exams().flatMap((exam) => exam.questions.map((q) => ({ exam, q, rating: ratings[`${exam.n}/${q.q}`] })))
       .filter(({ rating }) => ["partial", "stuck"].includes(rating?.value))
       .sort((a, b) => a.rating.at - b.rating.at);
-    return `<section class="exam-section" aria-labelledby="reviewTitle"><h2 id="reviewTitle">לחזרה</h2>
+    return `<section class="exam-section" aria-labelledby="reviewTitle"><h2 id="reviewTitle" tabindex="-1">לחזרה</h2>
       ${rows.length ? `<ul class="exam-q-list">${rows.map(({ exam, q }) => questionRow(exam, q, true)).join("")}</ul>` : `<p>שאלות שתסמנו ״חלקית״ או ״נתקעתי״ יופיעו כאן, מהסימון הישן לחדש.</p>`}</section>`;
   }
 
@@ -83,6 +95,7 @@
       ratings[`${exam.n}/${q.q}`] = { value: button.dataset.rating, at: Date.now() };
       saveStored(storageKey, ratings);
       root.querySelectorAll("[data-rating]").forEach((other) => other.setAttribute("aria-pressed", String(other === button)));
+      root.querySelector(`[data-question-tab="${q.q}"] [data-tab-rating]`).innerHTML = ratingMark(exam, q);
       root.querySelector("[data-rating-status]").textContent = `סימנתם: ${ratingLabels[button.dataset.rating]}`;
     }));
   }
@@ -114,7 +127,7 @@
     app().setTitle(`שאלה ${q.q} · ${examLabel(exam)}`);
     root.innerHTML = `<div class="exam-view exam-study-view">
       <header class="page-intro"><p><a href="${examHref(exam.n)}">${esc(examLabel(exam))}</a> · <a href="#/exams">כל המבחנים</a></p><h1>שאלה ${q.q} · לומדים בשלבים</h1></header>
-      <nav class="exam-actions exam-question-nav" aria-label="שאלות במבחן">${exam.questions.map((item) => `<a class="button" href="${examHref(exam.n, item.q)}"${item.q === q.q ? ` aria-current="page"` : ""}>שאלה ${item.q}</a>`).join("")}</nav>
+      ${questionTabs(exam, q)}
       <div class="exam-study-layout"><article class="exam-study prose" aria-label="לימוד השאלה">
         ${study.question}
         ${study.parts.map((part, i) => `<section class="exam-study-part" data-study-part="${i}" aria-labelledby="studyPart${i}">
@@ -127,7 +140,7 @@
           <section class="exam-solution" data-solution hidden aria-label="פתרון בשלבים"><div data-steps></div><p class="exam-step-status" data-step-status role="status" tabindex="-1"></p><div class="exam-actions"><button class="button button-primary" type="button" data-next-step>הצעד הבא</button><button class="button" type="button" data-all-steps>הצג הכל</button></div></section>
           <div data-mistakes hidden>${part.mistakes}</div>
         </section>`).join("")}
-        <div data-study-end hidden>${study.similar}${ratingBox(exam, q)}</div>
+        <div data-study-end hidden>${study.similar}${ratingBox(exam, q)}${questionPager(exam, q)}</div>
       </article><aside class="exam-study-scan" aria-label="הסריקה המקורית">${scanHtml(exam, q.page)}<p><a href="${examHref(exam.n)}">לכל עמודי המבחן</a></p></aside></div>
     </div>`;
     const finished = new Set();
@@ -403,34 +416,39 @@
     const list = exams();
     const kinds = Array.from(new Set(list.flatMap((e) => e.questions.flatMap((q) => [q.kind, q.kind_detail])).filter(Boolean))).sort();
     const nums = (app().data.examTheorems || []).map((r) => r.number);
-    const cards = list
-      .slice()
-      .reverse()
-      .map((exam) => {
-        const proves = exam.questions.flatMap((q) => q.prove || []);
-        return `<li class="exam-card" data-exam="${exam.n}">
+    const years = [...new Set(list.map((exam) => exam.semester.slice(0, 4)))].sort().reverse();
+    const reviewCount = list.reduce((sum, exam) => sum + exam.questions.filter((q) => ["partial", "stuck"].includes(ratings[`${exam.n}/${q.q}`]?.value)).length, 0);
+    const cards = years.map((year) => {
+      const yearExams = list.filter((exam) => exam.semester.startsWith(year)).sort((a, b) => b.semester.localeCompare(a.semester, "he") || b.n - a.n);
+      return `<section class="exam-year" aria-labelledby="year${year}"><h3 id="year${year}">${esc(year)}</h3>
+        <ul class="exam-cards">${yearExams.map((exam) => `<li class="exam-card" data-exam="${exam.n}">
           <a class="exam-card-link" href="${examHref(exam.n)}">
-            <span class="exam-card-sem">${esc(exam.semester)}</span>
-            <span class="exam-card-meta">${esc(exam.date || "")} · מועד ${esc(exam.moed)}</span>
+            <span class="exam-card-sem">${esc(exam.semester)} · מועד ${esc(exam.moed)}</span>
+            ${coverage(exam)}${examRatings(exam)}
           </a>
-          ${coverage(exam)}${examRatings(exam)}
-          <p class="exam-card-proves">${proves.length ? `להוכיח: ${proves.map((n) => `<b>${esc(n)}</b>`).join(", ")}` : "בלי הוכחת משפט מהרשימה"}</p>
-        </li>`;
-      })
-      .join("");
+          <a class="exam-card-sim" href="${examHref(exam.n)}/sim" aria-label="סימולציה · ${esc(examLabel(exam))}">סימולציה</a>
+        </li>`).join("")}</ul></section>`;
+    }).join("");
     root.innerHTML = `
       <div class="exams-page">
         <header class="page-intro">
           <h1>מבחנים 2019–2026</h1>
-          <p>${list.length} טפסי מבחן רשמיים של הקורס, כסריקות. לכל שאלה סימנו את ${esc(words.theUnit)}, הנושא, סוג השאלה ואת המשפט שמבקשים להוכיח, כדי שתוכלו לתרגל לפי נושא. לשאלות שכבר פתרנו יש רמזים ופתרון בשלבים. אפשר להתחיל לבד ולפתוח עזרה לפי הצורך.</p>
+          <p>${list.length} מבחנים. בוחרים מבחן ופותחים את הסריקה או את הפתרונות.</p>
         </header>
-        <nav class="exam-actions" aria-label="מצבי תרגול"><a class="button" href="#/exams/practice-mc">תרגול חלק ב</a><a class="button" href="#allTitle">כל המבחנים</a></nav>
-        <p class="exam-coverage">פתרונות מלאים · ${list.reduce((sum, exam) => sum + exam.questions.filter((q) => q.study).length, 0)} שאלות</p>
+        <nav class="exam-quick-nav" aria-label="ניווט במבחנים">
+          <a href="#/exams?section=allTitle" data-exam-section="allTitle">כל המבחנים</a>
+          <a href="#/exams?section=reviewTitle" data-exam-section="reviewTitle">לחזרה (${reviewCount})</a>
+          <a href="#/exams/practice-mc">תרגול אמריקאיות</a>
+          <a href="#/exams?section=findTitle" data-exam-section="findTitle">חיפוש לפי נושא</a>
+          <a href="#/exams?section=examStats" data-exam-section="examStats">סטטיסטיקות</a>
+        </nav>
+        <section class="exam-section exam-all" aria-labelledby="allTitle">
+          <h2 id="allTitle" tabindex="-1">כל המבחנים</h2>
+          ${cards}
+        </section>
         ${reviewList()}
-        ${frequencyBoard()}
-        ${heatmap()}
         <section class="exam-section" aria-labelledby="findTitle">
-          <h2 id="findTitle">חיפוש שאלות לפי נושא</h2>
+          <h2 id="findTitle" tabindex="-1">חיפוש שאלות לפי נושא</h2>
           <div class="exam-filters">
             <label>${esc(words.unit)}<select data-f="unit"><option value="">הכול</option>${Object.entries(unitNames()).map(([u, n]) => `<option value="${u}">${u}. ${n}</option>`).join("")}</select></label>
             <label>משפט להוכחה<select data-f="thm"><option value="">הכול</option>${nums.map((n) => `<option>${n}</option>`).join("")}</select></label>
@@ -440,10 +458,11 @@
           <p class="filter-status" aria-live="polite" data-exam-status></p>
           <ul class="exam-q-list" data-exam-results></ul>
         </section>
-        <section class="exam-section" aria-labelledby="allTitle">
-          <h2 id="allTitle">כל המבחנים</h2>
-          <ul class="exam-cards">${cards}</ul>
-        </section>
+        <details class="exam-statistics">
+          <summary id="examStats">סטטיסטיקות: מה נשאל הכי הרבה</summary>
+          ${frequencyBoard()}
+          ${heatmap()}
+        </details>
       </div>`;
 
     const results = root.querySelector("[data-exam-results]");
@@ -492,7 +511,25 @@
       })
     );
     update();
-    if (route.query?.toString()) requestAnimationFrame(() => root.querySelector("#findTitle")?.scrollIntoView({ block: "start" }));
+    const nav = root.querySelector(".exam-quick-nav");
+    const sizeNav = () => root.querySelector(".exams-page")?.style.setProperty("--exam-nav-h", `${nav.offsetHeight}px`);
+    sizeNav();
+    navObserver = new ResizeObserver(sizeNav);
+    navObserver.observe(nav);
+    const jump = (id) => {
+      const target = root.querySelector(`#${id}`);
+      if (!target) return;
+      if (id === "examStats") target.parentElement.open = true;
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: "start" });
+    };
+    nav.querySelectorAll("[data-exam-section]").forEach((link) => link.addEventListener("click", (event) => {
+      event.preventDefault();
+      jump(link.dataset.examSection);
+    }));
+    const hasFilter = ["unit", "thm", "kind", "text"].some((name) => route.query?.get(name));
+    const section = route.query?.get("section");
+    if (hasFilter || ["allTitle", "reviewTitle", "findTitle", "examStats"].includes(section)) requestAnimationFrame(() => jump(hasFilter ? "findTitle" : section));
     app().queueTypeset([root]);
   }
 
@@ -528,10 +565,11 @@
     root.innerHTML = `
       <div class="exam-view">
         <header class="page-intro">
-          <p class="exam-crumbs"><a href="#/exams">מבחנים</a></p>
+          <p class="exam-crumbs"><a href="#/exams">כל המבחנים</a></p>
           <h1>מבחן ${esc(exam.semester)} · מועד ${esc(exam.moed)}</h1>
           <p>${esc(exam.date || "")}${exam.durationHours ? ` · ${exam.durationHours} שעות` : ""}${exam.questionnaire ? ` · שאלון ${esc(exam.questionnaire)}` : ""}. ${esc(exam.structure || "")}</p>
         </header>
+        ${questionTabs(exam, target)}
         ${coverage(exam)}${examRatings(exam)}
         <p><a class="button" href="${examHref(exam.n)}/sim">הדמיית מבחן</a></p>
         <div class="exam-layout">
@@ -601,6 +639,7 @@
 
   function render(root, route) {
     clearInterval(simulationTimer);
+    navObserver?.disconnect();
     if (course.features.questionArchive && window.LinearArchive) return window.LinearArchive.render(root, route);
     if (!course.features.exams) renderNoExams(root);
     else if (route.id === "practice-mc") renderMC(root);

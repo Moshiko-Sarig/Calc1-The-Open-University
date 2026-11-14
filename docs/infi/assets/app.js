@@ -249,8 +249,8 @@ function saveExpanded() {
 }
 
 // The header carries search and the destinations a reader looks for before an
-// exam (practice, exams, the other course). On phones the header hides them,
-// so the drawer repeats them, together with the home link the name gives.
+// exam (practice, exams, the other course). On phones it keeps exams visible;
+// the drawer repeats every destination, together with the home link.
 const DRAWER_LINKS = [
   ["home", "#/", "בית"],
   ["practice", "#/practice", "תרגול"],
@@ -267,6 +267,7 @@ const TREE_MORE_LINKS = [
 // The template's header lists every view; a course without exams drops that link.
 if (!course.features.exams) document.querySelectorAll('[data-nav="exams"]').forEach((link) => link.remove());
 if (course.features.questionArchive) document.querySelectorAll('[data-nav="exams"]').forEach((link) => { link.textContent = "מבחנים ומטלות"; });
+if (course.features.questionArchive) document.querySelector('.primary-nav [data-nav="exams"]').innerHTML = `<span>מבחנים<span class="nav-archive-word"> ומטלות</span></span>`;
 document.querySelector(".primary-nav")?.insertAdjacentHTML("beforeend", courseSwitchLink("course-switch"));
 
 // Two guides the course leans on in every exam: what may be cited from the
@@ -1041,6 +1042,7 @@ function renderHome() {
   const firstUnit = unitGroups[0] ? pages.get(unitGroups[0].gatewayId) : null;
   const recent = recentPages().map((id) => pages.get(id));
   const last = recent[0];
+  const solvedExams = (data.exams || []).filter((exam) => exam.questions.some((q) => q.study)).length;
 
   // The units as a book's table of contents, one list per volume.
   const listed = groups.filter(isUnit);
@@ -1105,6 +1107,7 @@ function renderHome() {
         <div class="home-intro-main">
           <p class="home-intro-kicker">האוניברסיטה הפתוחה <span aria-hidden="true"> / </span> קורס ${escapeHtml(course.courseCode)}${introSketch ? ` <svg class="home-intro-sketch" width="48" height="28" viewBox="0 0 56 32" fill="none" aria-hidden="true" focusable="false">${introSketch}</svg>` : ""}</p>
           <h1 id="homeTitle">${escapeHtml(course.fullName)}</h1>
+          ${course.features.exams && !course.features.questionArchive ? `<a class="home-exams-entry" href="#/exams"><strong>מבחנים ופתרונות</strong><span>${solvedExams} מבחנים עם פתרונות מלאים</span><span aria-hidden="true">←</span></a>` : ""}
           <div class="home-encouragement">
             <p aria-live="polite" data-study-message>${escapeHtml(nextStudyMessage())}</p>
             <button type="button" data-next-study-message>משפט נוסף</button>
@@ -1112,7 +1115,7 @@ function renderHome() {
           <div class="home-intro-actions">
             ${last || firstUnit ? `<a class="button button-primary" href="${last ? escapeHtml(readingHref(last)) : pageHref(firstUnit)}">${last ? "להמשיך מאיפה שעצרתי" : "להתחלת הלימוד"} <span aria-hidden="true">←</span></a>` : ""}
             ${exam ? `<a class="home-quick-link" href="${pageHref(exam)}">${escapeHtml(words.theTheorems)}</a>` : ""}
-            ${course.features.exams ? `<a class="home-quick-link" href="#/exams">${course.features.questionArchive ? "מבחנים ומטלות" : "מבחני עבר"}</a>` : ""}
+            ${course.features.questionArchive ? `<a class="home-quick-link" href="#/exams">מבחנים ומטלות</a>` : ""}
             ${courseSwitchLink("home-quick-link")}
           </div>
           <p class="home-intro-meta">${[
