@@ -677,6 +677,9 @@ function sectionize(html) {
 const calloutTypes = {
   simple: "במילים פשוטות",
   hint: "רמז",
+  question: "השאלה",
+  mistake: "טעויות נפוצות",
+  graph: "רואים את זה בגרף",
   solution: "פתרון",
   exam: "במבחן",
   plan: "התוכנית בשלוש שורות",
@@ -901,7 +904,7 @@ const DEMO_NAMES = new Set(["sup", "epsilon-n", "nested-intervals", "epsilon-del
 
 function renderDemo(name) {
   if (!DEMO_NAMES.has(name)) throw new Error(`Unknown infi-demo "${name}"`);
-  return `<figure class="demo" id="demo-${name}" data-demo="${name}"><noscript><p>ההמחשה האינטראקטיבית דורשת JavaScript.</p></noscript></figure>`;
+  return `<figure class="demo" id="${uniqueSlug(`demo-${name}`)}" data-demo="${name}"><noscript><p>ההמחשה האינטראקטיבית דורשת JavaScript.</p></noscript></figure>`;
 }
 
 // A Desmos block from the vault is drawn natively on the notebook grid by
@@ -1071,7 +1074,7 @@ function writeGeneratedContent(payload) {
 // scans, pNNN.jpg by page of the exam booklet, copied next to the figures.
 // An exam lists its pages in reading order; a few photographed exams were
 // bound out of order.
-function loadExams() {
+function loadExams(resolver) {
   if (!course.examsDir) return [];
   const file = path.join(path.resolve(root, course.examsDir), "exams.json");
   if (!fs.existsSync(file)) return [];
@@ -1079,7 +1082,121 @@ function loadExams() {
   for (const exam of exams) {
     exam.images = exam.pages.map((page) => `assets/exams/p${String(page).padStart(3, "0")}.jpg`);
   }
+  const solutionsDir = path.join(path.dirname(file), "solutions");
+  if (fs.existsSync(solutionsDir)) {
+    for (const name of fs.readdirSync(solutionsDir).sort(collator.compare)) {
+      if (!name.endsWith(".md") || name === "README.md") continue;
+      const exam = exams.find((item) => String(item.n) === name.slice(0, -3));
+      if (!exam) throw new Error(`Exam solutions ${name}: unknown exam ${name.slice(0, -3)}`);
+      const studies = parseExamSolutions(fs.readFileSync(path.join(solutionsDir, name), "utf8"), exam, { file: name, resolver });
+      for (const q of exam.questions) if (studies[q.q]) q.study = studies[q.q];
+    }
+  }
   return exams;
+}
+
+// Solution files share the notes' Markdown, math and typed-callout renderer.
+// Keep the source step boundaries: a step includes its formulas and its why.
+export function parseExamSolutions(raw, exam, { file = `${exam.n}.md`, resolver = () => null } = {}) {
+  const fail = (message) => { throw new Error(`Exam solutions ${file}: ${message}`); };
+  const { meta, body } = parseFrontmatter(raw.replace(/\r\n/g, "\n"));
+  if (meta.exam && String(meta.exam) !== String(exam.n)) fail(`exam metadata ${meta.exam} does not match exam ${exam.n}`);
+  // One exam file is one page of ids, like a note: a demo repeated in several
+  // parts gets demo-epsilon-n, demo-epsilon-n-2, ...
+  renderContext.slugs = new Set();
+  const studies = {};
+  let study = null;
+  let part = null;
+  const newPart = (label) => ({ label, simple: "", graphs: [], hints: [], plan: "", solution: "", steps: [], mistakes: "" });
+  const lines = body.split("\n");
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    const heading = /^## שאלה (\d+)\s*$/.exec(line);
+    if (heading) {
+      const q = Number(heading[1]);
+      if (!exam.questions.some((item) => item.q === q)) fail(`question ${q} is not in exams.json`);
+      if (studies[q]) fail(`duplicate question ${q}`);
+      study = studies[q] = { question: "", parts: [], similar: "", mc: null };
+      part = null;
+      continue;
+    }
+    if (!line.trim()) continue;
+    if (!study) fail("expected ## שאלה N before content");
+    const label = /^### סעיף (.+?)\s*$/.exec(line);
+    if (label) {
+      if (study.parts.some((item) => item.label === label[1])) fail(`duplicate part ${label[1]}`);
+      part = newPart(label[1]);
+      study.parts.push(part);
+      continue;
+    }
+    if (line.startsWith("<!-- mc:")) {
+      const mc = /^<!-- mc:\s*(.*?)\s*-->$/.exec(line)?.[1];
+      if (!mc || study.mc) fail("malformed or duplicate mc comment");
+      if (/^answer=[א-ה]$/.test(mc)) study.mc = { answer: mc.slice(7) };
+      else {
+        const values = mc.split(/\s+/);
+        if (!values.every((value) => /^\d+=(true|false)$/.test(value))) fail(`malformed mc comment: ${mc}`);
+        study.mc = {};
+        for (const value of values) {
+          const [key, truth] = value.split("=");
+          if (key in study.mc) fail(`duplicate mc statement ${key}`);
+          study.mc[key] = truth === "true";
+        }
+      }
+      continue;
+    }
+    if (/^\*\*שאלות דומות\*\*/.test(line)) {
+      study.similar += renderMarkdown(line, resolver);
+      continue;
+    }
+    if (!/^>\s*\[!/.test(line)) fail(`unexpected content: ${line.slice(0, 80)}`);
+    const quote = [line.replace(/^>\s?/, "")];
+    while (i + 1 < lines.length && /^>/.test(lines[i + 1]) && !/^>\s*\[!/.test(lines[i + 1])) {
+      quote.push(lines[++i].replace(/^>\s?/, ""));
+    }
+    const head = /^\[!(\w+)\][+-]?\s*(.*)$/.exec(quote[0]);
+    const type = head?.[1];
+    if (!["question", "simple", "graph", "hint", "plan", "solution", "mistake"].includes(type)) fail(`unknown solution box: ${quote[0]}`);
+    if (!quote.slice(1).join("\n").trim()) fail(`empty ${type} box`);
+    // The everyday explanation can fold, but always starts open for every part.
+    // Hints and solutions use the study controls instead of a second disclosure.
+    const fold = type === "simple" ? "+" : type === "graph" ? "-" : "";
+    const html = renderTypedCallout([`[!${type}]${fold} ${head[2]}`, ...quote.slice(1)], resolver);
+    if (type === "question") {
+      if (study.question) fail("duplicate question box");
+      study.question = html;
+      continue;
+    }
+    if (!part) {
+      part = newPart("");
+      study.parts.push(part);
+    }
+    if (type === "graph") {
+      if (!/data-(?:desmos|demo)=/.test(html)) fail("graph box needs a desmos-live block or an infi-demo marker");
+      part.graphs.push({ title: head[2] || calloutTypes.graph, html });
+    } else if (type === "hint") part.hints.push({ title: head[2] || "רמז", html });
+    else {
+      const key = type === "mistake" ? "mistakes" : type;
+      if (part[key]) fail(`duplicate ${type} box`);
+      part[key] = html;
+      if (type === "solution") {
+        const source = quote.slice(1).join("\n").trim();
+        const starts = [...source.matchAll(/^\*\*(?:שלב(?:\s|\*\*)|טענה\s+\d)/gm)].map((match) => match.index);
+        if (starts.length) starts[0] = 0;
+        else starts.push(0);
+        part.steps = starts.map((start, index) => renderMarkdown(source.slice(start, starts[index + 1]).trim(), resolver));
+      }
+    }
+  }
+  if (!Object.keys(studies).length) fail("no questions found");
+  for (const [q, item] of Object.entries(studies)) {
+    if (!item.question) fail(`question ${q}: missing question box`);
+    if (!item.parts.length || item.parts.some((section) => !section.solution)) fail(`question ${q}: missing solution box`);
+    for (const section of item.parts) {
+      if (!section.simple) fail(`question ${q}${section.label ? `, part ${section.label}` : ""}: missing simple box (במילים פשוטות)`);
+    }
+  }
+  return studies;
 }
 
 function copyExams() {
@@ -1331,7 +1448,7 @@ export function buildCourse(nextCourse) {
   const [officialBody, pastBody = ""] = examBody.split(/^##\s+הופיעו במבחנים.*$/m);
   const examTheorems = buildExamTheorems({ body: officialBody }, resolver, pages);
   const pastTheorems = buildExamTheorems({ body: pastBody }, resolver, pages);
-  const exams = loadExams();
+  const exams = loadExams(resolver);
   for (const row of [...examTheorems, ...pastTheorems]) {
     row.exams = exams.flatMap((exam) =>
       exam.questions.filter((q) => (q.prove || []).includes(row.number)).map((q) => ({ exam: exam.n, q: q.q }))
