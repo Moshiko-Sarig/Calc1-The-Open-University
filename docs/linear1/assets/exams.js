@@ -219,7 +219,7 @@
       const index = Math.floor(Math.random() * remaining.length);
       const { exam, q } = remaining.splice(index, 1)[0];
       const mc = q.study.mc;
-      const statements = mc.answer ? [["answer", "בחרו את התשובה במבחן", ["א", "ב", "ג", "ד", "ה"]]] : Object.keys(mc).map((key) => [key, `טענה ${key}`, ["true", "false"]]);
+      const statements = mc.answer ? [["answer", "בחרו את התשובה במבחן", q.study.options?.length >= 2 ? q.study.options : ["א", "ב", "ג", "ד", "ה"]]] : Object.keys(mc).map((key) => [key, `טענה ${key}`, ["true", "false"]]);
       const answered = new Set();
       host.innerHTML = `<h2>${esc(examLabel(exam))} · שאלה ${q.q}</h2>${q.study.question}
         ${statements.map(([key, label, values]) => `<fieldset class="exam-mc-answer" data-mc-statement="${key}"><legend>${label}</legend><div class="exam-actions">${values.map((value) => `<button class="button" type="button" data-answer="${value}">${value === "true" ? "נכון" : value === "false" ? "לא נכון" : value}</button>`).join("")}</div><p data-feedback role="status"></p></fieldset>`).join("")}
