@@ -156,6 +156,15 @@ function checkFile(file) {
   const boxes = parseBoxes(lines, issues);
   const questions = parseQuestions(lines, boxes);
   if (questions.length === 0) issues.push({ level: "ERROR", line: 1, msg: "no `## שאלה N` sections found" });
+  // The build allows nothing between the frontmatter and the first question.
+  const firstQuestion = lines.findIndex((text) => /^## שאלה \d+\s*$/.test(text));
+  const stray = lines.slice(frontEnd + 1, firstQuestion < 0 ? lines.length : firstQuestion).findIndex((text) => text.trim());
+  if (stray >= 0) issues.push({ level: "ERROR", line: frontEnd + 2 + stray, msg: "content before the first `## שאלה N`; the build rejects it" });
+  // Outside the boxes the build accepts only headings, comments and the similar-questions line.
+  lines.forEach((text, i) => {
+    if (i <= frontEnd || !text.trim() || /^(>|#|<!--|\*\*שאלות דומות\*\*)/.test(text)) return;
+    issues.push({ level: "ERROR", line: i + 1, msg: `unexpected line outside a box ("${text.trim().slice(0, 30)}"); the build rejects it` });
+  });
 
   let previous = 0;
   const seen = new Set();

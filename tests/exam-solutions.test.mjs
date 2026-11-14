@@ -10,7 +10,11 @@ import { buildSite, readPayload, root } from "./helpers.mjs";
 
 const exams = JSON.parse(fs.readFileSync(path.join(root, "exams/exams.json"), "utf8"));
 const exam = exams.find((item) => item.n === 41);
-const source = fs.readFileSync(path.join(root, "exams/solutions/41.md"), "utf8");
+// Questions 3 and 6 of 41.md are the format's worked example; the tests read
+// only those two, so the rest of the exam can change without breaking them.
+const full = fs.readFileSync(path.join(root, "exams/solutions/41.md"), "utf8");
+const sections = full.split(/^(?=## שאלה \d+\s*$)/m);
+const source = [sections[0], ...sections.filter((section) => /^## שאלה (3|6)\s*$/m.test(section.split("\n")[0]))].join("");
 
 before(buildSite);
 
