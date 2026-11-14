@@ -7,6 +7,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { parseExamSolutions } from "./build-site.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SOLUTIONS_DIR = path.join(root, "exams", "solutions");
 
@@ -215,6 +217,15 @@ function checkFile(file) {
     const arrow = line.match(ARROWS);
     if (arrow) issues.push({ level: "WARNING", line: i + 1, msg: `arrow ${arrow[0]} outside math; write it in words` });
   });
+
+  // Last, the build's own parser: whatever it rejects fails the site build.
+  if (exam) {
+    try {
+      parseExamSolutions(text, exam, { file: path.basename(file) });
+    } catch (error) {
+      issues.push({ level: "ERROR", line: 0, msg: `the build rejects this file: ${error.message}` });
+    }
+  }
 
   return issues;
 }

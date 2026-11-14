@@ -1132,7 +1132,7 @@ export function parseExamSolutions(raw, exam, { file = `${exam.n}.md`, resolver 
     if (line.startsWith("<!-- mc:")) {
       const mc = /^<!-- mc:\s*(.*?)\s*-->$/.exec(line)?.[1];
       if (!mc || study.mc) fail("malformed or duplicate mc comment");
-      if (/^answer=[א-ה]$/.test(mc)) study.mc = { answer: mc.slice(7) };
+      if (/^answer=[א-ת]$/.test(mc)) study.mc = { answer: mc.slice(7) };
       else {
         const values = mc.split(/\s+/);
         if (!values.every((value) => /^\d+=(true|false)$/.test(value))) fail(`malformed mc comment: ${mc}`);
@@ -1165,6 +1165,10 @@ export function parseExamSolutions(raw, exam, { file = `${exam.n}.md`, resolver 
     if (type === "question") {
       if (study.question) fail("duplicate question box");
       study.question = html;
+      // A lettered question lists its options as **א.**, **ב.**, ...; most have
+      // five, some have up to seven.
+      const letters = quote.join("\n").match(/\*\*([א-ת])\.\*\*/g);
+      if (letters) study.options = [...new Set(letters.map((item) => item[2]))];
       continue;
     }
     if (!part) {
@@ -1191,6 +1195,7 @@ export function parseExamSolutions(raw, exam, { file = `${exam.n}.md`, resolver 
   if (!Object.keys(studies).length) fail("no questions found");
   for (const [q, item] of Object.entries(studies)) {
     if (!item.question) fail(`question ${q}: missing question box`);
+    if (item.mc?.answer && item.options && !item.options.includes(item.mc.answer)) fail(`question ${q}: answer ${item.mc.answer} is not one of its options`);
     if (!item.parts.length || item.parts.some((section) => !section.solution)) fail(`question ${q}: missing solution box`);
     for (const section of item.parts) {
       if (!section.simple) fail(`question ${q}${section.label ? `, part ${section.label}` : ""}: missing simple box (במילים פשוטות)`);
