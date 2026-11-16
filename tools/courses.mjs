@@ -96,7 +96,7 @@ export const COURSES = [
     fullName: "אלגברה לינארית 1",
     courseCode: "20109",
     tagline: "קורס 20109",
-    summary: "מערכות משוואות, וקטורים, בסיסים ומטריצות. פרקים 1–3 זמינים ללימוד.",
+    summary: "מערכות משוואות, וקטורים, מטריצות ודטרמיננטות. פרקים 1–4 זמינים ללימוד.",
     brandMark: "λ",
     coverColor: "#2f5a4b",
     description:

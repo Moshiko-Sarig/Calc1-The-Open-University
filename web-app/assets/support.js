@@ -271,6 +271,12 @@
     [/\\mathbf\s*\{?0\}?/, "\\mathbf 0", "וקטור האפס"],
     [/\\lfloor/, "\\lfloor x\\rfloor", "הערך השלם של x"],
     [/\\sqrt/, "\\sqrt{x}", "שורש של x"],
+    [/\\begin\{vmatrix\}|\|A\|/, "|A|", "הדטרמיננטה של A (זה לא ערך מוחלט)"],
+    [/R_\{?\w+\}?\s*\\to/, "R_i\\to R_i+tR_j", "פעולת שורה: השורה שמשמאל לחץ מוחלפת במה שמימין לו"],
+    [/A\^M_/, "A^M_{ij}", "המטריצה המינורית: A בלי השורה ה־i ובלי העמודה ה־j"],
+    [/\\operatorname\{adj\}/, "\\operatorname{adj}A", "המטריצה המצורפת ל־A"],
+    [/\\operatorname\{sgn\}/, "\\operatorname{sgn}(\\sigma)", "הסימן של התמורה σ: פלוס אחת או מינוס אחת"],
+    [/S_n/, "S_n", "אוסף כל התמורות של המספרים 1 עד n"],
     [/\|[^|]+\|/, "|x|", "הערך המוחלט של x (המרחק מאפס)"],
     [/\\ldots|\\cdots|\\dots/, "\\ldots", "וכן הלאה, באותה דרך"]
   ];
@@ -303,7 +309,15 @@
     const tex = Array.from(prose.querySelectorAll(".math"))
       .map((m) => m.textContent)
       .join(" ");
-    const found = SYMBOLS.filter(([re]) => re.test(tex));
+    // In a note about determinants the bars |A| are not an absolute value.
+    const determinants = /\\begin\{vmatrix\}|\|A\|/.test(tex);
+    // An arrow after a row name is a row operation, not a limit, and next to
+    // permutations the letter epsilon names the identity permutation.
+    const rowOperations = /R_\{?\w+\}?\s*\\to/.test(tex) && !/\\lim/.test(tex);
+    const permutations = /S_n/.test(tex);
+    const misread = (symbol) =>
+      (determinants && symbol === "|x|") || (rowOperations && symbol === "\\to") || (permutations && symbol === "\\varepsilon");
+    const found = SYMBOLS.filter(([re, symbol]) => re.test(tex) && !misread(symbol));
     if (found.length < 2) return null;
     const box = document.createElement("details");
     box.className = "callout symbols-box";
