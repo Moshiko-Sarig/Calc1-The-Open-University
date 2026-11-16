@@ -8,6 +8,28 @@ import { buildSite, readPayload, root } from "./helpers.mjs";
 
 before(buildSite);
 
+test("initial data omits solution bodies and each versioned exam file restores them", () => {
+  const assets = path.join(root, "docs/infi/assets");
+  const readData = (file) => {
+    const source = fs.readFileSync(path.join(assets, file), "utf8");
+    return JSON.parse(source.slice(source.indexOf("=") + 1).trim().replace(/;$/, ""));
+  };
+  const fast = readData("content-fast.js");
+  const full = readData("content.js");
+  assert.ok(fs.statSync(path.join(assets, "content-fast.js")).size < fs.statSync(path.join(assets, "content.js")).size / 2);
+  for (const exam of fast.exams) {
+    const context = { window: {} };
+    vm.runInNewContext(fs.readFileSync(path.join(assets, "exam-studies", `${exam.n}.js`), "utf8"), context);
+    const original = full.exams.find((item) => item.n === exam.n);
+    for (const question of exam.questions) {
+      const expected = original.questions.find((item) => item.q === question.q).study;
+      if (!expected) continue;
+      assert.equal(question.study.available, true);
+      assert.equal(JSON.stringify(context.window.EXAM_STUDIES[exam.n][question.q]), JSON.stringify(expected));
+    }
+  }
+});
+
 // Render the shipped IIFE with a small DOM surface; browser checks cover layout
 // and interactions. Keep this fixture independent of the number of solutions.
 function render(route, ratings = {}) {

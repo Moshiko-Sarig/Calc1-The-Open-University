@@ -30,6 +30,39 @@
   let navObserver = null;
   const simulations = new Map();
   const mcSession = { correct: 0, total: 0 };
+  const studyRequests = new Map();
+
+  function loadStudy(exam) {
+    if (!exam.studyVersion || exam.studyLoaded) return Promise.resolve();
+    if (studyRequests.has(exam.n)) return studyRequests.get(exam.n);
+    const request = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = `./assets/exam-studies/${encodeURIComponent(exam.n)}.js?v=${encodeURIComponent(exam.studyVersion)}`;
+      script.onload = () => {
+        const solutions = window.EXAM_STUDIES?.[exam.n];
+        if (!solutions) return reject(new Error("Missing exam solutions"));
+        exam.questions.forEach((q) => { if (solutions[q.q]) q.study = solutions[q.q]; });
+        exam.studyLoaded = true;
+        resolve();
+      };
+      script.onerror = () => { script.remove(); reject(new Error("Failed to load exam solutions")); };
+      document.head.appendChild(script);
+    }).catch((error) => { studyRequests.delete(exam.n); throw error; });
+    studyRequests.set(exam.n, request);
+    return request;
+  }
+
+  function loadBeforeRender(root, route, needed) {
+    const hash = location.hash;
+    root.innerHTML = '<section class="empty-state" role="status"><p>טוען את הפתרונות…</p></section>';
+    Promise.all(needed.map(loadStudy)).then(() => {
+      if (location.hash === hash) render(root, route);
+    }).catch(() => {
+      if (location.hash !== hash) return;
+      root.innerHTML = '<section class="empty-state"><h1>הפתרונות לא נטענו</h1><p>בדקו את החיבור ונסו שוב.</p><button class="button" type="button" data-retry-study>נסו שוב</button></section>';
+      root.querySelector("[data-retry-study]").addEventListener("click", () => render(root, route));
+    });
+  }
 
   function readStored(key) {
     try {
@@ -641,6 +674,15 @@
     clearInterval(simulationTimer);
     navObserver?.disconnect();
     if (course.features.questionArchive && window.LinearArchive) return window.LinearArchive.render(root, route);
+    if (course.features.exams && route.id === "practice-mc") {
+      const needed = exams().filter((exam) => exam.studyVersion && !exam.studyLoaded && exam.questions.some((q) => q.part === "ב" && q.study));
+      if (needed.length) return loadBeforeRender(root, route, needed);
+    }
+    if (course.features.exams && /^q\d+$/.test(route.section || "")) {
+      const exam = exams().find((item) => String(item.n) === String(route.id));
+      const question = exam?.questions.find((item) => `q${item.q}` === route.section);
+      if (question?.study && exam.studyVersion && !exam.studyLoaded) return loadBeforeRender(root, route, [exam]);
+    }
     if (!course.features.exams) renderNoExams(root);
     else if (route.id === "practice-mc") renderMC(root);
     else if (route.id) renderExam(root, route.id, route.section);

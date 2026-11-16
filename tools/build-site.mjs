@@ -1053,7 +1053,10 @@ function renderIndexHtml() {
   return fs
     .readFileSync(path.join(webAppDir, "index.html"), "utf8")
     .replace(/^[ \t]*\{\{COURSE_SCRIPTS\}\}\r?\n/m, scripts)
-    .replace(/\{\{([A-Z_]+)\}\}/g, (_, name) => tokens[name]);
+    .replace(/\{\{([A-Z_]+)\}\}/g, (_, name) => tokens[name])
+    // A new URL keeps an older cached app paired with its original full data.
+    .replace('./assets/content.js', './assets/content-fast.js')
+    .replace('./assets/exams.js', './assets/exams.js?v=lazy-studies-1');
 }
 
 function writeRootIndex(html) {
@@ -1064,9 +1067,25 @@ function writeRootIndex(html) {
 }
 
 function writeGeneratedContent(payload) {
+  // Keep the exam index available immediately; load the much larger worked
+  // solutions only when a reader opens a question or the MC trainer.
+  const studies = payload.exams.map((exam) => {
+    const solutions = Object.fromEntries(exam.questions.filter((q) => q.study).map((q) => [q.q, q.study]));
+    const script = `window.EXAM_STUDIES = window.EXAM_STUDIES || {}; window.EXAM_STUDIES[${JSON.stringify(exam.n)}] = ${JSON.stringify(solutions)};\n`;
+    return { n: exam.n, script, version: hashId(script) };
+  });
+  const leanPayload = { ...payload, exams: payload.exams.map((exam, i) => ({
+    ...exam,
+    studyVersion: studies[i].version,
+    questions: exam.questions.map((q) => q.study ? { ...q, study: { available: true } } : q)
+  })) };
   for (const assetDir of generatedAssetDirs) {
     fs.mkdirSync(assetDir, { recursive: true });
     fs.writeFileSync(path.join(assetDir, "content.js"), `window.COURSE_DATA = ${JSON.stringify(payload)};\n`, "utf8");
+    fs.writeFileSync(path.join(assetDir, "content-fast.js"), `window.COURSE_DATA = ${JSON.stringify(leanPayload)};\n`, "utf8");
+    const studyDir = path.join(assetDir, "exam-studies");
+    fs.mkdirSync(studyDir, { recursive: true });
+    for (const study of studies) fs.writeFileSync(path.join(studyDir, `${study.n}.js`), study.script, "utf8");
   }
 }
 
