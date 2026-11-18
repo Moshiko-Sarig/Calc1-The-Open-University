@@ -6969,3 +6969,137 @@ details.callout[open] > summary > .callout-teaser { display: none; }
   min-height: 1.5em;
   margin-block: 8px 0;
 }
+
+/* The calm exam guide: a softer, airier page than the notebook. */
+.home-exams-entry.is-calm {
+  border-inline-start-color: var(--calm);
+  background: var(--calm-soft);
+  color: var(--calm);
+}
+
+.note-calm .prose {
+  line-height: 1.95;
+}
+
+.note-calm .prose h2 {
+  color: var(--calm);
+  margin-block-start: calc(var(--cell) * 3);
+}
+
+.note-calm .prose > p:first-of-type {
+  font-size: 1.12rem;
+}
+
+.note-calm .callout {
+  border-radius: 14px;
+  border-color: transparent;
+  background: var(--calm-soft);
+}
+
+.note-calm table {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.calm-widget {
+  margin-block: 20px 28px;
+  padding: 20px;
+  border-radius: 18px;
+  background: var(--calm-soft);
+}
+
+.calm-breathe {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.calm-breathe > div:last-child {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.calm-breathe-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--calm);
+}
+
+.calm-breathe-say {
+  min-height: 1.7em;
+  margin-block: 4px 10px;
+}
+
+.calm-circle {
+  flex: none;
+  inline-size: 96px;
+  block-size: 96px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--calm) 55%, transparent), color-mix(in srgb, var(--calm) 18%, transparent));
+  transform: scale(0.6);
+  transition: transform 4s ease-in-out;
+}
+
+.calm-circle[data-phase="in"],
+.calm-circle[data-phase="hold"] {
+  transform: scale(1);
+}
+
+.calm-circle[data-phase="out"] {
+  transform: scale(0.6);
+  transition-duration: 6s;
+}
+
+.calm-pass {
+  display: grid;
+  gap: 10px;
+}
+
+.calm-pass-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.calm-pass-row select {
+  min-height: 40px;
+  max-width: 100%;
+  font: inherit;
+}
+
+.calm-pass-meter {
+  position: relative;
+  block-size: 14px;
+  margin-block-start: 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--calm) 15%, transparent);
+  overflow: hidden;
+}
+
+.calm-pass-meter span {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-radius: 999px;
+  background: var(--calm);
+  transition: inline-size 250ms ease;
+}
+
+.calm-pass-meter i {
+  position: absolute;
+  inset-block: -2px;
+  inset-inline-start: 60%;
+  inline-size: 2px;
+  background: var(--ink);
+}
+
+.calm-pass-total {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calm-circle, .calm-pass-meter span { transition: none; }
+}

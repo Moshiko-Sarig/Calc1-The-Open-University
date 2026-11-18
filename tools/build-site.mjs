@@ -438,6 +438,7 @@ function renderMarkdown(body, resolveLink) {
       const mc = directive.match(/^infi-mc:\s*([א-ת])\s*$/);
       if (demo) html.push(renderDemo(demo[1]));
       else if (mc) html.push(`<div class="page-mc" data-mc-answer="${mc[1]}"></div>`);
+      else if (/^infi-calm:\s*(breathe|pass)\s*$/.test(directive)) html.push(`<div class="calm-widget" data-calm="${directive.split(":")[1].trim()}"></div>`);
       else if (proof) {
         html.push(`<div class="proof" id="${proofAnchor(proof[1])}" data-proof="${proof[1]}">`);
         openProofs += 1;

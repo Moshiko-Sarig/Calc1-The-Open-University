@@ -1108,6 +1108,7 @@ function renderHome() {
           <p class="home-intro-kicker">האוניברסיטה הפתוחה <span aria-hidden="true"> / </span> קורס ${escapeHtml(course.courseCode)}${introSketch ? ` <svg class="home-intro-sketch" width="48" height="28" viewBox="0 0 56 32" fill="none" aria-hidden="true" focusable="false">${introSketch}</svg>` : ""}</p>
           <h1 id="homeTitle">${escapeHtml(course.fullName)}</h1>
           ${course.features.exams && !course.features.questionArchive ? `<a class="home-exams-entry" href="#/exams"><strong>מבחנים ופתרונות</strong><span>${solvedExams} מבחנים עם פתרונות מלאים</span><span aria-hidden="true">←</span></a>` : ""}
+          ${course.id === "infi" && Date.now() < Date.parse("2026-11-24T00:00:00+02:00") && data.pages.some(p => p.title === "איך עוברים את הבחינה בשקט") ? `<a class="home-exams-entry is-calm" href="#/page/${encodeURIComponent(data.pages.find(p => p.title === "איך עוברים את הבחינה בשקט").id)}"><strong>איך עוברים את הבחינה בשקט</strong><span>תוכנית פשוטה ל־60, טיפים לבחינה, ודקה של נשימה</span><span aria-hidden="true">←</span></a>` : ""}
           ${course.id === "infi" && Date.now() < Date.parse("2026-11-24T00:00:00+02:00") && data.pages.some(p => p.title === "תרגול בסגנון 2026") ? `<a class="home-exams-entry is-new" href="#/page/${encodeURIComponent(data.pages.find(p => p.title === "תרגול בסגנון 2026").id)}"><strong>לקראת המבחן ב־23.11 <em class="new-badge">חדש</em></strong><span>תרגול בסגנון 2026: סוגי השאלות החדשים וסדרות ברקורסיה</span><span aria-hidden="true">←</span></a>` : ""}
           ${course.id === "infi" && data.pages.some(p => p.title === "למידה לפי תבניות") ? `<a class="home-exams-entry" href="#/page/${encodeURIComponent(data.pages.find(p => p.title === "למידה לפי תבניות").id)}"><strong>למידה לפי תבניות</strong><span>איך מזהים שאלה, מאיפה מתחילים ומה מתרגלים השבוע</span><span aria-hidden="true">←</span></a>` : ""}
           <div class="home-encouragement">
@@ -1265,7 +1266,7 @@ function renderPage(page, section) {
           <nav aria-label="תוכן הדף"><ol data-toc-list></ol></nav>
         </aside>
       </div>
-      <article class="note" aria-labelledby="pageTitle">
+      <article class="note${page.tags?.includes("calm-page") ? " note-calm" : ""}" aria-labelledby="pageTitle">
         <nav class="breadcrumbs" aria-label="מיקום בקורס"><ol>${crumbs.join("")}</ol></nav>
         <div class="sheet" data-sheet>
           <header class="note-head">
@@ -1320,6 +1321,7 @@ function renderPage(page, section) {
   window.InfiExams?.decorate(app);
   mountLearningPath(page, group, gateway);
   mountPageMc();
+  mountCalmWidgets();
   alignSheetGrid();
   app.querySelector("[data-toc-inline]")?.addEventListener("toggle", alignSheetGrid);
   app.querySelectorAll("details.callout").forEach((box) => box.addEventListener("toggle", alignSheetGrid));
@@ -1420,6 +1422,61 @@ function mountPageMc() {
         });
       });
     });
+  });
+}
+
+// The calm exam guide: a breathing circle and a "path to 60" points counter.
+function mountCalmWidgets() {
+  app.querySelectorAll('.calm-widget[data-calm="breathe"]').forEach((box) => {
+    box.innerHTML = `<div class="calm-breathe"><div class="calm-circle" aria-hidden="true"></div><div><p class="calm-breathe-title">דקה אחת של נשימה</p><p class="calm-breathe-say" role="status">לחצו על הכפתור, ונשמו יחד עם העיגול.</p><button class="button" type="button" data-breathe>להתחיל לנשום</button></div></div>`;
+    const button = box.querySelector("[data-breathe]");
+    const say = box.querySelector(".calm-breathe-say");
+    const circle = box.querySelector(".calm-circle");
+    const steps = [["שאיפה דרך האף…", 4000, "in"], ["להחזיק…", 2000, "hold"], ["נשיפה ארוכה דרך הפה…", 6000, "out"]];
+    let timer = null;
+    let round = 0;
+    const stop = (text) => {
+      clearTimeout(timer);
+      timer = null;
+      circle.dataset.phase = "";
+      button.textContent = "להתחיל לנשום";
+      say.textContent = text;
+    };
+    const run = (index) => {
+      if (round >= 5) return stop("יפה. הגוף כבר קצת יותר רגוע. אפשר לחזור לזה מתי שרוצים.");
+      const [text, ms, phase] = steps[index];
+      say.textContent = text;
+      circle.dataset.phase = phase;
+      timer = setTimeout(() => {
+        if (index === steps.length - 1) round += 1;
+        run((index + 1) % steps.length);
+      }, ms);
+    };
+    button.addEventListener("click", () => {
+      if (timer) return stop("עצרנו. אפשר להמשיך מתי שרוצים.");
+      round = 0;
+      button.textContent = "לעצור";
+      run(0);
+    });
+  });
+
+  app.querySelectorAll('.calm-widget[data-calm="pass"]').forEach((box) => {
+    const levels = [["0", "לא אגיע אליה"], ["5", "התחלה נכונה: הגדרה, תנאים"], ["12", "בערך חצי"], ["20", "רוב השאלה"], ["25", "את כולה"]];
+    const select = (i) => `<label class="calm-pass-row"><span>שאלה פתוחה ${i}</span><select data-open>${levels.map(([v, t]) => `<option value="${v}">${t} (${v})</option>`).join("")}</select></label>`;
+    box.innerHTML = `<div class="calm-pass"><label class="calm-pass-row"><span>כמה אמריקאיות נכונות</span><select data-mc>${[0, 1, 2, 3, 4, 5].map((n) => `<option value="${n}"${n === 3 ? " selected" : ""}>${n} מתוך 5 (${n * 5})</option>`).join("")}</select></label>${[1, 2, 3].map(select).join("")}<div class="calm-pass-meter" aria-hidden="true"><span></span><i></i></div><p class="calm-pass-total" role="status"></p></div>`;
+    const opens = box.querySelectorAll("[data-open]");
+    opens[0].value = "25";
+    opens[1].value = "12";
+    opens[2].value = "5";
+    const update = () => {
+      const total = Number(box.querySelector("[data-mc]").value) * 5 + [...opens].reduce((sum, el) => sum + Number(el.value), 0);
+      box.querySelector(".calm-pass-meter span").style.inlineSize = `${total}%`;
+      box.querySelector(".calm-pass-total").innerHTML = total >= 60
+        ? `<strong>${total} נקודות.</strong> זה מעל 60: המסלול הזה עובר. שימו לב כמה מעט צריך בכל שאלה.`
+        : `<strong>${total} נקודות.</strong> חסרות ${60 - total}. הדרך הכי קלה להשיג אותן: עוד משפט אחד שאתם יודעים לכתוב, או התחלה נכונה בעוד סעיף.`;
+    };
+    box.querySelectorAll("select").forEach((el) => el.addEventListener("change", update));
+    update();
   });
 }
 
