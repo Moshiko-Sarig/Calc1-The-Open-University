@@ -435,7 +435,9 @@ function renderMarkdown(body, resolveLink) {
       const directive = comment[1].trim();
       const demo = directive.match(/^infi-demo:\s*([\w-]+)\s*$/);
       const proof = directive.match(new RegExp(`^infi-proof:\\s*(${NUMBER_SOURCE})\\s*$`));
+      const mc = directive.match(/^infi-mc:\s*([א-ת])\s*$/);
       if (demo) html.push(renderDemo(demo[1]));
+      else if (mc) html.push(`<div class="page-mc" data-mc-answer="${mc[1]}"></div>`);
       else if (proof) {
         html.push(`<div class="proof" id="${proofAnchor(proof[1])}" data-proof="${proof[1]}">`);
         openProofs += 1;

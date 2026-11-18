@@ -6937,3 +6937,35 @@ details.callout[open] > summary > .callout-teaser { display: none; }
     display: none;
   }
 }
+
+/* Answer buttons for multiple-choice questions on practice pages. */
+.page-mc {
+  margin-block: 12px 20px;
+}
+
+.page-mc-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.page-mc-options .button {
+  min-height: 44px;
+}
+
+.page-mc-options .button.is-right {
+  color: var(--calm);
+  border-color: var(--calm);
+  background: var(--calm-soft);
+  font-weight: 600;
+}
+
+.page-mc-options .button.is-wrong {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.page-mc-feedback {
+  min-height: 1.5em;
+  margin-block: 8px 0;
+}
