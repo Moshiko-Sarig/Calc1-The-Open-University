@@ -6851,6 +6851,41 @@ details.callout[open] > summary > .callout-teaser { display: none; }
   background: var(--surface-2);
 }
 
+/* The newest study page glows gently so returning students notice it. */
+.home-exams-entry.is-new {
+  border-inline-start-color: var(--gold);
+  background: var(--gold-soft);
+  color: var(--gold);
+  outline: 1px solid var(--gold-line);
+  animation: new-entry-glow 2.4s ease-in-out infinite;
+}
+
+.home-exams-entry.is-new:hover {
+  background: var(--surface-2);
+}
+
+.new-badge {
+  display: inline-block;
+  margin-inline-start: 8px;
+  padding: 1px 8px;
+  border-radius: var(--radius-s);
+  background: var(--gold);
+  color: var(--bg);
+  font-size: var(--fs-sm);
+  font-style: normal;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+@keyframes new-entry-glow {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 14px 2px color-mix(in srgb, var(--gold) 45%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-exams-entry.is-new { animation: none; box-shadow: 0 0 10px 1px color-mix(in srgb, var(--gold) 35%, transparent); }
+}
+
 .primary-nav [data-nav="exams"]:focus,
 .home-exams-entry:focus {
   outline: 2px solid var(--accent);
