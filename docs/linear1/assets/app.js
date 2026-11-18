@@ -1400,7 +1400,24 @@ function mountPageMc() {
         const right = button.dataset.mcOption === answer;
         button.classList.add(right ? "is-right" : "is-wrong");
         feedback.className = `page-mc-feedback ${right ? "exam-feedback-correct" : "exam-feedback-incorrect"}`;
-        feedback.textContent = right ? "נכון! פתחו את הפתרון כדי לבדוק שגם הנימוק שלכם נכון." : "לא זו התשובה. נסו שוב, או פתחו את הרמז.";
+        feedback.innerHTML = right
+          ? 'נכון! <button class="link-button" type="button" data-mc-open="solution">פתחו את הפתרון</button> כדי לבדוק שגם הנימוק שלכם נכון.'
+          : 'לא זו התשובה. נסו שוב, או <button class="link-button" type="button" data-mc-open="hint">פתחו את הרמז</button>.';
+        feedback.querySelector("[data-mc-open]")?.addEventListener("click", (event) => {
+          const kind = event.currentTarget.dataset.mcOpen;
+          let node = box.nextElementSibling;
+          while (node && !/^H[1-3]$/.test(node.tagName)) {
+            const boxes = node.matches?.("details") ? [node] : [...(node.querySelectorAll?.("details") || [])];
+            const target = boxes.find((d) => d.classList.contains(`callout-${kind}`));
+            if (target) {
+              target.open = true;
+              target.scrollIntoView({ block: "start", behavior: "smooth" });
+              target.querySelector("summary")?.focus({ preventScroll: true });
+              return;
+            }
+            node = node.nextElementSibling;
+          }
+        });
       });
     });
   });
