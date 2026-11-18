@@ -7103,3 +7103,210 @@ details.callout[open] > summary > .callout-teaser { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .calm-circle, .calm-pass-meter span { transition: none; }
 }
+
+/* ---------------------------------------------------------------------------
+   Calm mode: the exam guide leaves the notebook for a soft morning sky.
+   --------------------------------------------------------------------------- */
+body.calm-mode {
+  --calm-sky-top: #cfe6f7;
+  --calm-sky-mid: #e9f4ec;
+  --calm-meadow: #cfe5c6;
+  --calm-card: rgba(255, 255, 255, 0.78);
+  --calm-card-edge: rgba(255, 255, 255, 0.9);
+  --calm-ink: #2b3a33;
+  --calm-ink-2: #55675d;
+  --calm-leaf: #3f7a54;
+  --calm-warm: #b0662c;
+  --calm-box: rgba(232, 244, 234, 0.9);
+  --calm-cloud: rgba(255, 255, 255, 0.85);
+  --font-calm: "Varela Round", "Heebo", "Arial Hebrew", Arial, sans-serif;
+  background: linear-gradient(180deg, var(--calm-sky-top) 0%, var(--calm-sky-mid) 55%, var(--calm-meadow) 100%) fixed;
+  color: var(--calm-ink);
+}
+
+[data-theme="dark"] body.calm-mode {
+  --calm-sky-top: #10202e;
+  --calm-sky-mid: #142a26;
+  --calm-meadow: #17301f;
+  --calm-card: rgba(20, 32, 30, 0.82);
+  --calm-card-edge: rgba(120, 170, 140, 0.18);
+  --calm-ink: #e3eee6;
+  --calm-ink-2: #a9bfb2;
+  --calm-leaf: #8fd3a6;
+  --calm-warm: #f0b27a;
+  --calm-box: rgba(30, 52, 42, 0.85);
+  --calm-cloud: rgba(200, 220, 230, 0.08);
+}
+
+.calm-sky {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.calm-leaves {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  max-width: none;
+}
+
+.calm-cloud {
+  position: absolute;
+  inline-size: 320px;
+  block-size: 90px;
+  border-radius: 999px;
+  background: var(--calm-cloud);
+  filter: blur(6px);
+  animation: calm-drift 140s linear infinite;
+}
+
+.calm-cloud::before,
+.calm-cloud::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: inherit;
+}
+
+.calm-cloud::before {
+  inline-size: 140px;
+  block-size: 140px;
+  inset-block-start: -70px;
+  inset-inline-start: 50px;
+}
+
+.calm-cloud::after {
+  inline-size: 110px;
+  block-size: 110px;
+  inset-block-start: -45px;
+  inset-inline-start: 170px;
+}
+
+.calm-cloud.c1 { inset-block-start: 12%; left: -340px; animation-duration: 160s; }
+.calm-cloud.c2 { inset-block-start: 32%; left: -340px; animation-duration: 210s; animation-delay: -90s; transform: scale(0.7); }
+.calm-cloud.c3 { inset-block-start: 58%; left: -340px; animation-duration: 190s; animation-delay: -40s; transform: scale(0.85); }
+.calm-cloud.c4 { inset-block-start: 80%; left: -340px; animation-duration: 240s; animation-delay: -150s; transform: scale(0.6); }
+
+@keyframes calm-drift {
+  from { translate: 0 0; }
+  to { translate: calc(100vw + 700px) 0; }
+}
+
+body.calm-mode .site-header,
+body.calm-mode .main,
+body.calm-mode .site-footer {
+  position: relative;
+  z-index: 1;
+}
+
+body.calm-mode .site-header {
+  background: color-mix(in srgb, var(--calm-card) 85%, transparent);
+  backdrop-filter: blur(10px);
+  border-color: transparent;
+}
+
+body.calm-mode .site-footer {
+  background: transparent;
+}
+
+body.calm-mode .sheet {
+  background: var(--calm-card);
+  background-image: none;
+  border: 1px solid var(--calm-card-edge);
+  border-radius: 28px;
+  box-shadow: 0 20px 60px rgba(40, 80, 60, 0.12);
+  backdrop-filter: blur(8px);
+  color: var(--calm-ink);
+  font-family: var(--font-calm);
+  padding-inline: clamp(20px, 5vw, 56px);
+}
+
+body.calm-mode .sheet::before,
+body.calm-mode .sheet::after,
+body.calm-mode .sheet .note-head::after {
+  display: none;
+}
+
+body.calm-mode .note-title,
+body.calm-mode .prose h2,
+body.calm-mode .prose h3 {
+  font-family: var(--font-calm);
+  color: var(--calm-leaf);
+  letter-spacing: 0;
+}
+
+body.calm-mode .note-title {
+  font-size: clamp(1.9rem, 5vw, 2.6rem);
+  line-height: 1.3;
+}
+
+body.calm-mode .prose {
+  font-size: 1.06rem;
+  line-height: 2;
+}
+
+body.calm-mode .prose h2 {
+  margin-block: 48px 12px;
+  font-size: 1.5rem;
+  line-height: 1.4;
+}
+
+body.calm-mode .prose p,
+body.calm-mode .prose li {
+  color: var(--calm-ink);
+}
+
+body.calm-mode .prose strong {
+  color: var(--calm-warm);
+}
+
+body.calm-mode .prose a {
+  color: var(--calm-leaf);
+}
+
+body.calm-mode .callout,
+body.calm-mode .calm-widget {
+  border: 0;
+  border-radius: 20px;
+  background: var(--calm-box);
+}
+
+body.calm-mode .callout .callout-title,
+body.calm-mode .callout summary {
+  color: var(--calm-leaf);
+}
+
+body.calm-mode .prose table {
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--calm-box);
+}
+
+body.calm-mode .prose th,
+body.calm-mode .prose td {
+  border-color: color-mix(in srgb, var(--calm-leaf) 18%, transparent);
+}
+
+body.calm-mode .button {
+  border-radius: 999px;
+}
+
+body.calm-mode .calm-breathe-title,
+body.calm-mode .calm-pass-total strong {
+  color: var(--calm-leaf);
+}
+
+body.calm-mode .calm-pass-meter span {
+  background: linear-gradient(90deg, var(--calm-leaf), var(--calm-warm));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calm-cloud { animation: none; left: 10%; }
+  .calm-cloud.c2 { left: 55%; }
+  .calm-cloud.c3 { left: 25%; }
+  .calm-cloud.c4 { left: 70%; }
+}

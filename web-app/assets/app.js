@@ -783,6 +783,7 @@ function route({ initial = false } = {}) {
   else if (next.view === "home") renderHome();
   else renderNotFound();
 
+  setCalmMode(next.view === "page" && Boolean(pages.get(next.id)?.tags?.includes("calm-page")));
   updatePrimaryNav(next.view === "page" ? "" : next.view);
   syncTree(next.view === "page" ? next.id : "");
   if (!next.section || next.view !== "page") window.scrollTo(0, 0);
@@ -794,6 +795,113 @@ function route({ initial = false } = {}) {
     }
   }
   updateScrollUi();
+}
+
+// The calm exam guide is its own world: a soft sky with drifting clouds and
+// a few leaves falling slowly behind the page. Other pages keep the notebook.
+let calmLeaves = null;
+function setCalmMode(on) {
+  document.body.classList.toggle("calm-mode", on);
+  if (on && !calmLeaves) calmLeaves = startCalmLeaves();
+  if (!on && calmLeaves) {
+    calmLeaves.stop();
+    calmLeaves = null;
+  }
+}
+
+function startCalmLeaves() {
+  const sky = document.createElement("div");
+  sky.className = "calm-sky";
+  sky.setAttribute("aria-hidden", "true");
+  sky.innerHTML = '<span class="calm-cloud c1"></span><span class="calm-cloud c2"></span><span class="calm-cloud c3"></span><span class="calm-cloud c4"></span><canvas class="calm-leaves"></canvas>';
+  document.body.prepend(sky);
+  const canvas = sky.querySelector("canvas");
+  const ctx = canvas.getContext("2d");
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const colours = ["#d9822b", "#c0562f", "#e3a93b", "#9a6b2f", "#b5763a", "#8d9a4a"];
+  let width = 0;
+  let height = 0;
+  let frame = 0;
+  let last = 0;
+  const resize = () => {
+    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width * ratio;
+    canvas.height = height * ratio;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  };
+  resize();
+  const count = width < 600 ? 9 : 16;
+  const leaves = Array.from({ length: count }, (_, i) => ({
+    x: Math.random() * width,
+    y: Math.random() * height,
+    size: 10 + Math.random() * 12,
+    fall: 14 + Math.random() * 18,
+    sway: 18 + Math.random() * 26,
+    phase: Math.random() * Math.PI * 2,
+    spin: (Math.random() - 0.5) * 0.6,
+    angle: Math.random() * Math.PI * 2,
+    colour: colours[i % colours.length]
+  }));
+  const drawLeaf = (leaf, t) => {
+    const x = leaf.x + Math.sin(t * 0.0006 + leaf.phase) * leaf.sway;
+    ctx.save();
+    ctx.translate(x, leaf.y);
+    ctx.rotate(leaf.angle + Math.sin(t * 0.0008 + leaf.phase) * 0.5);
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = leaf.colour;
+    ctx.beginPath();
+    ctx.moveTo(0, -leaf.size);
+    ctx.quadraticCurveTo(leaf.size * 0.75, -leaf.size * 0.2, 0, leaf.size);
+    ctx.quadraticCurveTo(-leaf.size * 0.75, -leaf.size * 0.2, 0, -leaf.size);
+    ctx.fill();
+    ctx.globalAlpha = 0.35;
+    ctx.strokeStyle = "#5b3a1a";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, -leaf.size * 0.9);
+    ctx.lineTo(0, leaf.size * 1.25);
+    ctx.stroke();
+    ctx.restore();
+  };
+  const tick = (t) => {
+    const dt = last ? Math.min(t - last, 50) / 1000 : 0;
+    last = t;
+    ctx.clearRect(0, 0, width, height);
+    for (const leaf of leaves) {
+      leaf.y += leaf.fall * dt;
+      leaf.angle += leaf.spin * dt;
+      if (leaf.y > height + 30) {
+        leaf.y = -30;
+        leaf.x = Math.random() * width;
+      }
+      drawLeaf(leaf, t);
+    }
+    frame = requestAnimationFrame(tick);
+  };
+  const onVisibility = () => {
+    if (still) return;
+    cancelAnimationFrame(frame);
+    last = 0;
+    if (!document.hidden) frame = requestAnimationFrame(tick);
+  };
+  const onResize = () => {
+    resize();
+    if (still) leaves.forEach((leaf) => drawLeaf(leaf, 0));
+  };
+  window.addEventListener("resize", onResize);
+  document.addEventListener("visibilitychange", onVisibility);
+  if (still) leaves.forEach((leaf) => drawLeaf(leaf, 0));
+  else frame = requestAnimationFrame(tick);
+  return {
+    stop() {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", onVisibility);
+      sky.remove();
+    }
+  };
 }
 
 function cleanupView() {
