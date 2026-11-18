@@ -1319,6 +1319,7 @@ function renderPage(page, section) {
   window.InfiStudy?.decorate(app);
   window.InfiExams?.decorate(app);
   mountLearningPath(page, group, gateway);
+  mountPageMc();
   alignSheetGrid();
   app.querySelector("[data-toc-inline]")?.addEventListener("toggle", alignSheetGrid);
   app.querySelectorAll("details.callout").forEach((box) => box.addEventListener("toggle", alignSheetGrid));
@@ -1372,6 +1373,37 @@ function mountTocToggle() {
     if (toc.open) toc.querySelector("a, button")?.focus({ preventScroll: true });
   });
   toc.addEventListener("toggle", () => toggle.setAttribute("aria-expanded", String(toc.open)));
+}
+
+// <!-- infi-mc: X --> after an options line ("א. … · ב. …") turns the
+// options into answer buttons that say whether the choice is right.
+function mountPageMc() {
+  app.querySelectorAll(".page-mc[data-mc-answer]").forEach((box) => {
+    const line = box.previousElementSibling;
+    if (!line || line.tagName !== "P") return;
+    const html = line.innerHTML;
+    const start = html.search(/(^|\s)א\.\s/);
+    if (start < 0) return;
+    const lead = html.slice(0, start).trim();
+    const options = html.slice(start).split(/\s+·\s+/).map((part) => part.trim()).filter(Boolean);
+    const parsed = options.map((part) => /^([א-ת])\.\s*([\s\S]*)$/.exec(part)).filter(Boolean);
+    if (parsed.length !== options.length) return;
+    const answer = box.dataset.mcAnswer;
+    box.innerHTML = `${lead ? `<p>${lead}</p>` : ""}<div class="page-mc-options" role="group" aria-label="תשובות">${parsed
+      .map(([, letter, text]) => `<button class="button" type="button" data-mc-option="${letter}"><b>${letter}.</b> ${text}</button>`)
+      .join("")}</div><p class="page-mc-feedback" role="status"></p>`;
+    line.remove();
+    const feedback = box.querySelector(".page-mc-feedback");
+    box.querySelectorAll("[data-mc-option]").forEach((button) => {
+      button.addEventListener("click", () => {
+        box.querySelectorAll("[data-mc-option]").forEach((other) => other.classList.remove("is-right", "is-wrong"));
+        const right = button.dataset.mcOption === answer;
+        button.classList.add(right ? "is-right" : "is-wrong");
+        feedback.className = `page-mc-feedback ${right ? "exam-feedback-correct" : "exam-feedback-incorrect"}`;
+        feedback.textContent = right ? "נכון! פתחו את הפתרון כדי לבדוק שגם הנימוק שלכם נכון." : "לא זו התשובה. נסו שוב, או פתחו את הרמז.";
+      });
+    });
+  });
 }
 
 function mountLearningPath(page, group, gateway) {
