@@ -1065,7 +1065,7 @@
   function render(root, route) {
     if (route.id === "cards") renderCards(root);
     else if (route.id === "proof" && route.section) renderPuzzle(root, route.section);
-    else if (route.id === "proofs") renderProofs(root);
+    else if (route.id === "proofs" && course.features.hubs) renderProofs(root);
     else if (course.features.hubs) renderDoors(root);
     else renderHub(root);
   }
