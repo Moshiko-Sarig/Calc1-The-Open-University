@@ -487,6 +487,7 @@
           <a href="#/exams/practice-mc">תרגול אמריקאיות</a>
           <a href="#/exams?section=findTitle" data-exam-section="findTitle">חיפוש לפי נושא</a>
           <a href="#/exams?section=examStats" data-exam-section="examStats">סטטיסטיקות</a>
+          <label class="exam-nav-level">רמת קושי<select data-nav-level><option value="">בחרו רמה</option>${LEVELS.map((l) => `<option value="${l.id}">${l.label}</option>`).join("")}</select></label>
         </nav>
         <section class="exam-section exam-all" aria-labelledby="allTitle">
           <h2 id="allTitle" tabindex="-1">כל המבחנים</h2>
@@ -582,6 +583,19 @@
       target.focus({ preventScroll: true });
       target.scrollIntoView({ block: "start" });
     };
+    // The top-bar level picker drives the topic search's own level filter.
+    const navLevel = root.querySelector("[data-nav-level]");
+    const levelField = root.querySelector('[data-f="level"]');
+    if (navLevel && levelField) {
+      navLevel.value = levelField.value;
+      navLevel.addEventListener("change", () => {
+        levelField.value = navLevel.value;
+        update();
+        syncUrl();
+        jump("findTitle");
+      });
+      levelField.addEventListener("input", () => { navLevel.value = levelField.value; });
+    }
     nav.querySelectorAll("[data-exam-section]").forEach((link) => link.addEventListener("click", (event) => {
       event.preventDefault();
       jump(link.dataset.examSection);

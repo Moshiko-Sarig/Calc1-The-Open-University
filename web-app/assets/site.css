@@ -5059,6 +5059,26 @@ bdi {
   font-size: var(--fs-sm);
 }
 
+.exam-nav-level {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: auto;
+  padding-inline: 8px;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.exam-nav-level select {
+  min-height: 40px;
+  padding: 4px 8px;
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
 .exams-page :is(#allTitle, #reviewTitle, #findTitle, #examStats) {
   scroll-margin-block-start: calc(var(--header-h) + var(--exam-nav-h, 160px) + 16px);
 }

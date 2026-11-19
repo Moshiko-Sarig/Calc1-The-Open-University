@@ -34,7 +34,7 @@ test("initial data omits solution bodies and each versioned exam file restores t
 // and interactions. Keep this fixture independent of the number of solutions.
 function render(route, ratings = {}) {
   const data = readPayload("docs/infi");
-  const node = { value: "", offsetHeight: 60, style: { setProperty() {} }, querySelectorAll: () => [] };
+  const node = { value: "", offsetHeight: 60, style: { setProperty() {} }, addEventListener() {}, querySelectorAll: () => [] };
   const host = { innerHTML: "", querySelector: () => node, querySelectorAll: () => [] };
   const window = { COURSE_DATA: data, InfiApp: {
     data, groups: [], pages: new Map(), setTitle() {}, escapeHtml: (value) => String(value),
