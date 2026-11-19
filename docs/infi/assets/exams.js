@@ -363,8 +363,21 @@
     return href ? `<a class="exam-chip exam-chip-proof" href="${href}">${label}</a>` : `<span class="exam-chip exam-chip-proof">${label}</span>`;
   }
 
+  // Difficulty levels typed into exams.json as q.difficulty. The order is the
+  // sort order; the text is the legend shown above the topic search.
+  const LEVELS = [
+    { id: "easy", label: "קלה", text: "צעד אחד מוכר: הגדרה, נוסחה או משפט אחד, חישוב שגרתי, הוכחה קצרה מהספר או דוגמה נגדית ידועה." },
+    { id: "medium", label: "בינונית", text: "שניים־שלושה רעיונות שצריך לחבר, או לבחור את הכלי הנכון (רול, לגראנז׳, ערך ביניים, סנדוויץ׳) ולהפעיל אותו. הוכחה רגילה מהספר עם צעד עדין אחד." },
+    { id: "hard", label: "קשה", text: "דורשת רעיון מקורי, בנייה או דוגמה נגדית לא צפויה, הוכחה ארוכה בכמה שלבים, או שילוב של כמה נושאים." }
+  ];
+  const levelRank = (q) => Math.max(0, LEVELS.findIndex((l) => l.id === q.difficulty));
+  function levelChip(q) {
+    const level = LEVELS.find((l) => l.id === q.difficulty);
+    return level ? `<span class="exam-chip exam-chip-level exam-level-${level.id}" title="רמת קושי">${level.label}</span>` : "";
+  }
+
   function questionRow(exam, q, withExam) {
-    const units = (q.units || []).map((u) => `<span class="exam-chip" style="--c:var(--c-unit-${u})">${esc(words.unit)} ${u}</span>`).join("");
+    const units =(q.units || []).map((u) => `<span class="exam-chip" style="--c:var(--c-unit-${u})">${esc(words.unit)} ${u}</span>`).join("");
     const proves = (q.prove || []).map(theoremChip).join("");
     const head = withExam
       ? `<a href="${examHref(exam.n, q.q)}">${esc(examLabel(exam))} · שאלה ${q.q}</a>`
@@ -372,7 +385,7 @@
     return `<li class="exam-q"${withExam ? "" : ` id="q${q.q}"`}>
       <p class="exam-q-head">${head}${ratingMark(exam, q)}${q.study ? `<span class="exam-coverage">פתרון מלא</span>` : ""}<span class="exam-q-meta">${esc(q.format || "")}${q.points ? ` · ${q.points} נק'` : ""}${q.kind ? ` · ${esc(q.kind)}` : ""}${q.kind_detail ? ` + ${esc(q.kind_detail)}` : ""}</span></p>
       <p class="exam-q-summary">${esc(q.summary)}</p>
-      <p class="exam-q-tags">${proves}${units}${(q.topics || []).map((t) => `<span class="exam-chip exam-chip-topic">${esc(t)}</span>`).join("")}</p>
+      <p class="exam-q-tags">${levelChip(q)}${proves}${units}${(q.topics || []).map((t) => `<span class="exam-chip exam-chip-topic">${esc(t)}</span>`).join("")}</p>
       ${q.note ? `<p class="exam-q-note">${esc(q.note)}</p>` : ""}
     </li>`;
   }
@@ -474,6 +487,7 @@
           <a href="#/exams/practice-mc">תרגול אמריקאיות</a>
           <a href="#/exams?section=findTitle" data-exam-section="findTitle">חיפוש לפי נושא</a>
           <a href="#/exams?section=examStats" data-exam-section="examStats">סטטיסטיקות</a>
+          <label class="exam-nav-level">רמת קושי<select data-nav-level><option value="">בחרו רמה</option>${LEVELS.map((l) => `<option value="${l.id}">${l.label}</option>`).join("")}</select></label>
         </nav>
         <section class="exam-section exam-all" aria-labelledby="allTitle">
           <h2 id="allTitle" tabindex="-1">כל המבחנים</h2>
@@ -486,8 +500,15 @@
             <label>${esc(words.unit)}<select data-f="unit"><option value="">הכול</option>${Object.entries(unitNames()).map(([u, n]) => `<option value="${u}">${u}. ${n}</option>`).join("")}</select></label>
             <label>משפט להוכחה<select data-f="thm"><option value="">הכול</option>${nums.map((n) => `<option>${n}</option>`).join("")}</select></label>
             <label>סוג שאלה<select data-f="kind"><option value="">הכול</option>${kinds.map((k) => `<option>${esc(k)}</option>`).join("")}</select></label>
+            <label>רמת קושי<select data-f="level"><option value="">הכול</option>${LEVELS.map((l) => `<option value="${l.id}">${l.label}</option>`).join("")}</select></label>
+            <label>מיון<select data-f="sort"><option value="">חדש לישן</option><option value="easy">מהקלה לקשה</option><option value="hard">מהקשה לקלה</option></select></label>
             <label class="exam-filter-text">מילה<input type="search" data-f="text" autocomplete="off" placeholder="למשל: במידה שווה" /></label>
           </div>
+          <details class="exam-levels">
+            <summary>מה זה קלה, בינונית וקשה?</summary>
+            <dl>${LEVELS.map((l) => `<div><dt><span class="exam-chip exam-chip-level exam-level-${l.id}">${l.label}</span></dt><dd>${l.text}</dd></div>`).join("")}</dl>
+            <p>הדירוג הוא הערכה שלנו לפי מה שהשאלה דורשת, לא לפי הניקוד. אותה שאלה יכולה להרגיש אחרת לכל אחד.</p>
+          </details>
           <p class="filter-status" aria-live="polite" data-exam-status></p>
           <ul class="exam-q-list" data-exam-results></ul>
         </section>
@@ -506,10 +527,12 @@
       const unit = field("unit");
       const thm = field("thm");
       const kind = field("kind");
+      const level = field("level");
+      const sort = field("sort");
       const text = norm(field("text"));
-      if (!unit && !thm && !kind && !text) {
+      if (!unit && !thm && !kind && !level && !text) {
         results.innerHTML = "";
-        status.textContent = `בחרו ${words.unit}, משפט, סוג או מילה כדי לראות את כל השאלות המתאימות.`;
+        status.textContent = `בחרו ${words.unit}, משפט, סוג, רמת קושי או מילה כדי לראות את כל השאלות המתאימות.`;
         return;
       }
       const hits = [];
@@ -518,22 +541,26 @@
           if (unit && !(q.units || []).map(String).includes(unit)) continue;
           if (thm && !(q.prove || []).includes(thm)) continue;
           if (kind && q.kind !== kind && q.kind_detail !== kind) continue;
+          if (level && q.difficulty !== level) continue;
           if (text && !norm(`${q.summary} ${(q.topics || []).join(" ")} ${q.note || ""}`).includes(text)) continue;
-          hits.push(questionRow(exam, q, true));
+          hits.push({ q, html: questionRow(exam, q, true) });
         }
       }
-      results.innerHTML = hits.join("");
-      status.textContent = hits.length ? `${hits.length} שאלות מתאימות` : "אין שאלות מתאימות";
+      // Array sort is stable, so within a level the newest exam stays first.
+      if (sort) hits.sort((a, b) => (sort === "hard" ? -1 : 1) * (levelRank(a.q) - levelRank(b.q)));
+      results.innerHTML = hits.map((hit) => hit.html).join("");
+      const counts = LEVELS.map((l) => [l.label, hits.filter((hit) => hit.q.difficulty === l.id).length]).filter(([, c]) => c);
+      status.textContent = hits.length ? `${hits.length} שאלות מתאימות${!level && counts.length > 1 ? ` (${counts.map(([l, c]) => `${c} ${l}`).join(", ")})` : ""}` : "אין שאלות מתאימות";
     };
     // Filters live in the address, so a unit's exam questions can be linked
     // to (#/exams?unit=5) and survive a reload.
-    for (const name of ["unit", "thm", "kind", "text"]) {
+    for (const name of ["unit", "thm", "kind", "level", "sort", "text"]) {
       const value = route.query?.get(name);
       if (value) root.querySelector(`[data-f="${name}"]`).value = value;
     }
     const syncUrl = () => {
       const params = new URLSearchParams();
-      for (const name of ["unit", "thm", "kind", "text"]) if (field(name)) params.set(name, field(name));
+      for (const name of ["unit", "thm", "kind", "level", "sort", "text"]) if (field(name)) params.set(name, field(name));
       const query = params.toString();
       history.replaceState(null, "", `#/exams${query ? `?${query}` : ""}`);
     };
@@ -556,11 +583,24 @@
       target.focus({ preventScroll: true });
       target.scrollIntoView({ block: "start" });
     };
+    // The top-bar level picker drives the topic search's own level filter.
+    const navLevel = root.querySelector("[data-nav-level]");
+    const levelField = root.querySelector('[data-f="level"]');
+    if (navLevel && levelField) {
+      navLevel.value = levelField.value;
+      navLevel.addEventListener("change", () => {
+        levelField.value = navLevel.value;
+        update();
+        syncUrl();
+        jump("findTitle");
+      });
+      levelField.addEventListener("input", () => { navLevel.value = levelField.value; });
+    }
     nav.querySelectorAll("[data-exam-section]").forEach((link) => link.addEventListener("click", (event) => {
       event.preventDefault();
       jump(link.dataset.examSection);
     }));
-    const hasFilter = ["unit", "thm", "kind", "text"].some((name) => route.query?.get(name));
+    const hasFilter = ["unit", "thm", "kind", "level", "sort", "text"].some((name) => route.query?.get(name));
     const section = route.query?.get("section");
     if (hasFilter || ["allTitle", "reviewTitle", "findTitle", "examStats"].includes(section)) requestAnimationFrame(() => jump(hasFilter ? "findTitle" : section));
     app().queueTypeset([root]);

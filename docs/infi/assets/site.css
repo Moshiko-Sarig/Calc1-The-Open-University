@@ -4907,6 +4907,60 @@ bdi {
   color: var(--ink-2);
 }
 
+.exam-chip-level {
+  font-weight: 700;
+}
+
+.exam-level-easy {
+  border-color: var(--calm-line);
+  background: var(--calm-soft);
+  color: var(--calm);
+}
+
+.exam-level-medium {
+  border-color: var(--gold-line);
+  background: var(--gold-soft);
+  color: var(--gold);
+}
+
+.exam-level-hard {
+  border-color: color-mix(in srgb, var(--danger) 45%, transparent);
+  background: color-mix(in srgb, var(--danger) 9%, transparent);
+  color: var(--danger);
+}
+
+.exam-levels {
+  margin-block: 4px 10px;
+  font-size: var(--fs-s);
+  color: var(--ink-2);
+}
+
+.exam-levels summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.exam-levels dl {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+
+.exam-levels dl > div {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.exam-levels dd {
+  margin: 0;
+}
+
+.exam-levels p {
+  margin: 4px 0 0;
+}
+
 .exam-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
@@ -5003,6 +5057,26 @@ bdi {
   min-height: 44px;
   padding-inline: 8px;
   font-size: var(--fs-sm);
+}
+
+.exam-nav-level {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: auto;
+  padding-inline: 8px;
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+
+.exam-nav-level select {
+  min-height: 40px;
+  padding: 4px 8px;
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
 }
 
 .exams-page :is(#allTitle, #reviewTitle, #findTitle, #examStats) {
