@@ -40,8 +40,11 @@
     { key: "paper", label: "רקע הדף", values: [["grid", "משבצות"], ["plain", "נייר חלק"]] },
     { key: "focus", label: "מצב ריכוז (בלי תפריטים בצד)", values: [["off", "כבוי"], ["on", "פועל"]] },
     { key: "explain", label: "הסברים במילים פשוטות", values: [["first", "הראשון פתוח"], ["open", "כולם פתוחים"]] },
-    { key: "cheer", label: "משפטי עידוד", values: [["on", "להציג"], ["off", "להסתיר"]] }
+    { key: "cheer", label: "משפטי עידוד", values: [["on", "להציג"], ["off", "להסתיר"]] },
+    // Only where the course shows long pages in parts (features.parts).
+    { key: "parts", label: "דפים ארוכים", values: [["parts", "בחלקים"], ["whole", "ברצף"]], when: (course) => course?.features?.parts }
   ];
+  const shownOptions = () => OPTIONS.filter((o) => !o.when || o.when(app()?.data?.course));
   const SIZES = [["s", "קטן"], ["m", "רגיל"], ["l", "גדול"], ["xl", "גדול מאוד"], ["xxl", "ענק"]];
 
   function setOption(key, value, fallback) {
@@ -79,7 +82,7 @@
       </div>
       <p class="ro-note">הבחירות נשמרות רק בדפדפן הזה.</p>
       ${group("textSize", "גודל טקסט", SIZES, size)}
-      ${OPTIONS.map((o) => group(o.key, o.label, o.values, root.dataset[o.key] || o.values[0][0])).join("")}`;
+      ${shownOptions().map((o) => group(o.key, o.label, o.values, root.dataset[o.key] || store.get(`infi-${o.key}`) || o.values[0][0])).join("")}`;
   }
 
   function mountOptions() {
@@ -119,6 +122,7 @@
         const option = OPTIONS.find((o) => o.key === name);
         setOption(name, input.value, option.values[0][0]);
         if (name === "explain") applyExplain(document);
+        if (name === "parts") window.dispatchEvent(new Event("infi:parts-mode"));
       }
       relayout();
     });
@@ -381,7 +385,7 @@
   function readableBlocks(prose) {
     return Array.from(prose.querySelectorAll("h2, h3, p, li")).filter(
       (el) =>
-        !el.closest("details:not([open]), .grid-probe, .callout-source, .proof-bar, .why-note, li li, .demo, .note-check, .stuck-ladder") &&
+        !el.closest("details:not([open]), .grid-probe, .callout-source, .proof-bar, .why-note, li li, .demo, .note-check, .stuck-ladder, .note-part[hidden], .note-part.is-staged, .part-bar") &&
         !(el.matches("li") && el.querySelector("p")) &&
         el.textContent.trim()
     );
@@ -481,8 +485,11 @@
     if (symbols) {
       // Below the "what matters here" line when the page opens with one, so
       // the first thing a reader meets is content and not a tool.
+      // On a page in parts the box serves every part, so it sits under the parts bar.
+      const bar = prose.querySelector(":scope > .part-bar");
       const lead = Array.from(prose.children).find((el) => el.tagName === "P" && /^מה חשוב כאן/.test(el.textContent.trim()));
-      if (lead) lead.after(symbols);
+      if (bar) bar.after(symbols);
+      else if (lead) lead.after(symbols);
       else prose.prepend(symbols);
       mountSymbolsToggle(scope, symbols);
     }
@@ -506,7 +513,8 @@
       });
       foot.addEventListener("click", (event) => {
         if (event.target.closest("[data-open-simple]")) {
-          const boxes = prose.querySelectorAll("details.callout-simple");
+          // On a page in parts, the boxes of the part on screen.
+          const boxes = Array.from(prose.querySelectorAll("details.callout-simple")).filter((box) => !box.closest(".note-part[hidden], .note-part.is-staged"));
           boxes.forEach((box) => (box.open = true));
           boxes[0]?.scrollIntoView({ block: "start" });
           boxes[0]?.querySelector("summary")?.focus({ preventScroll: true });

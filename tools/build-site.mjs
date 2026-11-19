@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { COURSES, SITE } from "./courses.mjs";
 import { compareNumbers, NUMBER_KEY_SOURCE, NUMBER_SOURCE, numberFromKey, numberKey } from "./lib/numbers.mjs";
+import { groupParts, pageBlocks, PHONE_SCREEN } from "./lib/parts.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const webAppDir = path.join(root, "web-app");
@@ -1427,6 +1428,18 @@ function firstParagraph(html) {
   return match ? match[1].replace(/<a [^>]*>([\s\S]*?)<\/a>/g, "$1") : "";
 }
 
+// Where a long page's parts start (features.parts), or null to keep it whole.
+// Topic sheets and exam-prep pages start a part at each h2; notes are packed by
+// height. The theorem list and pages tagged no-parts stay whole.
+function planParts(page) {
+  if (!course.features.parts) return null;
+  const tags = page.tags || [];
+  if (tags.includes("no-parts")) return null;
+  if (course.theoremListTitle && page.title.includes(course.theoremListTitle)) return null;
+  const mode = page.groupId === "practice" || (course.navLayout && page.groupId === "start") ? "topics" : "notes";
+  return groupParts(pageBlocks(page.html), { mode });
+}
+
 function findByTitle(pages, includes) {
   return pages.find((page) => includes.some((value) => page.title.includes(value)))?.id || "";
 }
@@ -1481,6 +1494,7 @@ export function buildCourse(nextCourse) {
   );
 
   renderContext.pages = pages;
+  const partsReport = [];
   const examBody = examList?.body || "";
   const flashcards = [];
   for (const page of pages) {
@@ -1502,6 +1516,11 @@ export function buildCourse(nextCourse) {
     // about 60 words a minute. Rounded to 5 so it does not look exact.
     page.readMinutes = Math.max(5, Math.round(page.wordCount / 60 / 5) * 5);
     page.hasExamTheorem = examLinked.has(page.id);
+    const parts = planParts(page);
+    if (parts) {
+      page.parts = parts.map((part) => part.id);
+      partsReport.push({ page, parts });
+    }
     delete page.body;
     delete page.rawLinks;
     delete page.sourcePath;
@@ -1577,6 +1596,16 @@ export function buildCourse(nextCourse) {
     fs.cpSync(path.join(source, "images"), path.join(output, "images"), { recursive: true });
   }
   console.log(`Built ${course.id}: ${pages.length} pages, ${edges.length} graph edges -> ${path.relative(root, outDir)}`);
+  if (course.features.parts) {
+    console.log(`  ${partsReport.length} long pages shown in parts${process.env.PARTS_REPORT ? "" : " (PARTS_REPORT=1 lists them)"}`);
+    if (process.env.PARTS_REPORT) {
+      const screens = (height) => (height / PHONE_SCREEN).toFixed(1);
+      for (const { page, parts } of partsReport) {
+        console.log(`  ${page.navTitle}: ${parts.length} parts`);
+        parts.forEach((part, i) => console.log(`    ${i + 1}. ${screens(part.height)} screens  ${part.title || "(start)"}`));
+      }
+    }
+  }
   return payload;
 }
 

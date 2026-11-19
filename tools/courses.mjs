@@ -137,7 +137,8 @@ export const COURSES = [
       "תיקונים לספרי הקורס": "התיקונים הרשמיים לכרכים א–ג."
     },
     // hubs: the practice hub as one line per way to practise, and the short home page.
-    features: { exams: true, hubs: true }
+    // parts: long pages are shown a few phone screens at a time.
+    features: { exams: true, hubs: true, parts: true }
   },
   {
     id: "linear1",
