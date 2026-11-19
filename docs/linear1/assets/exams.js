@@ -110,12 +110,20 @@
     return `<nav class="exam-actions" aria-label="המשך הלימוד">${prev ? `<a class="button" href="${examHref(exam.n, prev.q)}">השאלה הקודמת</a>` : ""}${next ? `<a class="button" href="${examHref(exam.n, next.q)}">השאלה הבאה</a>` : ""}<a class="button" href="#/exams">כל המבחנים</a></nav>`;
   }
 
+  function reviewRows() {
+    const fromExams = exams().flatMap((exam) => exam.questions.map((q) => ({ exam, q, rating: ratings[`${exam.n}/${q.q}`] })));
+    const fromPages = Object.entries(ratings).filter(([key, r]) => key.startsWith("p:") && r?.href).map(([, rating]) => ({ rating }));
+    return [...fromExams, ...fromPages].filter(({ rating }) => ["partial", "stuck"].includes(rating?.value)).sort((a, b) => a.rating.at - b.rating.at);
+  }
+
   function reviewList() {
-    const rows = exams().flatMap((exam) => exam.questions.map((q) => ({ exam, q, rating: ratings[`${exam.n}/${q.q}`] })))
-      .filter(({ rating }) => ["partial", "stuck"].includes(rating?.value))
-      .sort((a, b) => a.rating.at - b.rating.at);
+    const rows = reviewRows();
+    const row = ({ exam, q, rating }) => exam
+      ? questionRow(exam, q, true)
+      : `<li class="exam-q"><p class="exam-q-head"><a href="${rating.href}">${esc(rating.label)}</a><span class="exam-rating exam-rating-stuck">${ratingLabels.stuck}</span><span class="exam-q-meta">תרגול אמריקאיות</span></p></li>`;
     return `<section class="exam-section" aria-labelledby="reviewTitle"><h2 id="reviewTitle" tabindex="-1">לחזרה</h2>
-      ${rows.length ? `<ul class="exam-q-list">${rows.map(({ exam, q }) => questionRow(exam, q, true)).join("")}</ul>` : `<p>שאלות שתסמנו ״חלקית״ או ״נתקעתי״ יופיעו כאן, מהסימון הישן לחדש.</p>`}</section>`;
+      <p>כאן מופיעות שאלות שסימנתם ״חלקית״ או ״נתקעתי״, ושאלות שטעיתם בהן בתרגול האמריקאיות. מהישנה לחדשה.</p>
+      ${rows.length ? `<ul class="exam-q-list">${rows.map(row).join("")}</ul>` : ""}</section>`;
   }
 
   function ratingBox(exam, q) {
@@ -226,12 +234,60 @@
     typesetStudy(root);
   }
 
+  // Practice questions written on course pages: <!-- infi-mc: ג medium -->
+  // after an options line. The question runs from the page's ### heading to
+  // the options; the explanation is the callouts after it, without the hint.
+  function pagePracticePool() {
+    const out = [];
+    for (const page of app().pages?.values?.() || []) {
+      if (!page.html?.includes("data-mc-answer")) continue;
+      const doc = document.createElement("template");
+      doc.innerHTML = page.html;
+      doc.content.querySelectorAll(".page-mc[data-mc-answer]").forEach((box) => {
+        const before = [];
+        let node = box.previousElementSibling;
+        while (node && !/^H[1-3]$/.test(node.tagName)) { before.unshift(node.outerHTML); node = node.previousElementSibling; }
+        const heading = node?.tagName === "H3" ? node : null;
+        if (!heading || !before.length) return;
+        const after = [];
+        for (let next = box.nextElementSibling; next && !/^H[1-3]$/.test(next.tagName); next = next.nextElementSibling) {
+          if (next.matches("details.callout") && !next.classList.contains("callout-hint")) {
+            if (next.classList.contains("callout-solution")) next.setAttribute("open", "");
+            after.push(next.outerHTML);
+          }
+        }
+        const number = (heading.textContent.match(/שאלה\s+([\d.]+)/) || [])[1] || heading.textContent.trim();
+        const letters = [...before[before.length - 1].matchAll(/(?:^|>|\s)([א-ת])\.\s/g)].map((m) => m[1]);
+        out.push({
+          key: `p:${page.id}/${number}`,
+          label: `${page.title} · שאלה ${number}`,
+          href: app().pageHref(page, heading.id || ""),
+          q: { q: number, units: [], topics: [], difficulty: box.dataset.mcLevel || "", study: {
+            question: before.join(""), options: letters.length >= 2 ? letters : null, mc: { answer: box.dataset.mcAnswer },
+            parts: [{ simple: "", solution: after.join("") }]
+          } }
+        });
+      });
+    }
+    return out;
+  }
+
+  // A wrong answer in practice marks the question "נתקעתי", so it shows in
+  // the review list next to the questions marked by hand.
+  function markMiss(item) {
+    ratings[item.key] = { value: "stuck", at: Date.now(), from: "mc", ...(item.exam ? {} : { label: item.label, href: item.href }) };
+    saveStored(storageKey, ratings);
+  }
+
   // Each answer locks once: changing a choice cannot inflate the session score.
   function renderMC(root) {
-    app().setTitle("תרגול חלק ב");
-    const pool = exams().flatMap((exam) => exam.questions.filter((q) => q.part === "ב" && q.study?.mc).map((q) => ({ exam, q })));
+    app().setTitle("תרגול אמריקאיות");
+    const pool = [
+      ...exams().flatMap((exam) => exam.questions.filter((q) => q.format === "אמריקאית" && q.study?.mc).map((q) => ({ exam, q, key: `${exam.n}/${q.q}`, label: examLabel(exam), href: examHref(exam.n, q.q) }))),
+      ...pagePracticePool()
+    ];
     const topics = [...new Set(pool.flatMap(({ q }) => q.topics || []))].sort();
-    root.innerHTML = `<div class="exams-page"><header class="page-intro"><p><a href="#/exams">מבחנים</a></p><h1>תרגול חלק ב</h1><p>בוחרים תשובה, בודקים אותה וקוראים את ההסבר.</p></header>
+    root.innerHTML = `<div class="exams-page"><header class="page-intro"><p><a href="#/exams">מבחנים</a></p><h1>תרגול אמריקאיות</h1><p>בוחרים תשובה, בודקים אותה וקוראים את ההסבר. ${pool.length} שאלות: מכל המבחנים ומעמודי התרגול. תשובה שגויה נשמרת אוטומטית ב<a href="#/exams?section=reviewTitle">רשימת החזרה</a>.</p></header>
       <div class="exam-filters"><label>${esc(words.unit)}<select data-mc-unit><option value="">הכול</option>${Object.entries(unitNames()).map(([u, name]) => `<option value="${u}">${u}. ${esc(name)}</option>`).join("")}</select></label><label>נושא<select data-mc-topic><option value="">הכול</option>${topics.map((topic) => `<option>${esc(topic)}</option>`).join("")}</select></label><label>רמת קושי<select data-mc-level><option value="">הכול</option>${LEVELS.map((l) => `<option value="${l.id}">${l.label}</option>`).join("")}</select></label></div>
       <p class="filter-status" data-mc-count aria-live="polite"></p>
       <p data-mc-score role="status"></p><div data-mc-question class="exam-study prose"></div><p><button class="button" type="button" data-mc-next>לשאלה הבאה</button></p></div>`;
@@ -253,13 +309,15 @@
         return;
       }
       const index = Math.floor(Math.random() * remaining.length);
-      const { exam, q } = remaining.splice(index, 1)[0];
+      const item = remaining.splice(index, 1)[0];
+      const { q } = item;
       const mc = q.study.mc;
       const statements = mc.answer ? [["answer", "בחרו את התשובה במבחן", q.study.options?.length >= 2 ? q.study.options : ["א", "ב", "ג", "ד", "ה"]]] : Object.keys(mc).map((key) => [key, `טענה ${key}`, ["true", "false"]]);
       const answered = new Set();
-      host.innerHTML = `<h2>${esc(examLabel(exam))} · שאלה ${q.q} ${levelChip(q)}</h2>${q.study.question}
+      let missed = false;
+      host.innerHTML = `<h2>${esc(item.label)}${item.exam ? ` · שאלה ${q.q}` : ""} ${levelChip(q)}</h2>${q.study.question}
         ${statements.map(([key, label, values]) => `<fieldset class="exam-mc-answer" data-mc-statement="${key}"><legend>${label}</legend><div class="exam-actions">${values.map((value) => `<button class="button" type="button" data-answer="${value}">${value === "true" ? "נכון" : value === "false" ? "לא נכון" : value}</button>`).join("")}</div><p data-feedback role="status"></p></fieldset>`).join("")}
-        <div data-mc-explanation hidden><h3>ההסבר</h3>${q.study.parts.map((part) => part.simple + part.solution).join("")}<p><a class="button" href="${examHref(exam.n, q.q)}">ללימוד עם רמזים</a></p></div>`;
+        <div data-mc-explanation hidden><h3>ההסבר</h3>${q.study.parts.map((part) => part.simple + part.solution).join("")}<p><a class="button" href="${item.href}">${item.exam ? "ללימוד עם רמזים" : "לשאלה בעמוד התרגול"}</a></p></div>`;
       host.querySelectorAll("[data-mc-statement]").forEach((field) => {
         field.querySelectorAll("[data-answer]").forEach((button) => button.addEventListener("click", () => {
           const key = field.dataset.mcStatement;
@@ -271,7 +329,8 @@
           if (correct) mcSession.correct += 1;
           button.setAttribute("aria-pressed", "true");
           field.querySelectorAll("button").forEach((choice) => { choice.disabled = true; });
-          field.querySelector("[data-feedback]").textContent = correct ? "התשובה נכונה." : `התשובה כאן: ${expected === "true" ? "נכון" : expected === "false" ? "לא נכון" : expected}. אפשר לבדוק את הנימוק בהסבר.`;
+          if (!correct && !missed) { missed = true; markMiss(item); }
+          field.querySelector("[data-feedback]").textContent = correct ? "התשובה נכונה." : `התשובה כאן: ${expected === "true" ? "נכון" : expected === "false" ? "לא נכון" : expected}. אפשר לבדוק את הנימוק בהסבר. השאלה נוספה לרשימת החזרה.`;
           field.querySelector("[data-feedback]").className = correct ? "exam-feedback-correct" : "exam-feedback-incorrect";
           if (answered.size === statements.length) {
             host.querySelector("[data-mc-explanation]").hidden = false;
@@ -466,7 +525,7 @@
     const kinds = Array.from(new Set(list.flatMap((e) => e.questions.flatMap((q) => [q.kind, q.kind_detail])).filter(Boolean))).sort();
     const nums = (app().data.examTheorems || []).map((r) => r.number);
     const years = [...new Set(list.map((exam) => exam.semester.slice(0, 4)))].sort().reverse();
-    const reviewCount = list.reduce((sum, exam) => sum + exam.questions.filter((q) => ["partial", "stuck"].includes(ratings[`${exam.n}/${q.q}`]?.value)).length, 0);
+    const reviewCount = reviewRows().length;
     // Newest first. A semester like "2026ג" splits into its year and letter.
     const byDate = list.slice().sort((a, b) => b.semester.localeCompare(a.semester, "he") || b.n - a.n);
     const semName = { "א": "סמסטר א", "ב": "סמסטר ב", "ג": "סמסטר ג (קיץ)" };
@@ -485,7 +544,7 @@
         <nav class="exam-options" aria-label="מה אפשר לעשות בעמוד המבחנים">
           ${option("#/exams?section=allTitle", "allTitle", "פתיחת מבחן", "בוחרים שנה, סמסטר ומועד, ופותחים את הסריקה, הפתרונות או סימולציה עם שעון.")}
           ${option("#/exams?section=findTitle", "findTitle", "חיפוש שאלות", "כל השאלות מכל המבחנים, לפי נושא, משפט, סוג ורמת קושי.")}
-          ${option("#/exams/practice-mc", "", "תרגול אמריקאיות", "שאלות חלק ב אקראיות: עונים, בודקים וקוראים הסבר. אפשר לסנן לפי רמה.")}
+          ${option("#/exams/practice-mc", "", "תרגול אמריקאיות", "שאלות אמריקאיות מכל המבחנים ומעמודי התרגול, עם בדיקה והסבר. טעות נשמרת לחזרה.")}
           ${option("#/exams?section=reviewTitle", "reviewTitle", `לחזרה (${reviewCount})`, "השאלות שסימנתם ״חלקית״ או ״נתקעתי״.")}
           ${option("#/exams?section=examStats", "examStats", "סטטיסטיקות", "מה נשאל הכי הרבה, לפי נושא ולפי שנה.")}
           <label class="exam-option exam-option-level"><strong>שאלות לפי רמה</strong><select data-nav-level><option value="">בחרו רמת קושי</option>${LEVELS.map((l) => `<option value="${l.id}">${l.label}</option>`).join("")}</select></label>

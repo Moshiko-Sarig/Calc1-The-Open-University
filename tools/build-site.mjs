@@ -435,9 +435,10 @@ function renderMarkdown(body, resolveLink) {
       const directive = comment[1].trim();
       const demo = directive.match(/^infi-demo:\s*([\w-]+)\s*$/);
       const proof = directive.match(new RegExp(`^infi-proof:\\s*(${NUMBER_SOURCE})\\s*$`));
-      const mc = directive.match(/^infi-mc:\s*([א-ת])\s*$/);
+      // <!-- infi-mc: ג medium --> : the right option, then an optional level.
+      const mc = directive.match(/^infi-mc:\s*([א-ת])(?:\s+(easy|medium|hard))?\s*$/);
       if (demo) html.push(renderDemo(demo[1]));
-      else if (mc) html.push(`<div class="page-mc" data-mc-answer="${mc[1]}"></div>`);
+      else if (mc) html.push(`<div class="page-mc" data-mc-answer="${mc[1]}"${mc[2] ? ` data-mc-level="${mc[2]}"` : ""}></div>`);
       else if (/^infi-calm:\s*(breathe|pass)\s*$/.test(directive)) html.push(`<div class="calm-widget" data-calm="${directive.split(":")[1].trim()}"></div>`);
       else if (proof) {
         html.push(`<div class="proof" id="${proofAnchor(proof[1])}" data-proof="${proof[1]}">`);
@@ -1059,7 +1060,7 @@ function renderIndexHtml() {
     .replace(/\{\{([A-Z_]+)\}\}/g, (_, name) => tokens[name])
     // A new URL keeps an older cached app paired with its original full data.
     .replace('./assets/content.js', './assets/content-fast.js')
-    .replace('./assets/exams.js', './assets/exams.js?v=exams-menu-1');
+    .replace('./assets/exams.js', './assets/exams.js?v=mc-review-1');
 }
 
 function writeRootIndex(html) {
