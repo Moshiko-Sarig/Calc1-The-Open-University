@@ -1059,7 +1059,7 @@ function renderIndexHtml() {
     .replace(/\{\{([A-Z_]+)\}\}/g, (_, name) => tokens[name])
     // A new URL keeps an older cached app paired with its original full data.
     .replace('./assets/content.js', './assets/content-fast.js')
-    .replace('./assets/exams.js', './assets/exams.js?v=difficulty-2');
+    .replace('./assets/exams.js', './assets/exams.js?v=exams-menu-1');
 }
 
 function writeRootIndex(html) {

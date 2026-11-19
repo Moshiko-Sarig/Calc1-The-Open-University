@@ -232,7 +232,8 @@
     const pool = exams().flatMap((exam) => exam.questions.filter((q) => q.part === "ב" && q.study?.mc).map((q) => ({ exam, q })));
     const topics = [...new Set(pool.flatMap(({ q }) => q.topics || []))].sort();
     root.innerHTML = `<div class="exams-page"><header class="page-intro"><p><a href="#/exams">מבחנים</a></p><h1>תרגול חלק ב</h1><p>בוחרים תשובה, בודקים אותה וקוראים את ההסבר.</p></header>
-      <div class="exam-filters"><label>${esc(words.unit)}<select data-mc-unit><option value="">הכול</option>${Object.entries(unitNames()).map(([u, name]) => `<option value="${u}">${u}. ${esc(name)}</option>`).join("")}</select></label><label>נושא<select data-mc-topic><option value="">הכול</option>${topics.map((topic) => `<option>${esc(topic)}</option>`).join("")}</select></label></div>
+      <div class="exam-filters"><label>${esc(words.unit)}<select data-mc-unit><option value="">הכול</option>${Object.entries(unitNames()).map(([u, name]) => `<option value="${u}">${u}. ${esc(name)}</option>`).join("")}</select></label><label>נושא<select data-mc-topic><option value="">הכול</option>${topics.map((topic) => `<option>${esc(topic)}</option>`).join("")}</select></label><label>רמת קושי<select data-mc-level><option value="">הכול</option>${LEVELS.map((l) => `<option value="${l.id}">${l.label}</option>`).join("")}</select></label></div>
+      <p class="filter-status" data-mc-count aria-live="polite"></p>
       <p data-mc-score role="status"></p><div data-mc-question class="exam-study prose"></div><p><button class="button" type="button" data-mc-next>לשאלה הבאה</button></p></div>`;
     const host = root.querySelector("[data-mc-question]");
     let remaining = [];
@@ -240,7 +241,9 @@
     const refill = () => {
       const unit = root.querySelector("[data-mc-unit]").value;
       const topic = root.querySelector("[data-mc-topic]").value;
-      remaining = pool.filter(({ q }) => (!unit || q.units.map(String).includes(unit)) && (!topic || q.topics.includes(topic)));
+      const level = root.querySelector("[data-mc-level]").value;
+      remaining = pool.filter(({ q }) => (!unit || q.units.map(String).includes(unit)) && (!topic || q.topics.includes(topic)) && (!level || q.difficulty === level));
+      root.querySelector("[data-mc-count]").textContent = `${remaining.length} שאלות בבחירה הזו`;
       draw();
     };
     const draw = () => {
@@ -254,7 +257,7 @@
       const mc = q.study.mc;
       const statements = mc.answer ? [["answer", "בחרו את התשובה במבחן", q.study.options?.length >= 2 ? q.study.options : ["א", "ב", "ג", "ד", "ה"]]] : Object.keys(mc).map((key) => [key, `טענה ${key}`, ["true", "false"]]);
       const answered = new Set();
-      host.innerHTML = `<h2>${esc(examLabel(exam))} · שאלה ${q.q}</h2>${q.study.question}
+      host.innerHTML = `<h2>${esc(examLabel(exam))} · שאלה ${q.q} ${levelChip(q)}</h2>${q.study.question}
         ${statements.map(([key, label, values]) => `<fieldset class="exam-mc-answer" data-mc-statement="${key}"><legend>${label}</legend><div class="exam-actions">${values.map((value) => `<button class="button" type="button" data-answer="${value}">${value === "true" ? "נכון" : value === "false" ? "לא נכון" : value}</button>`).join("")}</div><p data-feedback role="status"></p></fieldset>`).join("")}
         <div data-mc-explanation hidden><h3>ההסבר</h3>${q.study.parts.map((part) => part.simple + part.solution).join("")}<p><a class="button" href="${examHref(exam.n, q.q)}">ללימוד עם רמזים</a></p></div>`;
       host.querySelectorAll("[data-mc-statement]").forEach((field) => {
@@ -464,36 +467,42 @@
     const nums = (app().data.examTheorems || []).map((r) => r.number);
     const years = [...new Set(list.map((exam) => exam.semester.slice(0, 4)))].sort().reverse();
     const reviewCount = list.reduce((sum, exam) => sum + exam.questions.filter((q) => ["partial", "stuck"].includes(ratings[`${exam.n}/${q.q}`]?.value)).length, 0);
-    const cards = years.map((year) => {
-      const yearExams = list.filter((exam) => exam.semester.startsWith(year)).sort((a, b) => b.semester.localeCompare(a.semester, "he") || b.n - a.n);
-      return `<section class="exam-year" aria-labelledby="year${year}"><h3 id="year${year}">${esc(year)}</h3>
-        <ul class="exam-cards">${yearExams.map((exam) => `<li class="exam-card" data-exam="${exam.n}">
-          <a class="exam-card-link" href="${examHref(exam.n)}">
-            <span class="exam-card-sem">${esc(exam.semester)} · מועד ${esc(exam.moed)}</span>
-            ${coverage(exam)}${examRatings(exam)}
-          </a>
-          <a class="exam-card-sim" href="${examHref(exam.n)}/sim" aria-label="סימולציה · ${esc(examLabel(exam))}">סימולציה</a>
-        </li>`).join("")}</ul></section>`;
-    }).join("");
+    // Newest first. A semester like "2026ג" splits into its year and letter.
+    const byDate = list.slice().sort((a, b) => b.semester.localeCompare(a.semester, "he") || b.n - a.n);
+    const semName = { "א": "סמסטר א", "ב": "סמסטר ב", "ג": "סמסטר ג (קיץ)" };
+    const rows = years.map((year) => `<li class="exam-rows-year"><span class="exam-rows-y">${esc(year)}</span><ul>${byDate.filter((exam) => exam.semester.startsWith(year)).map((exam) => `<li class="exam-row" data-exam="${exam.n}">
+          <a href="${examHref(exam.n)}">${esc(exam.semester)} · מועד ${esc(exam.moed)}</a>
+          <span class="exam-row-meta">${exam.questions.some((q) => q.study) ? "פתרונות" : "סריקה בלבד"}${examRatings(exam).replace(/<\/?p[^>]*>/g, "") ? ` · ${examRatings(exam).replace(/<\/?p[^>]*>/g, "")}` : ""}</span>
+          <a class="exam-row-sim" href="${examHref(exam.n)}/sim" aria-label="סימולציה · ${esc(examLabel(exam))}">סימולציה</a>
+        </li>`).join("")}</ul></li>`).join("");
+    const option = (href, section, title, text) => `<a class="exam-option" href="${href}"${section ? ` data-exam-section="${section}"` : ""}><strong>${title}</strong><span>${text}</span></a>`;
     root.innerHTML = `
       <div class="exams-page">
         <header class="page-intro">
           <h1>מבחנים 2019–2026</h1>
-          <p>${list.length} מבחנים. בוחרים מבחן ופותחים את הסריקה או את הפתרונות.</p>
+          <p>${list.length} מבחנים קודמים עם סריקות, ולרובם פתרונות מלאים. מה אפשר לעשות כאן:</p>
         </header>
-        <nav class="exam-quick-nav" aria-label="ניווט במבחנים">
-          <a href="#/exams?section=allTitle" data-exam-section="allTitle">כל המבחנים</a>
-          <a href="#/exams?section=reviewTitle" data-exam-section="reviewTitle">לחזרה (${reviewCount})</a>
-          <a href="#/exams/practice-mc">תרגול אמריקאיות</a>
-          <a href="#/exams?section=findTitle" data-exam-section="findTitle">חיפוש לפי נושא</a>
-          <a href="#/exams?section=examStats" data-exam-section="examStats">סטטיסטיקות</a>
-          <label class="exam-nav-level">רמת קושי<select data-nav-level><option value="">בחרו רמה</option>${LEVELS.map((l) => `<option value="${l.id}">${l.label}</option>`).join("")}</select></label>
+        <nav class="exam-options" aria-label="מה אפשר לעשות בעמוד המבחנים">
+          ${option("#/exams?section=allTitle", "allTitle", "פתיחת מבחן", "בוחרים שנה, סמסטר ומועד, ופותחים את הסריקה, הפתרונות או סימולציה עם שעון.")}
+          ${option("#/exams?section=findTitle", "findTitle", "חיפוש שאלות", "כל השאלות מכל המבחנים, לפי נושא, משפט, סוג ורמת קושי.")}
+          ${option("#/exams/practice-mc", "", "תרגול אמריקאיות", "שאלות חלק ב אקראיות: עונים, בודקים וקוראים הסבר. אפשר לסנן לפי רמה.")}
+          ${option("#/exams?section=reviewTitle", "reviewTitle", `לחזרה (${reviewCount})`, "השאלות שסימנתם ״חלקית״ או ״נתקעתי״.")}
+          ${option("#/exams?section=examStats", "examStats", "סטטיסטיקות", "מה נשאל הכי הרבה, לפי נושא ולפי שנה.")}
+          <label class="exam-option exam-option-level"><strong>שאלות לפי רמה</strong><select data-nav-level><option value="">בחרו רמת קושי</option>${LEVELS.map((l) => `<option value="${l.id}">${l.label}</option>`).join("")}</select></label>
         </nav>
         <section class="exam-section exam-all" aria-labelledby="allTitle">
-          <h2 id="allTitle" tabindex="-1">כל המבחנים</h2>
-          ${cards}
+          <h2 id="allTitle" tabindex="-1">פתיחת מבחן</h2>
+          <div class="exam-filters exam-picker">
+            <label>שנה<select data-pick="year">${years.map((y) => `<option>${esc(y)}</option>`).join("")}</select></label>
+            <label>סמסטר<select data-pick="sem"></select></label>
+            <label>מועד<select data-pick="moed"></select></label>
+          </div>
+          <div class="exam-picked" data-picked aria-live="polite"></div>
+          <details class="exam-all-list">
+            <summary>כל ${list.length} המבחנים ברשימה אחת</summary>
+            <ul class="exam-rows">${rows}</ul>
+          </details>
         </section>
-        ${reviewList()}
         <section class="exam-section" aria-labelledby="findTitle">
           <h2 id="findTitle" tabindex="-1">חיפוש שאלות לפי נושא</h2>
           <div class="exam-filters">
@@ -512,6 +521,7 @@
           <p class="filter-status" aria-live="polite" data-exam-status></p>
           <ul class="exam-q-list" data-exam-results></ul>
         </section>
+        ${reviewList()}
         <details class="exam-statistics">
           <summary id="examStats">סטטיסטיקות: מה נשאל הכי הרבה</summary>
           ${frequencyBoard()}
@@ -571,11 +581,46 @@
       })
     );
     update();
-    const nav = root.querySelector(".exam-quick-nav");
-    const sizeNav = () => root.querySelector(".exams-page")?.style.setProperty("--exam-nav-h", `${nav.offsetHeight}px`);
-    sizeNav();
-    navObserver = new ResizeObserver(sizeNav);
-    navObserver.observe(nav);
+    // The options menu scrolls away with the page, so headings need no extra offset.
+    const nav = root.querySelector(".exam-options");
+    root.querySelector(".exams-page")?.style.setProperty("--exam-nav-h", "0px");
+    // Exam picker: year -> semester -> moed, newest first; the chosen exam
+    // shows below with its open and simulation buttons.
+    const pick = (name) => root.querySelector(`[data-pick="${name}"]`);
+    const picked = root.querySelector("[data-picked]");
+    const fill = (select, values, label) => {
+      if (!select) return;
+      select.innerHTML = values.map((v) => `<option value="${esc(v)}">${esc(label(v))}</option>`).join("");
+    };
+    const showPicked = () => {
+      const exam = byDate.find((e) => e.semester === `${pick("year").value}${pick("sem").value}` && String(e.moed) === pick("moed").value);
+      if (!exam || !picked) return;
+      const solved = exam.questions.filter((q) => q.study).length;
+      const levels = LEVELS.map((l) => [l, exam.questions.filter((q) => q.difficulty === l.id).length]).filter(([, c]) => c);
+      picked.innerHTML = `<div class="exam-picked-card">
+          <h3>${esc(semName[exam.semester.slice(4)] || exam.semester)} ${esc(exam.semester.slice(0, 4))} · מועד ${esc(exam.moed)}</h3>
+          <p>${exam.questions.length} שאלות · ${solved ? `פתרון מלא ל-${solved} מהן` : "סריקה בלבד, בלי פתרונות"}${exam.durationHours ? ` · ${exam.durationHours} שעות` : ""}</p>
+          ${levels.length ? `<p class="exam-q-tags">${levels.map(([l, c]) => `<span class="exam-chip exam-chip-level exam-level-${l.id}">${c} ${l.label}</span>`).join("")}</p>` : ""}
+          ${examRatings(exam)}
+          <p class="exam-actions"><a class="button button-primary" href="${examHref(exam.n)}">פתיחת המבחן</a><a class="button" href="${examHref(exam.n)}/sim">סימולציה עם שעון</a></p>
+        </div>`;
+    };
+    const fillMoed = () => {
+      const sem = `${pick("year").value}${pick("sem").value}`;
+      fill(pick("moed"), byDate.filter((e) => e.semester === sem).map((e) => String(e.moed)), (m) => `מועד ${m}`);
+      showPicked();
+    };
+    const fillSem = () => {
+      const year = pick("year").value;
+      fill(pick("sem"), [...new Set(byDate.filter((e) => e.semester.startsWith(year)).map((e) => e.semester.slice(4)))], (l) => semName[l] || l);
+      fillMoed();
+    };
+    if (pick("year")?.addEventListener) {
+      pick("year").addEventListener("change", fillSem);
+      pick("sem").addEventListener("change", fillMoed);
+      pick("moed").addEventListener("change", showPicked);
+      fillSem();
+    }
     const jump = (id) => {
       const target = root.querySelector(`#${id}`);
       if (!target) return;
