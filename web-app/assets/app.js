@@ -220,6 +220,8 @@ function rememberReadingPosition() {
     if (heading.getBoundingClientRect().top > readingLine) break;
     section = heading.id;
   }
+  // Above the first heading of a later part: come back to that part.
+  if (!section && pageParts?.index > 0) section = pageParts.page.parts[pageParts.index];
   const href = pageHref(page, section);
   if (href === lastReadingHref) return;
   lastReadingHref = href;
@@ -780,8 +782,7 @@ function route({ initial = false } = {}) {
     currentRoute = next;
     // The page's own address, with no section, is its first part from the top.
     if (!next.section && pageParts) {
-      showPart(0);
-      window.scrollTo(0, 0);
+      goToPart(0);
       return;
     }
     scrollToSection(next.section, true);
@@ -1493,9 +1494,11 @@ function renderPage(page, section) {
   alignSheetGrid();
   app.querySelector("[data-toc-inline]")?.addEventListener("toggle", alignSheetGrid);
   app.querySelectorAll("details.callout").forEach((box) => box.addEventListener("toggle", alignSheetGrid));
+  const partsState = pageParts;
   typesetMath(() => {
+    if (partsState !== pageParts) return;
     scrollToSection(section, false);
-    if (pageParts) pageParts.typeset = true;
+    if (partsState) partsState.typeset = true;
     settlePartsWhenReady();
   });
   const diagrams = renderMermaid();
@@ -1607,7 +1610,7 @@ function mountParts(page) {
       <summary><span class="part-count" data-part-count></span><span class="part-title" data-part-title></span>${icon("chevron", "icon part-chevron")}</summary>
       <div class="part-panel">
         <ol class="part-list">${list
-          .map((part, i) => `<li><a href="${part.href}" data-part-link="${i}"><span class="part-num">${i + 1}</span><span class="part-name">${part.title}</span></a></li>`)
+          .map((part, i) => `<li><a href="${part.href}" data-part-link="${i}" data-part-target="${i}"><span class="part-num">${i + 1}</span><span class="part-name">${part.title}</span></a></li>`)
           .join("")}</ol>
         <button type="button" class="part-all" data-parts-mode="whole">להציג את כל הדף ברצף</button>
       </div>
@@ -1620,13 +1623,21 @@ function mountParts(page) {
     if (next) {
       part.el.insertAdjacentHTML(
         "beforeend",
-        `<nav class="part-next" aria-label="המשך הדף"><a href="${next.href}"><small>לחלק הבא · ${i + 2} מתוך ${list.length}</small><strong>${next.title}</strong>${icon("next")}</a></nav>`
+        `<nav class="part-next" aria-label="המשך הדף"><a href="${next.href}" data-part-target="${i + 1}"><small>לחלק הבא · ${i + 2} מתוך ${list.length}</small><strong>${next.title}</strong>${icon("next")}</a></nav>`
       );
     }
     part.el.addEventListener("beforematch", () => showPart(i));
   });
-  bar.addEventListener("click", (event) => {
-    if (event.target.closest("a[href]")) bar.querySelector(".part-menu").open = false;
+  // A part link whose address is already the one shown (after find-in-page,
+  // the study path or a search hit opened another part) changes no hash, so
+  // it goes to its part itself.
+  app.querySelector(".prose").addEventListener("click", (event) => {
+    const link = event.target.closest(".part-bar a[href], .part-next a[href]");
+    if (!link || !pageParts) return;
+    bar.querySelector(".part-menu").open = false;
+    if (new URL(link.href).hash !== location.hash) return;
+    event.preventDefault();
+    goToPart(Number(link.dataset.partTarget));
   });
 
   pageParts = { page, list, bar, index: 0, settled: false, typeset: false, diagrams: null };
@@ -1656,18 +1667,19 @@ function updatePartBar() {
     if (Number(link.dataset.partLink) === index) link.setAttribute("aria-current", "step");
     else link.removeAttribute("aria-current");
   });
-  const step = (selector, part) => {
+  const step = (selector, target) => {
     const link = bar.querySelector(selector);
-    if (part) {
-      link.href = part.href;
+    if (list[target]) {
+      link.href = list[target].href;
+      link.dataset.partTarget = String(target);
       link.removeAttribute("aria-disabled");
     } else {
       link.removeAttribute("href");
       link.setAttribute("aria-disabled", "true");
     }
   };
-  step("[data-part-prev]", list[index - 1]);
-  step("[data-part-next]", list[index + 1]);
+  step("[data-part-prev]", index - 1);
+  step("[data-part-next]", index + 1);
 }
 
 // Shows part `index` and hides the others. Returns whether anything changed.
@@ -1678,8 +1690,8 @@ function showPart(index) {
   state.index = index;
   const shown = state.list[index].el;
   // Formulas left for later (see settleParts) are typeset the first time they show.
-  if (shown.classList.contains("tex2jax_ignore")) {
-    shown.classList.remove("tex2jax_ignore");
+  if (shown.classList.contains("mathjax_ignore")) {
+    shown.classList.remove("mathjax_ignore");
     queueTypeset([shown]).then(() => {
       markWideFormulas();
       alignSheetGrid();
@@ -1693,6 +1705,25 @@ function showPart(index) {
   alignSheetGrid();
   updateScrollUi();
   return true;
+}
+
+// Goes to part `index`: from its heading, or from the top of the page for the
+// first part, with focus there for keyboard and screen-reader users.
+function goToPart(index) {
+  const state = pageParts;
+  if (!state) return;
+  showPart(index);
+  const id = index > 0 ? state.page.parts[index] : "";
+  if (id) {
+    scrollToSection(id, false);
+    return;
+  }
+  window.scrollTo(0, 0);
+  const heading = app.querySelector("h1");
+  if (heading) {
+    heading.setAttribute("tabindex", "-1");
+    heading.focus({ preventScroll: true });
+  }
 }
 
 // Opens the part that holds an element, if it is in another one.
@@ -1713,7 +1744,7 @@ function settleParts(state) {
   state.list.forEach((part, i) => {
     if (i === state.index) return;
     // Formulas not typeset yet would be measured while hidden: keep them for later.
-    if (!state.typeset) part.el.classList.add("tex2jax_ignore");
+    if (!state.typeset) part.el.classList.add("mathjax_ignore");
     setPartShown(part.el, false, true);
   });
 }
@@ -1739,7 +1770,8 @@ app.addEventListener("click", (event) => {
   const button = event.target.closest("[data-parts-mode]");
   if (button) setPartsMode(button.dataset.partsMode);
 });
-window.addEventListener("infi:parts-mode", () => setPartsMode(store.get(PARTS_KEY) === "whole" ? "whole" : "parts"));
+// The reading option sets data-parts on <html> (support.js), with or without storage.
+window.addEventListener("infi:parts-mode", () => setPartsMode(root.dataset.parts === "whole" ? "whole" : "parts"));
 
 function revealMatch(query) {
   const prose = app.querySelector(".prose");
@@ -2649,6 +2681,16 @@ let mermaidLoading = null;
 // drawn when it shows (showPart calls this again).
 function renderMermaid(rerender = false) {
   const all = Array.from(app.querySelectorAll("pre.mermaid"));
+  if (!all.length) return Promise.resolve();
+  // A redraw (theme change) resets every diagram, so those in hidden parts are
+  // drawn again, in the new colours, when their part shows.
+  if (rerender && window.mermaid) {
+    for (const pre of all) {
+      if (!pre.dataset.source) pre.dataset.source = pre.textContent;
+      pre.removeAttribute("data-processed");
+      pre.textContent = pre.dataset.source;
+    }
+  }
   const diagrams = all.filter((pre) => !pre.closest(".note-part[hidden]"));
   if (!diagrams.length) return Promise.resolve();
   if (!window.mermaid) {
@@ -2661,12 +2703,8 @@ function renderMermaid(rerender = false) {
     });
     return mermaidLoading.then(() => renderMermaid(rerender)).catch(() => {});
   }
-  for (const pre of rerender ? all : diagrams) {
+  for (const pre of diagrams) {
     if (!pre.dataset.source) pre.dataset.source = pre.textContent;
-    if (rerender) {
-      pre.removeAttribute("data-processed");
-      pre.textContent = pre.dataset.source;
-    }
   }
   const dark = root.dataset.theme === "dark";
   try {
@@ -2915,10 +2953,11 @@ route({ initial: true });
 document.fonts?.ready?.then(() => alignSheetGrid());
 // MathJax loads asynchronously; whatever is on screen when it becomes ready
 // is typeset then (earlier requests found no MathJax and did nothing).
-window.addEventListener("infi:mathjax-ready", () =>
+window.addEventListener("infi:mathjax-ready", () => {
+  const state = pageParts;
   typesetMath(() => {
-    if (!pageParts) return;
-    pageParts.typeset = true;
+    if (!state || state !== pageParts) return;
+    state.typeset = true;
     settlePartsWhenReady();
-  })
-);
+  });
+});

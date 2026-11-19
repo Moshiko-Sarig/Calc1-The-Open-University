@@ -485,8 +485,11 @@
     if (symbols) {
       // Below the "what matters here" line when the page opens with one, so
       // the first thing a reader meets is content and not a tool.
+      // On a page in parts the box serves every part, so it sits under the parts bar.
+      const bar = prose.querySelector(":scope > .part-bar");
       const lead = Array.from(prose.children).find((el) => el.tagName === "P" && /^מה חשוב כאן/.test(el.textContent.trim()));
-      if (lead) lead.after(symbols);
+      if (bar) bar.after(symbols);
+      else if (lead) lead.after(symbols);
       else prose.prepend(symbols);
       mountSymbolsToggle(scope, symbols);
     }
