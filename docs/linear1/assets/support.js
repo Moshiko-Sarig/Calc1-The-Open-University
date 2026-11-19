@@ -547,5 +547,8 @@
   window.addEventListener("hashchange", stopReading);
 
   mountOptions();
-  window.InfiSupport = { decorate, decorateTree, decorateHome, applyExplain };
+  // The reader's own mark on a page ("הבנתי" and so on), for lists outside the menu.
+  const statusLabel = (id) => STATUS[statuses()[id]]?.label || "";
+
+  window.InfiSupport = { decorate, decorateTree, decorateHome, applyExplain, statusLabel };
 })();
