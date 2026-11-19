@@ -216,7 +216,7 @@ function rememberReadingPosition() {
   const readingLine = Math.min(180, window.innerHeight / 3);
   let section = "";
   for (const heading of app.querySelectorAll(".prose h2[id], .prose h3[id]")) {
-    if (!heading.getClientRects().length) continue;
+    if (!heading.getClientRects().length || inOtherPart(heading)) continue;
     if (heading.getBoundingClientRect().top > readingLine) break;
     section = heading.id;
   }
@@ -778,6 +778,12 @@ function route({ initial = false } = {}) {
 
   if (samePage) {
     currentRoute = next;
+    // The page's own address, with no section, is its first part from the top.
+    if (!next.section && pageParts) {
+      showPart(0);
+      window.scrollTo(0, 0);
+      return;
+    }
     scrollToSection(next.section, true);
     return;
   }
@@ -927,6 +933,7 @@ function cleanupView() {
     tocObserver = null;
   }
   window.MathJax?.typesetClear?.([app]);
+  pageParts = null;
 }
 
 window.addEventListener("hashchange", () => route());
@@ -1473,6 +1480,7 @@ function renderPage(page, section) {
   const source = app.querySelector(".prose > .callout-source:first-child");
   if (source) details.append(source);
   details.hidden = !(source || page.aliases?.length);
+  mountParts(page);
   decorateHeadings(page);
   buildToc(page);
   window.InfiSupport?.decorate(app, page);
@@ -1485,12 +1493,253 @@ function renderPage(page, section) {
   alignSheetGrid();
   app.querySelector("[data-toc-inline]")?.addEventListener("toggle", alignSheetGrid);
   app.querySelectorAll("details.callout").forEach((box) => box.addEventListener("toggle", alignSheetGrid));
-  typesetMath(() => scrollToSection(section, false));
-  renderMermaid();
+  typesetMath(() => {
+    scrollToSection(section, false);
+    if (pageParts) pageParts.typeset = true;
+    settlePartsWhenReady();
+  });
+  const diagrams = renderMermaid();
+  if (pageParts) pageParts.diagrams = diagrams;
   if (section) scrollToSection(section, false);
   else if (pendingFind) revealMatch(pendingFind);
   pendingFind = "";
 }
+
+// ---------------------------------------------------------------------------
+// Long pages in parts (course.features.parts)
+// ---------------------------------------------------------------------------
+// The build says where each part of a long page starts (page.parts: heading
+// ids; the first part also holds what comes before its heading). The HTML
+// stays whole: the parts are wrapped here and shown one at a time. Every way
+// to a heading (a link, the contents list, search, the study path, a saved
+// reading position) opens the part that holds it.
+//
+// Until formulas and diagrams are drawn, the other parts wait laid out at full
+// width but with no height (is-staged), so everything in them is measured
+// right. Then they are hidden with hidden="until-found", which the browser's
+// find-in-page can still open.
+
+let pageParts = null;
+const PARTS_KEY = "infi-parts";
+const UNTIL_FOUND = "onbeforematch" in document.documentElement ? "until-found" : "";
+
+// The reader's choice in this visit, for when storage is blocked.
+let partsMode = null;
+
+function partsWanted(page) {
+  return Boolean(course.features.parts && page.parts?.length > 1 && (partsMode || store.get(PARTS_KEY)) !== "whole");
+}
+
+const partOf = (el) => el?.closest?.(".note-part") || null;
+
+// Whether an element sits in a part that is not on screen.
+function inOtherPart(el) {
+  const part = partOf(el);
+  return Boolean(pageParts && part && part !== pageParts.list[pageParts.index]?.el);
+}
+
+function setPartShown(el, shown, settled) {
+  el.classList.remove("is-staged");
+  el.removeAttribute("hidden");
+  if (shown) return;
+  if (settled) el.setAttribute("hidden", UNTIL_FOUND);
+  else el.classList.add("is-staged");
+}
+
+function mountParts(page) {
+  pageParts = null;
+  const prose = app.querySelector(".prose");
+  if (!prose) return;
+  if (!partsWanted(page)) {
+    // A reader who chose to see long pages whole can switch back from here.
+    if (course.features.parts && page.parts?.length > 1) {
+      prose.insertAdjacentHTML("afterbegin", '<p class="parts-whole-note"><button type="button" data-parts-mode="parts">להציג את הדף בחלקים</button></p>');
+    }
+    return;
+  }
+  const starts = page.parts.slice(1).map((id) => document.getElementById(id));
+  if (starts.some((heading) => !heading || !/^H[23]$/.test(heading.tagName) || heading.parentElement?.parentElement !== prose)) return;
+
+  // A part that starts at an h3 cuts its section in two there.
+  const anchors = starts.map((heading) => {
+    const section = heading.parentElement;
+    if (heading.tagName === "H2") return section;
+    const rest = document.createElement("section");
+    rest.className = "note-section";
+    rest.setAttribute("aria-labelledby", heading.id);
+    for (let node = heading; node; ) {
+      const next = node.nextSibling;
+      rest.append(node);
+      node = next;
+    }
+    section.after(rest);
+    return rest;
+  });
+
+  const probe = prose.querySelector(":scope > .grid-probe");
+  const wrappers = [];
+  for (const child of Array.from(prose.children)) {
+    if (child === probe) continue;
+    if (!wrappers.length || anchors.includes(child)) {
+      const part = document.createElement("div");
+      part.className = "note-part";
+      part.dataset.part = String(wrappers.length);
+      child.before(part);
+      wrappers.push(part);
+    }
+    wrappers.at(-1).append(child);
+  }
+  if (wrappers.length !== page.parts.length) return;
+
+  const list = wrappers.map((el, i) => {
+    const heading = i === 0 ? document.getElementById(page.parts[0]) || el.querySelector("h2, h3") : starts[i - 1];
+    const clone = heading?.cloneNode(true);
+    clone?.querySelectorAll(".heading-link, .badge").forEach((node) => node.remove());
+    return { el, href: i === 0 ? pageHref(page) : pageHref(page, starts[i - 1].id), title: clone?.innerHTML.trim() || escapeHtml(page.navTitle) };
+  });
+
+  const bar = document.createElement("nav");
+  bar.className = "part-bar";
+  bar.setAttribute("aria-label", "חלקי הדף");
+  bar.innerHTML = `
+    <a class="part-step" data-part-prev>${icon("prev")}<span class="visually-hidden">לחלק הקודם</span></a>
+    <details class="part-menu">
+      <summary><span class="part-count" data-part-count></span><span class="part-title" data-part-title></span>${icon("chevron", "icon part-chevron")}</summary>
+      <div class="part-panel">
+        <ol class="part-list">${list
+          .map((part, i) => `<li><a href="${part.href}" data-part-link="${i}"><span class="part-num">${i + 1}</span><span class="part-name">${part.title}</span></a></li>`)
+          .join("")}</ol>
+        <button type="button" class="part-all" data-parts-mode="whole">להציג את כל הדף ברצף</button>
+      </div>
+    </details>
+    <a class="part-step" data-part-next>${icon("next")}<span class="visually-hidden">לחלק הבא</span></a>`;
+  prose.prepend(bar);
+
+  list.forEach((part, i) => {
+    const next = list[i + 1];
+    if (next) {
+      part.el.insertAdjacentHTML(
+        "beforeend",
+        `<nav class="part-next" aria-label="המשך הדף"><a href="${next.href}"><small>לחלק הבא · ${i + 2} מתוך ${list.length}</small><strong>${next.title}</strong>${icon("next")}</a></nav>`
+      );
+    }
+    part.el.addEventListener("beforematch", () => showPart(i));
+  });
+  bar.addEventListener("click", (event) => {
+    if (event.target.closest("a[href]")) bar.querySelector(".part-menu").open = false;
+  });
+
+  pageParts = { page, list, bar, index: 0, settled: false, typeset: false, diagrams: null };
+  list.forEach((part, i) => setPartShown(part.el, i === 0, false));
+  updatePartBar();
+  syncNoteFoot();
+  // If formulas or diagrams never arrive (offline), hide the waiting parts anyway.
+  const state = pageParts;
+  setTimeout(() => settleParts(state), 8000);
+}
+
+// The end of the note (how did it go, the next note, pages that link here)
+// comes after its last part.
+function syncNoteFoot() {
+  const foot = app.querySelector(".note-foot");
+  const details = app.querySelector(".note-details");
+  const last = pageParts.index === pageParts.list.length - 1;
+  if (foot) foot.hidden = !last;
+  if (details) details.classList.toggle("is-parked", !last);
+}
+
+function updatePartBar() {
+  const { list, bar, index } = pageParts;
+  bar.querySelector("[data-part-count]").innerHTML = `<span class="part-count-word">חלק </span>${index + 1} מתוך ${list.length}`;
+  bar.querySelector("[data-part-title]").innerHTML = bar.querySelector(`[data-part-link="${index}"] .part-name`).innerHTML;
+  bar.querySelectorAll("[data-part-link]").forEach((link) => {
+    if (Number(link.dataset.partLink) === index) link.setAttribute("aria-current", "step");
+    else link.removeAttribute("aria-current");
+  });
+  const step = (selector, part) => {
+    const link = bar.querySelector(selector);
+    if (part) {
+      link.href = part.href;
+      link.removeAttribute("aria-disabled");
+    } else {
+      link.removeAttribute("href");
+      link.setAttribute("aria-disabled", "true");
+    }
+  };
+  step("[data-part-prev]", list[index - 1]);
+  step("[data-part-next]", list[index + 1]);
+}
+
+// Shows part `index` and hides the others. Returns whether anything changed.
+function showPart(index) {
+  const state = pageParts;
+  if (!state || index === state.index || !state.list[index]) return false;
+  state.list.forEach((part, i) => setPartShown(part.el, i === index, state.settled));
+  state.index = index;
+  const shown = state.list[index].el;
+  // Formulas left for later (see settleParts) are typeset the first time they show.
+  if (shown.classList.contains("tex2jax_ignore")) {
+    shown.classList.remove("tex2jax_ignore");
+    queueTypeset([shown]).then(() => {
+      markWideFormulas();
+      alignSheetGrid();
+    });
+  }
+  updatePartBar();
+  syncNoteFoot();
+  window.InfiDemos?.refresh?.(shown);
+  renderMermaid();
+  markWideFormulas();
+  alignSheetGrid();
+  updateScrollUi();
+  return true;
+}
+
+// Opens the part that holds an element, if it is in another one.
+function showPartOf(el) {
+  const part = inOtherPart(el) ? partOf(el) : null;
+  return part ? showPart(Number(part.dataset.part)) : false;
+}
+
+function settlePartsWhenReady() {
+  const state = pageParts;
+  if (!state || state.settled) return;
+  Promise.resolve(state.diagrams).then(() => settleParts(state));
+}
+
+function settleParts(state) {
+  if (!state || state !== pageParts || state.settled) return;
+  state.settled = true;
+  state.list.forEach((part, i) => {
+    if (i === state.index) return;
+    // Formulas not typeset yet would be measured while hidden: keep them for later.
+    if (!state.typeset) part.el.classList.add("tex2jax_ignore");
+    setPartShown(part.el, false, true);
+  });
+}
+
+// The reader's choice between parts and the whole page (also in the reading options).
+function setPartsMode(mode) {
+  partsMode = mode === "whole" ? "whole" : "parts";
+  try {
+    if (mode === "whole") localStorage.setItem(PARTS_KEY, "whole");
+    else localStorage.removeItem(PARTS_KEY);
+  } catch {
+    /* storage unavailable: the choice lasts until the page is reloaded */
+  }
+  if (mode === "whole") root.dataset.parts = "whole";
+  else delete root.dataset.parts;
+  if (currentRoute.view === "page") {
+    currentRoute = {};
+    route();
+  }
+}
+
+app.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-parts-mode]");
+  if (button) setPartsMode(button.dataset.partsMode);
+});
+window.addEventListener("infi:parts-mode", () => setPartsMode(store.get(PARTS_KEY) === "whole" ? "whole" : "parts"));
 
 function revealMatch(query) {
   const prose = app.querySelector(".prose");
@@ -1506,6 +1755,7 @@ function revealMatch(query) {
     if (hit) break;
   }
   if (!hit || hit.closest(".note-head")) return;
+  showPartOf(hit);
   for (let box = hit.closest("details"); box; box = box.parentElement?.closest("details")) box.open = true;
   alignSheetGrid();
   const block = hit.closest("p, li, h2, h3, h4, td, .callout, .math-display") || hit;
@@ -1673,10 +1923,12 @@ function mountLearningPath(page, group, gateway) {
       button.type = "button";
       button.textContent = `${index + 1}. ${label}`;
       button.addEventListener("click", () => {
+        // In another part, the page under the reader changes: land at once.
+        const jumped = showPartOf(target);
         if (target.tagName === "DETAILS") target.open = true;
         const focusTarget = target.tagName === "DETAILS" ? target.querySelector("summary") : target;
         if (!focusTarget.hasAttribute("tabindex")) focusTarget.setAttribute("tabindex", "-1");
-        target.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+        target.scrollIntoView({ behavior: jumped || matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
         focusTarget.focus({ preventScroll: true });
       });
       li.append(button);
@@ -1709,7 +1961,7 @@ const SHEET_BOX =
 // Boxes that get extra padding so they also end on a line. The related-notes
 // cards already have a height in whole cells (see site.css).
 const SHEET_BOX_ROUNDED =
-  ".toc-inline, .callout, .table-wrap, .diagram-wrap, .section-card, .section-review, .dataview-result, pre, .proof-bar, .qa-list, .qa-practice";
+  ".part-next, .toc-inline, .callout, .table-wrap, .diagram-wrap, .section-card, .section-review, .dataview-result, pre, .proof-bar, .qa-list, .qa-practice";
 
 // 1. The grid is shifted so its horizontal lines pass through the baselines
 //    of body text; a line of text is exactly two cells tall.
@@ -1778,7 +2030,13 @@ function alignSheetGrid() {
   if (learningPath && learningPath.getClientRects().length) blocks.push(learningPath);
   const collect = (container) => {
     for (const child of container.children) {
-      if (child.classList.contains("grid-probe")) continue;
+      // The part bar is sticky, so where it is drawn is not where it sits;
+      // it is a whole number of cells tall instead (see site.css).
+      if (child.classList.contains("grid-probe") || child.classList.contains("part-bar")) continue;
+      if (child.classList.contains("note-part")) {
+        if (!inOtherPart(child)) collect(child);
+        continue;
+      }
       if ((child.classList.contains("note-section") && !child.matches(".section-card, .section-review")) || child.classList.contains("proof")) collect(child);
       else if (child.getClientRects().length) blocks.push(child);
     }
@@ -1956,6 +2214,8 @@ function scrollToSection(section, smooth) {
   if (!section) return;
   const target = document.getElementById(section);
   if (!target) return;
+  // A jump to another part lands at once: the page under it has just changed.
+  if (showPartOf(target)) smooth = false;
   // A target inside folded boxes must be visible before scrolling to it.
   for (let box = target.closest("details"); box; box = box.parentElement?.closest("details")) box.open = true;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -2385,9 +2645,12 @@ function markWideFormulas() {
 const MERMAID_SRC = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js";
 let mermaidLoading = null;
 
+// Resolves when the diagrams on screen are drawn. Diagrams in a hidden part are
+// drawn when it shows (showPart calls this again).
 function renderMermaid(rerender = false) {
-  const diagrams = Array.from(app.querySelectorAll("pre.mermaid"));
-  if (!diagrams.length) return;
+  const all = Array.from(app.querySelectorAll("pre.mermaid"));
+  const diagrams = all.filter((pre) => !pre.closest(".note-part[hidden]"));
+  if (!diagrams.length) return Promise.resolve();
   if (!window.mermaid) {
     mermaidLoading ||= new Promise((resolve, reject) => {
       const script = document.createElement("script");
@@ -2396,10 +2659,9 @@ function renderMermaid(rerender = false) {
       script.onerror = reject;
       document.head.append(script);
     });
-    mermaidLoading.then(() => renderMermaid(rerender)).catch(() => {});
-    return;
+    return mermaidLoading.then(() => renderMermaid(rerender)).catch(() => {});
   }
-  for (const pre of diagrams) {
+  for (const pre of rerender ? all : diagrams) {
     if (!pre.dataset.source) pre.dataset.source = pre.textContent;
     if (rerender) {
       pre.removeAttribute("data-processed");
@@ -2415,7 +2677,9 @@ function renderMermaid(rerender = false) {
       themeVariables: { fontFamily: "Heebo, system-ui, sans-serif", fontSize: "15px" },
       flowchart: { htmlLabels: true, useMaxWidth: false, nodeSpacing: 34, rankSpacing: 42 }
     });
-    Promise.resolve(window.mermaid.run({ nodes: diagrams }))
+    const pending = diagrams.filter((pre) => !pre.hasAttribute("data-processed"));
+    if (!pending.length) return Promise.resolve();
+    return Promise.resolve(window.mermaid.run({ nodes: pending }))
       .then(() => {
         // Flowcharts read right to left; open wide ones at their first node.
         app.querySelectorAll(".diagram-wrap").forEach((wrap) => {
@@ -2426,6 +2690,7 @@ function renderMermaid(rerender = false) {
       .catch(() => {});
   } catch {
     /* Mermaid is optional; the source stays visible. */
+    return Promise.resolve();
   }
 }
 
@@ -2633,7 +2898,8 @@ window.InfiApp = {
   alignSheetGrid,
   setTitle,
   sectionPreview,
-  keyGuides
+  keyGuides,
+  showPartOf
 };
 
 // A demo re-draws itself when the column or the grid cell changes size.
@@ -2649,4 +2915,10 @@ route({ initial: true });
 document.fonts?.ready?.then(() => alignSheetGrid());
 // MathJax loads asynchronously; whatever is on screen when it becomes ready
 // is typeset then (earlier requests found no MathJax and did nothing).
-window.addEventListener("infi:mathjax-ready", () => typesetMath());
+window.addEventListener("infi:mathjax-ready", () =>
+  typesetMath(() => {
+    if (!pageParts) return;
+    pageParts.typeset = true;
+    settlePartsWhenReady();
+  })
+);
