@@ -1303,20 +1303,53 @@ function studyOrder(gateway, resolver) {
     .filter(Boolean);
 }
 
+// With course.navLayout, the pages outside the units go where the layout says:
+// a listed page to its group, a hidden one to the last group (out of the menu),
+// any other hub page to the last group, and a practice page that no group
+// lists stays with the practice pages.
+function layoutGroupId(page, layout) {
+  if (/^unit-/.test(page.unitId)) return page.unitId;
+  const listed = layout.groups.find((group) => group.pages.some((key) => page.title.includes(key)));
+  if (listed) return listed.id;
+  if (page.unitId === "practice") return "practice";
+  return layout.groups.at(-1).id;
+}
+
+function isHiddenByLayout(page, layout) {
+  return Boolean(layout?.hidden?.some((key) => page.title.includes(key)));
+}
+
 function buildNavGroups(pages, resolver) {
+  const layout = course.navLayout;
   const byUnit = new Map();
   for (const page of pages) {
-    const groupId = page.unitId === "center" || page.unitId === "overview" ? "start" : page.unitId;
+    const groupId = layout ? layoutGroupId(page, layout) : page.unitId === "center" || page.unitId === "overview" ? "start" : page.unitId;
     page.groupId = groupId;
     if (!byUnit.has(groupId)) byUnit.set(groupId, []);
     byUnit.get(groupId).push(page);
   }
 
+  // A laid-out group lists its pages in the layout's order, hidden pages last.
+  // It has no gateway note, so its pages lead back to its own list (#/group/<id>).
+  const laidOut = (spec) => {
+    const list = (byUnit.get(spec.id) || []).sort(
+      (a, b) =>
+        Number(isHiddenByLayout(a, layout)) - Number(isHiddenByLayout(b, layout)) ||
+        rankBy(spec.pages, a.title) - rankBy(spec.pages, b.title) ||
+        collator.compare(a.title, b.title)
+    );
+    const hiddenIds = list.filter((page) => isHiddenByLayout(page, layout)).map((page) => page.id);
+    return { id: spec.id, title: spec.title, subtitle: spec.subtitle || "", landing: true, pageIds: list.map((p) => p.id), ...(hiddenIds.length ? { hiddenIds } : {}) };
+  };
+
   const groups = [];
-  const start = (byUnit.get("start") || []).sort(
-    (a, b) => rankBy(startOrder(), a.title) - rankBy(startOrder(), b.title) || collator.compare(a.title, b.title)
-  );
-  groups.push({ id: "start", title: "מרכז הלימוד", subtitle: "מפות, רשימות וכלי חזרה", pageIds: start.map((p) => p.id) });
+  if (layout) groups.push(laidOut(layout.groups[0]));
+  else {
+    const start = (byUnit.get("start") || []).sort(
+      (a, b) => rankBy(startOrder(), a.title) - rankBy(startOrder(), b.title) || collator.compare(a.title, b.title)
+    );
+    groups.push({ id: "start", title: "מרכז הלימוד", subtitle: "מפות, רשימות וכלי חזרה", pageIds: start.map((p) => p.id) });
+  }
 
   const unitIds = Array.from(byUnit.keys())
     .filter((id) => /^unit-\d+$/.test(id))
@@ -1366,14 +1399,18 @@ function buildNavGroups(pages, resolver) {
     });
   }
 
+  if (layout) for (const spec of layout.groups.slice(1)) groups.push(laidOut(spec));
+
   return groups;
 }
 
 // Previous / next follow the study order: inside the learning hub, and across
 // units 1 → 8 as one continuous course.
 function linkSequence(groups, pagesById) {
-  const courseIds = groups.filter((g) => g.number).flatMap((g) => g.pageIds);
-  const sequences = [courseIds, ...groups.filter((g) => !g.number).map((g) => g.pageIds)];
+  // Pages kept out of the menu are not in any sequence.
+  const listed = (g) => g.pageIds.filter((id) => !g.hiddenIds?.includes(id));
+  const courseIds = groups.filter((g) => g.number).flatMap(listed);
+  const sequences = [courseIds, ...groups.filter((g) => !g.number).map(listed)];
   for (const sequence of sequences) {
     sequence.forEach((id, index) => {
       const page = pagesById.get(id);
@@ -1396,8 +1433,10 @@ function findByTitle(pages, includes) {
 
 // What the client needs to know about the course (no build paths or RegExps).
 function publicCourseInfo() {
-  const { id, siteName, fullName, courseCode, tagline, unitWord, words, storagePrefix, theoremListTitle, theoremListLabel, demosLead, theoremBand, sources, examUseNote, searchExample, features } = course;
-  return { id, siteName, fullName, courseCode, tagline, unitWord, words, storagePrefix, theoremListTitle, theoremListLabel, demosLead, theoremBand, sources, examUseNote, searchExample, features };
+  const { id, siteName, fullName, courseCode, tagline, unitWord, words, storagePrefix, theoremListTitle, theoremListLabel, demosLead, theoremBand, sources, examUseNote, searchExample, features, examDate, pageBlurbs } = course;
+  // Keys a course does not set stay out, so a course's payload does not change when another course gains a setting.
+  const optional = Object.fromEntries(Object.entries({ examDate, pageBlurbs }).filter(([, value]) => value !== undefined));
+  return { id, siteName, fullName, courseCode, tagline, unitWord, words, storagePrefix, theoremListTitle, theoremListLabel, demosLead, theoremBand, sources, examUseNote, searchExample, features, ...optional };
 }
 
 export function buildCourse(nextCourse) {

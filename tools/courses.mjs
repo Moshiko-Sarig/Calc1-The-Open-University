@@ -88,7 +88,56 @@ export const COURSES = [
     practiceDir: "תרגול לפי נושאים",
     practiceTitle: "תרגול לפי נושאים",
     practiceSubtitle: "שאלות ממבחנים עם פתרונות",
-    features: { exams: true }
+    // The exam this site gets ready for. The home page shows one exam card
+    // until the day after it; with no date, the card is not shown.
+    examDate: "2026-11-23",
+    // Where the pages outside the units sit in the menu. A page goes to the
+    // first group whose list has a phrase from its title, in that order.
+    // Hub pages that no group lists go to the last group. Hidden pages are
+    // kept out of the menu only: "all pages" and search still list them.
+    navLayout: {
+      groups: [
+        {
+          id: "start",
+          title: "הכנה לבחינה",
+          subtitle: "רשימת המשפטים, תוכנית ותבניות",
+          pages: [
+            "איך עוברים את הבחינה בשקט",
+            "רשימת המשפטים לבחינה",
+            "תרגול בסגנון 2026",
+            "למידה לפי תבניות",
+            "שאלות מהמאגר",
+            "מסקנות משאלות הספר",
+            "שיטות המרצה"
+          ]
+        },
+        {
+          id: "tools",
+          title: "כלי עזר",
+          subtitle: "מפות, תבניות הוכחה ודוגמאות נגד",
+          pages: ["מפת הקורס", "תבניות הוכחה", "אינדקס דוגמאות נגד", "מפת תלות משפטים", "גרפים והמחשות", "תיקונים לספרי הקורס"]
+        }
+      ],
+      hidden: ["כספת העל", "מפת מוח", "מקורות וחומרי גלם", "כרטיסי חזרה"]
+    },
+    // One line under each page in a group's list (#/group/<id>), by a phrase from its title.
+    pageBlurbs: {
+      "איך עוברים את הבחינה בשקט": "תוכנית פשוטה ל־60, מה עושים בשלוש השעות, ותרגיל נשימה לפני שמתחילים.",
+      "רשימת המשפטים לבחינה": "33 המשפטים שמבקשים להוכיח, עם קישור להוכחה המלאה של כל אחד.",
+      "תרגול בסגנון 2026": "סוגי השאלות החדשים של 2026 וסדרות שמוגדרות ברקורסיה, עם פתרונות.",
+      "למידה לפי תבניות": "איך מזהים סוג שאלה ומאיפה מתחילים: 27 תבניות שחוזרות במבחנים.",
+      "שאלות מהמאגר": "16 שאלות מהמאגר, כל אחת עם רמז, תבנית ופתרון מלא.",
+      "מסקנות משאלות הספר": "שאלות מהספר שמותר לצטט במבחן בלי הוכחה, ומתי שולפים כל אחת.",
+      "שיטות המרצה": "דרכי העבודה שהמרצה הדגיש במפגשים: איך מזהים סוג שאלה ובוחרים כלי.",
+      "מפת הקורס": "כל היחידות והדפים בעמוד אחד, לפי סדר הספרים.",
+      "תבניות הוכחה": "המהלכים שחוזרים בהוכחות: ε, sup, קטע סגור ונגזרת.",
+      "אינדקס דוגמאות נגד": "הדוגמאות שמפריכות הכללות שגויות, לפי נושא.",
+      "מפת תלות משפטים": "איזה משפט נשען על איזה, מהשלמות ועד משפטי הנגזרת.",
+      "גרפים והמחשות": "כל הגרפים החיים של הקורס במקום אחד.",
+      "תיקונים לספרי הקורס": "התיקונים הרשמיים לכרכים א–ג."
+    },
+    // hubs: the practice hub as one line per way to practise, and the short home page.
+    features: { exams: true, hubs: true }
   },
   {
     id: "linear1",

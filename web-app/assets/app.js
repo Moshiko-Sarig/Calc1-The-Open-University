@@ -82,7 +82,8 @@ function groupColor(groupId) {
 }
 
 function pageLabel(page) {
-  return /^שער /.test(page.title) ? `סקירת ${words.theUnit}` : page.navTitle;
+  if (!/^שער /.test(page.title)) return page.navTitle;
+  return isUnit(groupById.get(page.groupId)) ? `סקירת ${words.theUnit}` : "סקירה";
 }
 
 // A numbered part of the course. Number 0 is the preparation chapter, which
@@ -97,6 +98,10 @@ function groupHeading(group) {
 function pageHref(page, section = "") {
   return `#/page/${page.id}${section ? `/${encodeURIComponent(section)}` : ""}`;
 }
+
+// Groups without a gateway note (course.navLayout) have a list page of their own.
+const groupHref = (group) => `#/group/${encodeURIComponent(group.id)}`;
+const groupKey = (group) => `group:${group.id}`;
 
 // ---------------------------------------------------------------------------
 // Preferences: theme and text size
@@ -269,6 +274,9 @@ if (!course.features.exams) document.querySelectorAll('[data-nav="exams"]').forE
 if (course.features.questionArchive) document.querySelectorAll('[data-nav="exams"]').forEach((link) => { link.textContent = "מבחנים ומטלות"; });
 if (course.features.questionArchive) document.querySelector('.primary-nav [data-nav="exams"]').innerHTML = `<span>מבחנים<span class="nav-archive-word"> ומטלות</span></span>`;
 document.querySelector(".primary-nav")?.insertAdjacentHTML("beforeend", courseSwitchLink("course-switch"));
+// A course with the short home page and the practice hub (features.hubs) keeps
+// practice next to exams in the phone header; the stylesheet reads this mark.
+if (course.features.hubs) document.documentElement.dataset.hubs = "on";
 
 // Two guides the course leans on in every exam: what may be cited from the
 // book, and how the lecturer chooses a method. They are pinned on the home page
@@ -307,7 +315,10 @@ function renderTree() {
         const listId = `tree-${group.id}`;
         const open = expanded.has(group.id);
         const badge = group.number ?? (group.id === "start" ? "★" : "·");
-        const items = group.pageIds
+        // A group without a gateway note opens with its own list of pages.
+        const overview = group.landing ? `<li><a href="${groupHref(group)}" data-id="${groupKey(group)}"><span>סקירה</span></a></li>` : "";
+        const items = overview + group.pageIds
+          .filter((id) => !group.hiddenIds?.includes(id))
           .map((id) => pages.get(id))
           .filter(Boolean)
           .map(
@@ -356,18 +367,19 @@ tree.addEventListener("click", (event) => {
   if (event.target.closest("a")) closeDrawer(false);
 });
 
+// activeId is a page id, or groupKey(group) on a group's own list.
 function syncTree(activeId) {
-  const page = pages.get(activeId);
-  if (page?.groupId && (expanded.size !== 1 || !expanded.has(page.groupId))) {
+  const groupId = pages.get(activeId)?.groupId || groups.find((group) => groupKey(group) === activeId)?.id;
+  if (groupId && (expanded.size !== 1 || !expanded.has(groupId))) {
     for (const toggle of tree.querySelectorAll("[data-group-toggle]")) {
       const id = toggle.dataset.groupToggle;
-      const isThis = id === page.groupId;
+      const isThis = id === groupId;
       toggle.setAttribute("aria-expanded", String(isThis));
       const list = document.getElementById(`tree-${id}`);
       if (list) list.hidden = !isThis;
     }
     expanded.clear();
-    expanded.add(page.groupId);
+    expanded.add(groupId);
     saveExpanded();
   }
   let current = null;
@@ -776,6 +788,7 @@ function route({ initial = false } = {}) {
 
   if (next.view === "page" && pages.has(next.id)) renderPage(pages.get(next.id), next.section);
   else if (next.view === "index") renderIndex();
+  else if (next.view === "group" && groupById.get(next.id)?.landing) renderGroup(groupById.get(next.id));
   else if (next.view === "graph") renderGraph();
   else if (next.view === "about" || next.view === "credits") renderAbout();
   else if (next.view === "practice" && window.InfiStudy) window.InfiStudy.render(app, next);
@@ -785,7 +798,7 @@ function route({ initial = false } = {}) {
 
   setCalmMode(next.view === "page" && Boolean(pages.get(next.id)?.tags?.includes("calm-page")));
   updatePrimaryNav(next.view === "page" ? "" : next.view);
-  syncTree(next.view === "page" ? next.id : "");
+  syncTree(next.view === "page" ? next.id : next.view === "group" ? `group:${next.id}` : "");
   if (!next.section || next.view !== "page") window.scrollTo(0, 0);
   if (!initial) {
     const heading = app.querySelector("h1");
@@ -1140,8 +1153,40 @@ function nextStudyMessage() {
   return STUDY_MESSAGES[studyMessageIndex];
 }
 
+// Days until the course's exam (course.examDate, a local date), or null when
+// there is no date or the exam day has passed.
+function daysToExam() {
+  if (!course.examDate) return null;
+  const [y, m, d] = course.examDate.split("-").map(Number);
+  const today = new Date();
+  const days = Math.round((new Date(y, m - 1, d) - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000);
+  return days >= 0 ? days : null;
+}
+
+function examCountdown(days) {
+  if (days === 0) return "הבחינה היום";
+  if (days === 1) return "הבחינה מחר";
+  return `עוד ${days} ימים לבחינה`;
+}
+
+// The ways in from the home page of a course with features.hubs: one line each.
+function homeDoors(solvedExams) {
+  const prep = groupById.get("start");
+  const tools = groupById.get("tools");
+  const door = (href, title, text, extra = "") => `<li><a class="home-door${extra}" href="${href}"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span><span class="home-door-go" aria-hidden="true">←</span></a></li>`;
+  return `<nav class="home-doors" aria-label="לאן ממשיכים"><ul>${[
+    prep?.landing ? door(groupHref(prep), prep.title, prep.subtitle) : "",
+    door("#/practice", "תרגול", "שאלות לפי נושא, אמריקאיות, כרטיסי חזרה ופאזלי הוכחה"),
+    course.features.exams && !course.features.questionArchive ? door("#/exams", "מבחנים ופתרונות", `${solvedExams} מבחנים עם פתרונות מלאים, והדמיה עם שעון`) : "",
+    tools?.landing ? door(groupHref(tools), tools.title, tools.subtitle) : ""
+  ].join("")}</ul></nav>`;
+}
+
 function renderHome() {
   setTitle("");
+  const hubs = Boolean(course.features.hubs);
+  const examDays = hubs ? daysToExam() : null;
+  const prepGroup = groupById.get("start");
   const unitGroups = groups.filter((group) => group.number);
   const units = unitGroups.filter((group) => group.number);
   const start = groupById.get("start");
@@ -1215,17 +1260,15 @@ function renderHome() {
         <div class="home-intro-main">
           <p class="home-intro-kicker">האוניברסיטה הפתוחה <span aria-hidden="true"> / </span> קורס ${escapeHtml(course.courseCode)}${introSketch ? ` <svg class="home-intro-sketch" width="48" height="28" viewBox="0 0 56 32" fill="none" aria-hidden="true" focusable="false">${introSketch}</svg>` : ""}</p>
           <h1 id="homeTitle">${escapeHtml(course.fullName)}</h1>
-          ${course.features.exams && !course.features.questionArchive ? `<a class="home-exams-entry" href="#/exams"><strong>מבחנים ופתרונות</strong><span>${solvedExams} מבחנים עם פתרונות מלאים</span><span aria-hidden="true">←</span></a>` : ""}
-          ${course.id === "infi" && Date.now() < Date.parse("2026-11-24T00:00:00+02:00") && data.pages.some(p => p.title === "איך עוברים את הבחינה בשקט") ? `<a class="home-exams-entry is-calm" href="#/page/${encodeURIComponent(data.pages.find(p => p.title === "איך עוברים את הבחינה בשקט").id)}"><strong>איך עוברים את הבחינה בשקט</strong><span>תוכנית פשוטה ל־60, טיפים לבחינה, ודקה של נשימה</span><span aria-hidden="true">←</span></a>` : ""}
-          ${course.id === "infi" && Date.now() < Date.parse("2026-11-24T00:00:00+02:00") && data.pages.some(p => p.title === "תרגול בסגנון 2026") ? `<a class="home-exams-entry is-new" href="#/page/${encodeURIComponent(data.pages.find(p => p.title === "תרגול בסגנון 2026").id)}"><strong>לקראת המבחן ב־23.11 <em class="new-badge">חדש</em></strong><span>תרגול בסגנון 2026: סוגי השאלות החדשים וסדרות ברקורסיה</span><span aria-hidden="true">←</span></a>` : ""}
-          ${course.id === "infi" && data.pages.some(p => p.title === "למידה לפי תבניות") ? `<a class="home-exams-entry" href="#/page/${encodeURIComponent(data.pages.find(p => p.title === "למידה לפי תבניות").id)}"><strong>למידה לפי תבניות</strong><span>איך מזהים שאלה, מאיפה מתחילים ומה מתרגלים השבוע</span><span aria-hidden="true">←</span></a>` : ""}
+          ${examDays !== null && prepGroup?.landing ? `<a class="home-exams-entry is-exam" href="${groupHref(prepGroup)}"><strong>${escapeHtml(examCountdown(examDays))}</strong><span>${escapeHtml(prepGroup.title)}: ${escapeHtml(prepGroup.subtitle)}</span><span aria-hidden="true">←</span></a>` : ""}
+          ${!hubs && course.features.exams && !course.features.questionArchive ? `<a class="home-exams-entry" href="#/exams"><strong>מבחנים ופתרונות</strong><span>${solvedExams} מבחנים עם פתרונות מלאים</span><span aria-hidden="true">←</span></a>` : ""}
           <div class="home-encouragement">
             <p aria-live="polite" data-study-message>${escapeHtml(nextStudyMessage())}</p>
             <button type="button" data-next-study-message>משפט נוסף</button>
           </div>
           <div class="home-intro-actions">
             ${last || firstUnit ? `<a class="button button-primary" href="${last ? escapeHtml(readingHref(last)) : pageHref(firstUnit)}">${last ? "להמשיך מאיפה שעצרתי" : "להתחלת הלימוד"} <span aria-hidden="true">←</span></a>` : ""}
-            ${exam ? `<a class="home-quick-link" href="${pageHref(exam)}">${escapeHtml(words.theTheorems)}</a>` : ""}
+            ${exam && !hubs ? `<a class="home-quick-link" href="${pageHref(exam)}">${escapeHtml(words.theTheorems)}</a>` : ""}
             ${course.features.questionArchive ? `<a class="home-quick-link" href="#/exams">מבחנים ומטלות</a>` : ""}
             ${courseSwitchLink("home-quick-link")}
           </div>
@@ -1240,6 +1283,8 @@ function renderHome() {
         <aside class="home-resume" aria-label="${last ? "המשך קריאה" : "תחילת הלימוד"}">${panel}</aside>
       </section>
 
+      ${hubs ? homeDoors(solvedExams) : ""}
+
       <section class="book-toc" aria-labelledby="unitsTitle">
         <header class="book-toc-head">
           <h2 id="unitsTitle">תוכן העניינים</h2>
@@ -1249,7 +1294,7 @@ function renderHome() {
       </section>
 
       ${
-        keyGuides().length
+        !hubs && keyGuides().length
           ? `<section class="guide-band" aria-labelledby="guidesTitle">
               <div class="section-head">
                 <h2 id="guidesTitle">שני דפים שכדאי להכיר לפני הבחינה</h2>
@@ -1278,6 +1323,7 @@ function renderHome() {
                     <span class="demo-feature-go">לפתיחת ההמחשה <span aria-hidden="true">←</span></span>
                   </span>
                 </a>
+                ${hubs && otherDemos.length ? `<details class="demo-more"><summary>עוד ${otherDemos.length} המחשות</summary>` : ""}
                 <ul class="demo-list">${otherDemos
                   .map(
                     (item) => `<li><a class="demo-row" href="${item.href}">
@@ -1289,15 +1335,16 @@ function renderHome() {
                     </a></li>`
                   )
                   .join("")}</ul>
+                ${hubs && otherDemos.length ? "</details>" : ""}
               </div>
             </section>`
           : ""
       }
 
-      ${window.InfiStudy ? window.InfiStudy.homeSection() : ""}
+      ${window.InfiStudy && !hubs ? window.InfiStudy.homeSection() : ""}
 
       ${
-        exam
+        exam && !hubs
           ? `<section class="exam-band" aria-labelledby="examTitle">
               <span class="exam-band-icon" aria-hidden="true">${icon("star")}</span>
               <div>
@@ -1309,13 +1356,17 @@ function renderHome() {
           : ""
       }
 
-      <section aria-labelledby="toolsTitle">
+      ${
+        hubs
+          ? ""
+          : `<section aria-labelledby="toolsTitle">
         <div class="section-head">
           <h2 id="toolsTitle">כלי לימוד וחזרה</h2>
           <p>מפות, תבניות ודוגמאות שחוצות את ${escapeHtml(words.theUnits)}</p>
         </div>
         <div class="tool-grid">${tools}</div>
-      </section>
+      </section>`
+      }
     </div>`;
   const studyMessage = app.querySelector("[data-study-message]");
   app.querySelector("[data-next-study-message]").addEventListener("click", () => {
@@ -1353,7 +1404,8 @@ function renderPage(page, section) {
   const crumbs = [`<li><a href="#/">בית</a></li>`];
   if (group) {
     const label = escapeHtml(group.title) + (isUnit(group) ? `<span class="breadcrumb-topic"> · ${escapeHtml(group.subtitle || "")}</span>` : "");
-    const crumbTarget = gateway && gateway.id !== page.id ? `<a href="${pageHref(gateway)}">${label}</a>` : `<span>${label}</span>`;
+    const crumbTarget =
+      gateway && gateway.id !== page.id ? `<a href="${pageHref(gateway)}">${label}</a>` : group.landing ? `<a href="${groupHref(group)}">${label}</a>` : `<span>${label}</span>`;
     crumbs.push(`<li>${crumbTarget}</li>`);
   }
   crumbs.push(`<li aria-current="page">${escapeHtml(pageLabel(page))}</li>`);
@@ -1589,7 +1641,8 @@ function mountCalmWidgets() {
 }
 
 function mountLearningPath(page, group, gateway) {
-  if (!group?.number) return;
+  // Every chapter has a path, the preparation chapter (number 0) too.
+  if (!isUnit(group)) return;
   const prose = app.querySelector(".prose");
   if (!prose) return;
   const headings = Array.from(prose.querySelectorAll("h2, h3"));
@@ -1601,7 +1654,7 @@ function mountLearningPath(page, group, gateway) {
   const practice = findHeading(/תרגול קצר|תרגול מודרך|בדיקת שליטה|בדיקה עצמית|כרטיס דיוק|סיכום מהיר/);
   const exam = prose.querySelector(".callout-exam") || findHeading(/סוגי שאלות במבחן|במבחן/);
   const items = [["אינטואיציה", intuition], ["דוגמה במספרים", example], ["המחשה", demo], ["הגדרה ומשפטים", formal], ["תרגול", practice], ["במבחן", exam]].filter(([, target]) => target);
-  if (course.features.exams && !exam && gateway && gateway.id !== page.id) items.push([`שאלות מבחן ${words.inUnit}`, null]);
+  if (course.features.exams && group.number > 0 && !exam && gateway && gateway.id !== page.id) items.push([`שאלות מבחן ${words.inUnit}`, null]);
   if (items.length < 2) return;
   const nav = document.createElement("nav");
   nav.className = "learning-path";
@@ -1968,9 +2021,38 @@ function renderIndex() {
   });
 }
 
+// The list page of a group that has no gateway note: each page with one line
+// on what it is for, its study time and the reader's own mark, if any.
+function renderGroup(group) {
+  setTitle(group.title);
+  const blurbs = course.pageBlurbs || {};
+  const blurb = (page) => blurbs[Object.keys(blurbs).find((key) => page.title.includes(key) || page.navTitle.includes(key))] || "";
+  const listed = group.pageIds.filter((id) => !group.hiddenIds?.includes(id)).map((id) => pages.get(id)).filter(Boolean);
+  app.innerHTML = `
+    <div class="group-page" style="--c:${groupColor(group.id)}">
+      <nav class="breadcrumbs" aria-label="מיקום בקורס"><ol><li><a href="#/">בית</a></li><li aria-current="page">${escapeHtml(group.title)}</li></ol></nav>
+      <header class="page-intro">
+        <h1>${escapeHtml(group.title)}</h1>
+        ${group.subtitle ? `<p>${escapeHtml(group.subtitle)}.</p>` : ""}
+      </header>
+      <ol class="group-list">
+        ${listed
+          .map(
+            (page) => `<li><a class="group-row" href="${pageHref(page)}">
+              <strong>${escapeHtml(page.navTitle)}${page.hasExamTheorem ? ` ${icon("star", "icon tree-star")}<span class="visually-hidden">(כולל ${escapeHtml(words.theoremFromList)})</span>` : ""}</strong>
+              ${blurb(page) ? `<span>${escapeHtml(blurb(page))}</span>` : ""}
+              <small>${icon("clock")} כ־${page.readMinutes} דקות${window.InfiSupport?.statusLabel?.(page.id) ? ` · ${escapeHtml(window.InfiSupport.statusLabel(page.id))}` : ""}</small>
+            </a></li>`
+          )
+          .join("")}
+      </ol>
+      <p class="group-more">לכל הדפים באתר, כולל דפי העבודה של הכספת: <a href="#/index">כל הדפים</a>.</p>
+    </div>`;
+}
+
 function renderAbout() {
   setTitle("מקורות וקרדיט");
-  const sources = pages.get(groups.find((g) => g.id === "start")?.pageIds.find((id) => pages.get(id)?.navTitle.includes("מקורות")) || "");
+  const sources = data.pages.find((page) => page.navTitle.includes("מקורות וחומרי גלם"));
   const corrections = data.pages.find((page) => page.navTitle.includes("תיקונים לספרי הקורס"));
   app.innerHTML = `
     <div class="about-page">

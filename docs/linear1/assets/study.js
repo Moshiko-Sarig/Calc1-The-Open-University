@@ -503,7 +503,7 @@
     const statement = statementParts(t.number);
     root.innerHTML = `
       <div class="practice">
-        <nav class="breadcrumbs" aria-label="מיקום באתר"><ol><li><a href="#/">בית</a></li><li><a href="#/practice">תרגול</a></li><li aria-current="page">פאזל הוכחה</li></ol></nav>
+        <nav class="breadcrumbs" aria-label="מיקום באתר"><ol><li><a href="#/">בית</a></li><li><a href="#/practice">תרגול</a></li>${course.features.hubs ? '<li><a href="#/practice/proofs">פאזלי הוכחה</a></li>' : ""}<li aria-current="page">פאזל הוכחה</li></ol></nav>
         <header class="practice-head">
           <p class="practice-kicker">פאזל הוכחה · ${esc(unitLabel(t.noteId))}</p>
           <h1 id="pageTitle" tabindex="-1">${esc(t.kind)} ${esc(t.number)}${t.part ? ` ${esc(t.part)}` : ""}${name ? `: ${esc(name)}` : ""}</h1>
@@ -607,7 +607,7 @@
       root.querySelector(".puzzle-actions").innerHTML = `
         <button type="button" class="demo-btn" data-again>שוב, בערבוב חדש</button>
         <a class="demo-btn is-quiet" href="#/practice/proof/${encodeURIComponent(nextTheorem.number)}">למשפט הבא (${esc(nextTheorem.number)})</a>
-        <a class="demo-btn is-quiet" href="#/practice">לכל המשפטים</a>`;
+        <a class="demo-btn is-quiet" href="${course.features.hubs ? "#/practice/proofs" : "#/practice"}">לכל המשפטים</a>`;
       root.querySelector("[data-again]").addEventListener("click", () => renderPuzzle(root, number));
       root.querySelector("[data-again]").focus();
     }
@@ -856,13 +856,10 @@
   // The practice hub
   // ---------------------------------------------------------------------------
 
-  function renderHub(root) {
-    const { setTitle, queueTypeset, groups } = app();
-    setTitle("תרגול");
-    const summary = srsSummary();
-    const progress = puzzleProgress();
-    const list = theorems();
-    const solved = list.filter((t) => progress[t.number]?.done).length;
+  // The theorem list, one section per unit: each theorem with a link to its
+  // puzzle and to its proof in the notes.
+  function theoremRows(list, progress) {
+    const { groups } = app();
     const byUnit = new Map();
     for (const t of list) {
       const unit = app().pages.get(t.noteId)?.groupId || "";
@@ -895,6 +892,17 @@
         </section>`
       )
       .join("");
+    return rows;
+  }
+
+  function renderHub(root) {
+    const { setTitle, queueTypeset } = app();
+    setTitle("תרגול");
+    const summary = srsSummary();
+    const progress = puzzleProgress();
+    const list = theorems();
+    const solved = list.filter((t) => progress[t.number]?.done).length;
+    const rows = theoremRows(list, progress);
     const randomTheorem = list[Math.floor(Math.random() * list.length)];
     root.innerHTML = `
       <div class="practice practice-hub">
@@ -938,11 +946,127 @@
     queueTypeset([root]);
   }
 
+  // The topic sheets: the practice group's pages without its gateway, each
+  // with the number of questions on it (one heading per question).
+  function topicSheets() {
+    const group = app().groups.find((item) => item.id === "practice");
+    const gateway = group ? app().pages.get(group.gatewayId) : null;
+    const sheets = (group?.pageIds || [])
+      .map((id) => app().pages.get(id))
+      .filter((page) => page && page !== gateway)
+      .map((page) => ({
+        page,
+        name: page.navTitle.replace(/^שאלות ממבחנים\s*[-–]\s*/, ""),
+        count: (page.html.match(/<h[23][^>]*>\s*(?:<[^>]+>\s*)*שאלה/g) || []).length
+      }));
+    return { gateway, sheets };
+  }
+
+  // The practice hub of a course with features.hubs: every way to practise on
+  // one ruled line, the topic sheets first. The theorem list has its own page.
+  function renderDoors(root) {
+    const { setTitle, pageHref } = app();
+    setTitle("תרגול");
+    const summary = srsSummary();
+    const progress = puzzleProgress();
+    const list = theorems();
+    const solved = list.filter((t) => progress[t.number]?.done).length;
+    const { gateway, sheets } = topicSheets();
+    const questions = sheets.reduce((sum, sheet) => sum + sheet.count, 0);
+    const door = ({ title, text, big = "", href, action, primary = false, extra = "" }) => `<li class="hub-tool">
+        <div class="hub-tool-text">
+          <h2>${title}</h2>
+          <p>${text}</p>
+          ${extra}
+        </div>
+        ${big ? `<p class="hub-big">${big}</p>` : ""}
+        <a class="button${primary ? " button-primary" : ""}" href="${href}">${action} <span aria-hidden="true">←</span></a>
+      </li>`;
+    const doors = [
+      gateway && sheets.length
+        ? door({
+            title: "שאלות לפי נושא",
+            text: `${sheets.length} דפים של שאלות ממבחני עבר, לפי סוג השאלה, עם רמזים ופתרונות מקופלים.`,
+            big: `<strong>${questions}</strong> שאלות`,
+            href: pageHref(gateway),
+            action: "לכל הנושאים",
+            primary: true,
+            extra: `<ul class="hub-topics" aria-label="הנושאים">${sheets
+              .map((sheet) => `<li><a href="${pageHref(sheet.page)}">${esc(sheet.name)}${sheet.count ? ` <small>${sheet.count}</small>` : ""}</a></li>`)
+              .join("")}</ul>`
+          })
+        : "",
+      course.features.exams && !course.features.questionArchive
+        ? door({
+            title: "שאלות אמריקאיות",
+            text: "שאלה אחת בכל פעם, מכל המבחנים ומדפי התרגול, עם בדיקה והסבר. טעות נשמרת לחזרה.",
+            href: "#/exams/practice-mc",
+            action: "להתחיל"
+          })
+        : "",
+      door({
+        title: "כרטיסי חזרה",
+        text: `${summary.due} לחזרה · ${summary.fresh} חדשים · ${summary.learned} מתוך ${summary.total} כבר נלמדו. שאלות, ניסוחי ${esc(words.theTheorems)} והגדרות, בחזרה מרווחת.`,
+        big: `<strong>${summary.due + summary.fresh}</strong> להיום`,
+        href: "#/practice/cards",
+        action: "להתחיל חזרה"
+      }),
+      list.length
+        ? door({
+            title: "פאזלי הוכחה",
+            text: `מסדרים את שלבי ההוכחה של כל אחד מ־${list.length} ${esc(words.theTheorems)}. כל טעות נספרת, ויש רמז כשנתקעים.`,
+            big: `<strong>${solved}</strong> מתוך ${list.length}`,
+            href: "#/practice/proofs",
+            action: "לרשימת המשפטים"
+          })
+        : "",
+      course.features.exams && !course.features.questionArchive
+        ? door({
+            title: "הדמיית מבחן",
+            text: "מבחן שלם מהארכיון, עם שעון לפי משך הבחינה. בסוף מסמנים מה נפתר ונותנים ניקוד.",
+            href: "#/exams?section=allTitle",
+            action: "לבחירת מבחן"
+          })
+        : ""
+    ].join("");
+    root.innerHTML = `
+      <div class="practice practice-hub">
+        <header class="practice-head">
+          <h1 id="pageTitle" tabindex="-1">תרגול</h1>
+          <p class="practice-lead">כל דרכי התרגול במקום אחד. ההתקדמות נשמרת בדפדפן הזה.</p>
+        </header>
+        <ul class="hub-tools" aria-label="דרכי התרגול">${doors}</ul>
+      </div>`;
+  }
+
+  // All the theorems on the list, with their puzzles and proofs.
+  function renderProofs(root) {
+    const { setTitle, queueTypeset } = app();
+    setTitle("פאזלי הוכחה");
+    const progress = puzzleProgress();
+    const list = theorems();
+    const solved = list.filter((t) => progress[t.number]?.done).length;
+    const randomTheorem = list[Math.floor(Math.random() * list.length)];
+    root.innerHTML = `
+      <div class="practice practice-hub">
+        <nav class="breadcrumbs" aria-label="מיקום באתר"><ol><li><a href="#/">בית</a></li><li><a href="#/practice">תרגול</a></li><li aria-current="page">פאזלי הוכחה</li></ol></nav>
+        <header class="practice-head">
+          <h1 id="pageTitle" tabindex="-1">פאזלי הוכחה</h1>
+          <p class="practice-lead">${list.length} ${esc(words.theTheorems)}. לכל אחד יש פאזל, שבו מסדרים את שלבי ההוכחה, וקישור להוכחה המלאה בדפים. פתרתם ${solved} מתוך ${list.length}.</p>
+          ${randomTheorem ? `<p><a class="button button-primary" href="#/practice/proof/${encodeURIComponent(randomTheorem.number)}">פאזל אקראי <span aria-hidden="true">←</span></a></p>` : ""}
+        </header>
+        ${theoremRows(list, progress)}
+      </div>`;
+    queueTypeset([root]);
+  }
+
   // ---------------------------------------------------------------------------
 
   function render(root, route) {
     if (route.id === "cards") renderCards(root);
     else if (route.id === "proof" && route.section) renderPuzzle(root, route.section);
+    else if (route.id === "proofs" && course.features.hubs) renderProofs(root);
+    else if (course.features.hubs) renderDoors(root);
     else renderHub(root);
   }
 
