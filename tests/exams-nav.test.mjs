@@ -50,14 +50,18 @@ function render(route, ratings = {}) {
   return { html: host.innerHTML, data };
 }
 
-test("generated exam list puts every exam in a year grid before search and folded statistics", () => {
+test("exam list has a year/semester/moed picker, a folded full list, then search, review and folded statistics", () => {
   const { html, data } = render({});
-  assert.equal([...html.matchAll(/class="exam-card" data-exam=/g)].length, data.exams.length);
-  const years = [...html.matchAll(/<h3 id="year(\d+)">/g)].map((match) => match[1]);
+  assert.match(html, /data-pick="year"/);
+  assert.match(html, /data-pick="sem"/);
+  assert.match(html, /data-pick="moed"/);
+  assert.equal([...html.matchAll(/class="exam-row" data-exam=/g)].length, data.exams.length);
+  const years = [...html.matchAll(/<span class="exam-rows-y">(\d+)<\/span>/g)].map((match) => match[1]);
   assert.deepEqual(years, [...years].sort().reverse());
-  assert.ok(html.indexOf('class="exam-cards"') < html.indexOf('id="findTitle"'));
-  assert.ok(html.indexOf('id="findTitle"') < html.indexOf('class="exam-statistics"'));
-  assert.match(html, /<details class="exam-statistics">/);
+  assert.match(html, /<details class="exam-all-list">/);
+  assert.ok(html.indexOf('id="allTitle"') < html.indexOf('id="findTitle"'));
+  assert.ok(html.indexOf('id="findTitle"') < html.indexOf('id="reviewTitle"'));
+  assert.ok(html.indexOf('id="reviewTitle"') < html.indexOf('class="exam-statistics"'));
   const stats = html.slice(html.indexOf('<details class="exam-statistics">'));
   assert.match(stats, /id="freqTitle"/);
   assert.match(stats, /id="heatTitle"/);
@@ -67,16 +71,17 @@ test("generated exam list puts every exam in a year grid before search and folde
   }
 });
 
-test("quick navigation includes review counts, search, statistics and the MC route", () => {
+test("the options menu explains each part of the page, with review counts, the MC route and a level picker", () => {
   const { html } = render({}, { "41/3": { value: "partial", at: 1 }, "41/6": { value: "got", at: 2 } });
-  const nav = html.match(/<nav class="exam-quick-nav"[\s\S]*?<\/nav>/)[0];
+  const nav = html.match(/<nav class="exam-options"[\s\S]*?<\/nav>/)[0];
   for (const id of ["allTitle", "reviewTitle", "findTitle", "examStats"]) assert.ok(nav.includes(`data-exam-section="${id}"`));
   assert.match(nav, /לחזרה \(1\)/);
   assert.match(nav, /href="#\/exams\/practice-mc"/);
-  const card = html.match(/<li class="exam-card" data-exam="41">[\s\S]*?<\/li>/)[0];
-  assert.match(card, /פתרונות מלאים/);
-  assert.match(card, /חלקית: 1/);
-  assert.match(card, /הבנתי: 1/);
+  assert.match(nav, /data-nav-level/);
+  const row = html.match(/<li class="exam-row" data-exam="41">[\s\S]*?<\/li>/)[0];
+  assert.match(row, /פתרונות/);
+  assert.match(row, /חלקית: 1/);
+  assert.match(row, /הבנתי: 1/);
 });
 
 test("exam overview and study routes have question tabs with solution and rating marks", () => {

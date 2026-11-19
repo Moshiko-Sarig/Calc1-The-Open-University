@@ -5059,17 +5059,40 @@ bdi {
   font-size: var(--fs-sm);
 }
 
-.exam-nav-level {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-inline-start: auto;
-  padding-inline: 8px;
-  font-size: var(--fs-sm);
-  color: var(--ink-2);
+/* Exams page: an options menu that says what each part of the page is for. */
+.exam-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10.5rem), 1fr));
+  gap: 8px;
+  margin-block: 12px 8px;
 }
 
-.exam-nav-level select {
+.exam-option {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  padding: 8px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  text-decoration: none;
+}
+
+.exam-option strong {
+  color: var(--accent);
+  font-size: var(--fs-sm);
+}
+
+a.exam-option:hover,
+a.exam-option:focus-visible {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+.exam-option-level select {
   min-height: 40px;
   padding: 4px 8px;
   border: 1px solid var(--line-control);
@@ -5077,6 +5100,67 @@ bdi {
   background: var(--surface);
   color: var(--ink);
   font: inherit;
+}
+
+.exam-picked-card {
+  display: grid;
+  gap: 6px;
+  max-width: 40rem;
+  padding: 12px 16px;
+  border: 1px solid var(--line-2);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: var(--radius-s);
+  background: var(--surface);
+}
+
+.exam-picked-card :is(h3, p) {
+  margin: 0;
+}
+
+.exam-all-list {
+  margin-block-start: 14px;
+}
+
+.exam-all-list summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.exam-rows,
+.exam-rows ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.exam-rows-year {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr;
+  gap: 8px;
+  padding-block: 6px;
+  border-block-end: 1px solid var(--line-2);
+}
+
+.exam-rows-y {
+  font-weight: 700;
+}
+
+.exam-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  padding-block: 2px;
+}
+
+.exam-row-meta {
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+}
+
+.exam-row-sim {
+  margin-inline-start: auto;
+  font-size: var(--fs-s);
 }
 
 .exams-page :is(#allTitle, #reviewTitle, #findTitle, #examStats) {
