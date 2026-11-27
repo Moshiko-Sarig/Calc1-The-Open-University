@@ -464,7 +464,9 @@
   // again on each frame and painted back to front, so the near end of an arrow
   // covers the far one and a plane tints what lies behind it. Dragging, the
   // arrow keys and the view buttons turn the camera; "from above" is the flat
-  // picture of the xy-plane that the two-dimensional notes draw.
+  // picture of the xy-plane that the two-dimensional notes draw. The 2D mode
+  // goes further: the camera stays above, the z axis is gone, and each demo
+  // draws its own question again in R².
 
   const V = {
     add: (p, q) => p.map((x, i) => x + q[i]),
@@ -502,6 +504,8 @@
       this.spin = 0;
       this.tween = 0;
       this.onSpin = null;
+      this.flat = false;
+      this.saved = HOME_VIEW;
     }
 
     watch(view) {
@@ -523,8 +527,19 @@
       this.changed();
     }
 
+    // A flat picture does not turn: turning it would show the plane edge-on.
     turn(dyaw, dpitch) {
-      this.set(this.yaw + dyaw, this.pitch + dpitch);
+      if (!this.flat) this.set(this.yaw + dyaw, this.pitch + dpitch);
+    }
+
+    // 2D mode: remember the 3D view, look straight down and stay there. Every
+    // plot on this camera relabels itself; the demo then redraws its own marks.
+    setFlat(flat) {
+      if (flat === this.flat) return;
+      if (flat) this.saved = [this.yaw, this.pitch];
+      this.flat = flat;
+      for (const view of this.views) view.describe();
+      this.go(flat ? TOP_VIEW : this.saved);
     }
 
     // The pencil filter is dropped while the picture moves, so turning stays smooth.
@@ -568,6 +583,7 @@
 
     toggleSpin() {
       if (this.spin) return this.stop();
+      if (this.flat) return;
       cancelAnimationFrame(this.tween);
       this.tween = 0;
       this.hold(true);
@@ -587,12 +603,7 @@
     constructor(host, { range = 4, rows = 20, camera = new Camera3D(), names = ["x", "y", "z"], caption = "" } = {}) {
       Object.assign(this, { host, R: range, rows, camera, names, caption });
       this.id = ++uid;
-      this.canvas = h("div", {
-        class: "demo-canvas demo-canvas-3d",
-        tabindex: "0",
-        role: "img",
-        "aria-label": `${caption ? `${caption}. ` : ""}תרשים במרחב. גררו אותו, או השתמשו במקשי החיצים, כדי לסובב אותו.`
-      });
+      this.canvas = h("div", { class: "demo-canvas demo-canvas-3d", tabindex: "0", role: "img" });
       this.svg = s("svg", { class: "demo-svg demo-svg-3d", "aria-hidden": "true", focusable: "false" });
       const defs = s("defs");
       const filter = s("filter", { id: `demo-pencil-${this.id}`, x: "-2%", y: "-2%", width: "104%", height: "104%" });
@@ -605,8 +616,10 @@
       this.top = s("g", { class: "demo-marks" });
       this.svg.append(defs, this.scene, this.top);
       this.canvas.append(this.svg);
-      if (caption) host.append(h("p", { class: "demo-subhead", text: caption }));
+      this.subhead = caption ? h("p", { class: "demo-subhead", text: caption }) : null;
+      if (this.subhead) host.append(this.subhead);
       host.append(this.canvas);
+      this.describe();
       this.items = [];
       this.labels = [];
       this.draw = null;
@@ -615,6 +628,22 @@
       this.bind();
       this.layout();
       this.begin();
+    }
+
+    // The label says whether the picture is space that turns or a flat plane.
+    describe() {
+      const lead = this.caption ? `${this.caption}. ` : "";
+      const body = this.camera.flat
+        ? "תמונה שטוחה, דו־ממדית, של המישור: ציר x לרוחב וציר y לגובה, בלי ציר z. היא אינה מסתובבת."
+        : "תרשים במרחב. גררו אותו, או השתמשו במקשי החיצים, כדי לסובב אותו.";
+      this.canvas.setAttribute("aria-label", `${lead}${body}`);
+      this.canvas.classList.toggle("is-flat", this.camera.flat);
+    }
+
+    setCaption(caption) {
+      this.caption = caption;
+      if (this.subhead) this.subhead.textContent = caption;
+      this.describe();
     }
 
     // Whole cells across and a fixed number of rows, like the flat plots.
@@ -645,7 +674,7 @@
       let last = null;
       const svg = this.svg;
       svg.addEventListener("pointerdown", (event) => {
-        if (event.button > 0) return;
+        if (event.button > 0 || this.camera.flat) return;
         last = [event.clientX, event.clientY];
         svg.setPointerCapture?.(event.pointerId);
         this.camera.stop();
@@ -666,7 +695,8 @@
       for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) svg.addEventListener(type, release);
       this.canvas.addEventListener("keydown", (event) => {
         const turn = { ArrowLeft: [0.12, 0], ArrowRight: [-0.12, 0], ArrowUp: [0, 0.1], ArrowDown: [0, -0.1] }[event.key];
-        if (!turn) return;
+        // Flat: the arrows are left to the page, so they still scroll it.
+        if (!turn || this.camera.flat) return;
         event.preventDefault();
         this.camera.stop();
         this.camera.turn(...turn);
@@ -691,6 +721,7 @@
 
     // Far marks are drawn lighter, which is most of what makes the picture read as deep.
     fade(z) {
+      if (this.camera.flat) return "1";
       return Math.max(0.35, Math.min(1, 0.66 + (0.34 * z) / (this.R * 1.75))).toFixed(2);
     }
 
@@ -761,7 +792,7 @@
 
     // A dotted plumb line from a point down to the floor z = 0, so its height can be read.
     drop(p, cls = "pc-gray") {
-      if (Math.abs(p[2]) < 0.05 || Math.max(...p.map(Math.abs)) > this.R) return;
+      if (this.camera.flat || Math.abs(p[2]) < 0.05 || Math.max(...p.map(Math.abs)) > this.R) return;
       const foot = [p[0], p[1], 0];
       this.segment(p, foot, { cls, width: 1.2, dash: "2 4", pieces: 2 });
       this.dot(foot, { cls, r: 1.8 });
@@ -824,15 +855,20 @@
           this.put(-1e9, s("line", { x1: A.x, y1: A.y, x2: B.x, y2: B.y, class: "demo-floor" }));
         }
       }
+      const flat = this.camera.flat;
       const axes = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
       axes.forEach((e, i) => {
+        // Flat: no z axis at all, and the ticks cross the other axis of the plane,
+        // since a tick along z would be seen end-on, as a point.
+        if (flat && i === 2) return;
         this.segment(V.scale(e, -R), ORIGIN, { cls: "demo-axis-3d", width: 1.3, dash: "3 4", pieces: 4 });
         this.arrow(ORIGIN, V.scale(e, R), { cls: "demo-axis-3d", width: 1.5 });
-        const across = axes[i === 2 ? 0 : 2];
+        const across = flat ? axes[1 - i] : axes[i === 2 ? 0 : 2];
+        const place = flat && i === 1 ? { dx: 0.3, dy: 0.25 } : { dx: -0.2, dy: 1 };
         for (let t = 1; t <= n; t += 1) {
           const at = V.scale(e, t);
           this.segment(V.add(at, V.scale(across, -0.13)), V.add(at, V.scale(across, 0.13)), { cls: "demo-axis-3d", width: 1.2 });
-          if (n <= 4 || t % 2 === 0) this.text(at, String(t), { cls: "demo-tick", dx: -0.2, dy: 1, size: 0.55 });
+          if (n <= 4 || t % 2 === 0) this.text(at, String(t), { cls: "demo-tick", ...place, size: 0.55 });
         }
         if (this.names[i]) this.text(V.scale(e, R * 1.04), this.names[i], { cls: "demo-axis-name", dx: 0.2, dy: -0.25, size: 0.8 });
       });
@@ -845,24 +881,50 @@
     }
   }
 
-  // The buttons under a 3D picture: three fixed views and a slow turn.
-  function viewControls(camera) {
+  // The buttons under a 3D picture: three fixed views, a slow turn, and the
+  // switch to 2D. In 2D the turning buttons are hidden, since nothing turns;
+  // onMode lets the demo redraw its question in R² and say so in the status.
+  function viewControls(camera, onMode = () => {}) {
     const spin = button("סיבוב איטי", () => camera.toggleSpin(), "is-quiet");
     spin.setAttribute("aria-pressed", "false");
     camera.onSpin = (on) => {
       spin.setAttribute("aria-pressed", String(on));
       spin.textContent = on ? "עצירה" : "סיבוב איטי";
     };
-    return h(
-      "div",
-      { class: "demo-view" },
-      h("span", { class: "demo-view-hint", text: "גררו את התרשים כדי לסובב אותו." }),
+    const hint = h("span", { class: "demo-view-hint" });
+    const turning = [
       button("מבט רגיל", () => camera.go(HOME_VIEW), "is-quiet"),
       button("מבט מלמעלה", () => camera.go(TOP_VIEW), "is-quiet"),
       button("מבט מהצד", () => camera.go(SIDE_VIEW), "is-quiet"),
       spin
-    );
+    ];
+    const mode = button("", () => {
+      camera.setFlat(!camera.flat);
+      sync();
+      onMode(camera.flat);
+    }, "demo-mode");
+    function sync() {
+      mode.textContent = camera.flat ? "תלת־ממד" : "דו־ממד";
+      mode.setAttribute("aria-pressed", String(camera.flat));
+      hint.textContent = camera.flat ? "תמונה שטוחה של המישור: x לרוחב, y לגובה." : "גררו את התרשים כדי לסובב אותו.";
+      for (const el of turning) el.style.display = camera.flat ? "none" : "";
+    }
+    sync();
+    return h("div", { class: "demo-view" }, hint, mode, ...turning);
   }
+
+  // Shows the controls of one mode and hides the other's; a hidden control keeps its value.
+  const showIf = (el, on) => {
+    el.style.display = on ? "" : "none";
+  };
+  // The line a·x + b·y = d on the floor z = 0, the 2D picture of one equation.
+  function line2(plot, [a, b], d, opts) {
+    const size = a * a + b * b;
+    if (size < 1e-12) return;
+    plot.line([(a * d) / size, (b * d) / size, 0], [-b, a, 0], opts);
+  }
+  // A vector as it is written in the current mode: two entries in R², three in R³.
+  const pairIn = (v, flat) => pair(flat ? v.slice(0, 2) : v);
 
   // Coefficient controls and exact solving shared by the linear algebra demos.
   const half = (x) => window.Linalg.fraction(Math.round(x * 2), 2);
@@ -1024,7 +1086,8 @@
     fig.replaceChildren();
     fig.setAttribute("role", "group");
     fig.setAttribute("aria-labelledby", titleId);
-    const head = h("figcaption", { class: "demo-head" }, h("span", { class: "demo-kicker", text: kicker }), h("span", { class: "demo-title", id: titleId, html: title }));
+    const titleNode = h("span", { class: "demo-title", id: titleId, html: title });
+    const head = h("figcaption", { class: "demo-head" }, h("span", { class: "demo-kicker", text: kicker }), titleNode);
     const plotHost = h("div", { class: "demo-plot" });
     const controls = h("div", { class: "demo-controls" });
     const buttons = h("div", { class: "demo-buttons" });
@@ -1039,6 +1102,10 @@
       status,
       say(html) {
         status.innerHTML = html;
+      },
+      // A demo whose 2D mode asks a different question renames itself.
+      title(html) {
+        titleNode.innerHTML = html;
       }
     };
   }
@@ -2138,16 +2205,23 @@
     return { render: draw };
   };
 
-  // Chapter 1: three equations in three unknowns, seen as three planes.
+  // Chapter 1: three equations in three unknowns, seen as three planes. In 2D
+  // the same question one dimension down: two equations in x, y, two lines.
   DEMOS["solution-count"] = (fig) => {
     const { toFractions, classify } = window.Linalg;
     const names = (column) => "xyz"[column];
-    const ui = frame(fig, "שלושה מישורים, שלוש אפשרויות");
+    const TITLES = ["שלושה מישורים, שלוש אפשרויות", "שני ישרים במישור, שלוש אפשרויות"];
+    const ui = frame(fig, TITLES[0]);
     const plot = new Plot3D(ui.plotHost, { range: 4 });
-    ui.plotHost.append(viewControls(plot.camera));
+    const flat = () => plot.camera.flat;
+    ui.plotHost.append(viewControls(plot.camera, () => switchMode()));
     const BLUE = { n: [1, 1, 1], d: 3 };
     const PURPLE = { n: [1, -1, 1], d: 1 };
-    const state = { a: 1, b: 0, c: -1, d: 0 };
+    // In 2D the blue line is x + y = 3 and the red one is ax + by = d.
+    const BLUE2 = { n: [1, 1], d: 3 };
+    // Each mode keeps its own coefficients, so switching back finds them as they were.
+    const states = [{ a: 1, b: 0, c: -1, d: 0 }, { a: 1, b: -1, c: 0, d: 1 }];
+    let state = states[0];
     const sliders = {};
     for (const [key, label, min, max] of [["a", "מקדם \\(a\\)", -3, 3], ["b", "מקדם \\(b\\)", -3, 3], ["c", "מקדם \\(c\\)", -3, 3], ["d", "מקדם חופשי \\(d\\)", -4, 4]]) {
       sliders[key] = slider({ label, min, max, step: 0.5, value: state[key], onInput: (v) => { state[key] = v; update(); } });
@@ -2158,21 +2232,58 @@
       for (const key of ["a", "b", "c", "d"]) sliders[key].set(state[key]);
       update();
     };
-    ui.buttons.append(
+    const presets3 = [
       button("נקודה אחת", () => setTo(1, 0, -1, 0), "is-quiet"),
       button("ישר שלם", () => setTo(2, 0, 2, 4), "is-quiet"),
       button("מקביל לכחול", () => setTo(1, 1, 1, -1), "is-quiet"),
       button("אוהל", () => setTo(2, 0, 2, 0), "is-quiet")
-    );
+    ];
+    const presets2 = [
+      button("נקודה אחת", () => setTo(1, -1, 0, 1), "is-quiet"),
+      button("ישרים מקבילים", () => setTo(1, 1, 0, -1), "is-quiet"),
+      button("ישרים מתלכדים", () => setTo(-1, -1, 0, -3), "is-quiet")
+    ];
+    ui.buttons.append(...presets3, ...presets2);
     const reduced = h("div", { class: "demo-rows" });
     ui.panel.prepend(reduced);
 
     const red = () => ({ n: [state.a, state.b, state.c], d: state.d });
-    const augmented = () => toFractions([[1, 1, 1, 3], [1, -1, 1, 1], [half(state.a), half(state.b), half(state.c), half(state.d)]]);
+    const augmented = () =>
+      flat()
+        ? toFractions([[1, 1, 3], [half(state.a), half(state.b), half(state.d)]])
+        : toFractions([[1, 1, 1, 3], [1, -1, 1, 1], [half(state.a), half(state.b), half(state.c), half(state.d)]]);
+
+    function syncControls() {
+      showIf(sliders.c.el, !flat());
+      presets3.forEach((el) => showIf(el, !flat()));
+      presets2.forEach((el) => showIf(el, flat()));
+      ui.title(TITLES[flat() ? 1 : 0]);
+    }
+
+    function switchMode() {
+      state = states[flat() ? 1 : 0];
+      for (const key of ["a", "b", "c", "d"]) sliders[key].set(state[key]);
+      syncControls();
+      update();
+    }
+
+    // The green line goes first, so the blue and the dashed red stay visible on it.
+    function drawLines() {
+      const result = classify(augmented());
+      if (result.kind === "infinite") line2(plot, BLUE2.n, BLUE2.d, { cls: "pc-green", width: 5 });
+      line2(plot, BLUE2.n, BLUE2.d, { cls: "pc-blue", width: 2.2 });
+      line2(plot, [state.a, state.b], state.d, { cls: "pc-red", width: 2.2, dash: "7 5" });
+      if (result.kind === "one") endPoint(plot, [...result.solution.map(value), 0]);
+    }
 
     function draw() {
       plot.begin();
       plot.room();
+      if (flat()) {
+        drawLines();
+        plot.end();
+        return;
+      }
       const planes = [[BLUE, "pc-blue"], [PURPLE, "pc-purple"], [red(), "pc-red"]];
       for (const [p, cls] of planes) plot.plane(p.n, p.d, cls);
       for (let i = 0; i < 3; i += 1) {
@@ -2191,11 +2302,21 @@
     }
     plot.draw = draw;
 
+    function sayLines(result) {
+      const empty = Math.abs(state.a) + Math.abs(state.b) < 1e-9;
+      if (result.kind === "one") ui.say(`שני הישרים במישור נחתכים בנקודה אחת, ולכן יש <strong>פתרון יחיד</strong>: ${m(`(x, y) = (${result.solution.map(minusSign).join(", ")})`)}.`);
+      else if (result.kind === "none" && empty) ui.say(`המשוואה השנייה היא ${m(`0 = ${fmt(state.d)}`)}, ושום נקודה במישור לא מקיימת אותה. לכן <strong>אין פתרון</strong>.`);
+      else if (result.kind === "none") ui.say(`הישר האדום מקביל לכחול ולא נוגע בו, ולכן אין נקודה על שניהם. בדירוג מתקבלת שורה ${m("0 = a")} עם ${m("a ≠ 0")}, ולכן <strong>אין פתרון</strong>.`);
+      else if (empty) ui.say(`המשוואה השנייה היא ${m("0 = 0")} ואינה מגבילה דבר. כל נקודה על הישר הכחול, הישר הירוק, היא פתרון: <strong>אינסוף פתרונות</strong>.`);
+      else ui.say(`הישר האדום מתלכד עם הכחול: המשוואה השנייה היא כפולה של הראשונה. כל נקודה על הישר הירוק היא פתרון, ולכן יש <strong>אינסוף פתרונות</strong>. ${m(result.free.map(names).join(", "))} משתנה חופשי.`);
+    }
+
     function update() {
       draw();
       const start = augmented();
       const result = classify(start);
       reduced.replaceChildren(matrixNode(result.result), h("div", { class: "demo-system", dir: "ltr" }, start.map((row) => h("span", { text: equationOf(row, names) }))));
+      if (flat()) return sayLines(result);
       const { n } = red();
       const empty = tiny(n);
       const parallel = !empty && [BLUE, PURPLE].some((p) => tiny(V.cross(p.n, n)));
@@ -2208,17 +2329,21 @@
       else ui.say(`המישור האדום עובר דרך הישר שבו נפגשים הכחול והסגול, ולכן כל נקודה על הישר הירוק היא פתרון: <strong>אינסוף פתרונות</strong>. ${m(result.free.map(names).join(", "))} משתנה חופשי.`);
     }
 
+    syncControls();
     update();
     return { render() { plot.layout(); draw(); } };
   };
 
-  // 2.2: adding arrows in space, head to tail.
+  // 2.2: adding arrows in space, head to tail. In 2D the arrows lie in the plane.
   DEMOS["vector-sum"] = (fig) => {
-    const ui = frame(fig, "מחברים חיצים במרחב: ראש לעקב");
+    const TITLES = ["מחברים חיצים במרחב: ראש לעקב", "מחברים חיצים במישור: ראש לעקב"];
+    const ui = frame(fig, TITLES[0]);
     const plot = new Plot3D(ui.plotHost, { range: 4.5 });
-    ui.plotHost.append(viewControls(plot.camera));
-    const a = [2, 0, 1];
-    const b = [0, 2, 1];
+    const flat = () => plot.camera.flat;
+    ui.plotHost.append(viewControls(plot.camera, () => { ui.title(TITLES[flat() ? 1 : 0]); update(); }));
+    // The 2D pair lies on the floor z = 0, so one drawing serves both modes.
+    const PAIRS = [{ a: [2, 0, 1], b: [0, 2, 1] }, { a: [2, 1, 0], b: [0, 2, 0] }];
+    const vectors = () => PAIRS[flat() ? 1 : 0];
     let t = 1;
     const control = slider({ label: "כמה פעמים לקחת את a?", min: -2, max: 2, step: 0.25, value: t, onInput(v) { t = v; update(); } });
     ui.controls.append(control.el);
@@ -2226,6 +2351,7 @@
     function draw() {
       plot.begin();
       plot.room();
+      const { a, b } = vectors();
       const ta = V.scale(a, t);
       const sum = V.add(ta, b);
       plot.polygon([ORIGIN, ta, sum, b], "pc-green", "is-faint");
@@ -2240,20 +2366,29 @@
     plot.draw = draw;
     function update() {
       draw();
-      ui.say(`${m("a = (2, 0, 1), b = (0, 2, 1)")}. ${m(`${fmt(t)}a + b = ${pair(V.add(V.scale(a, t), b))}`)}. החץ הכחול הוא ${m("ta")}; האדום מוסיף את ${m("b")} מראשו; הירוק מוביל ישר לתוצאה. הקווים המנוקדים יורדים לרצפה ${m("z = 0")}, כדי שתראו את הגובה של כל קצה. ${t === 0 ? "כשכופלים באפס, החץ הכחול מתכווץ לנקודה והתוצאה היא b." : t < 0 ? "המקדם שלילי, לכן כיוון a התהפך." : "שנו את המקדם וראו איך אורך החץ משתנה."}`);
+      const { a, b } = vectors();
+      const tail = t === 0 ? "כשכופלים באפס, החץ הכחול מתכווץ לנקודה והתוצאה היא b." : t < 0 ? "המקדם שלילי, לכן כיוון a התהפך." : "שנו את המקדם וראו איך אורך החץ משתנה.";
+      const result = m(`${fmt(t)}a + b = ${pairIn(V.add(V.scale(a, t), b), flat())}`);
+      if (flat()) ui.say(`${m(`a = ${pairIn(a, true)}, b = ${pairIn(b, true)}`)}, שני חיצים במישור ${m("ℝ²")}. ${result}. החץ הכחול הוא ${m("ta")}; האדום מוסיף את ${m("b")} מראשו; הירוק מוביל ישר לתוצאה, וגם הוא נשאר במישור. ${tail}`);
+      else ui.say(`${m("a = (2, 0, 1), b = (0, 2, 1)")}. ${result}. החץ הכחול הוא ${m("ta")}; האדום מוסיף את ${m("b")} מראשו; הירוק מוביל ישר לתוצאה. הקווים המנוקדים יורדים לרצפה ${m("z = 0")}, כדי שתראו את הגובה של כל קצה. ${tail}`);
     }
     update();
     return { render() { plot.layout(); draw(); } };
   };
 
-  // 2.3: a point walking on a line, and with a second direction on a plane.
+  // 2.3: a point walking on a line, and with a second direction on a plane. In
+  // 2D the line lies in R², and two directions fill all of it.
   DEMOS["parametric-line"] = (fig) => {
     const ui = frame(fig, "נקודה מטיילת על ישר, ואחר כך על מישור");
     const plot = new Plot3D(ui.plotHost, { range: 4 });
-    ui.plotHost.append(viewControls(plot.camera));
-    const base = [0, 1, 1];
+    const flat = () => plot.camera.flat;
+    ui.plotHost.append(viewControls(plot.camera, () => switchMode()));
+    const BASES = [[0, 1, 1], [0, 1, 0]];
     const second = [1, 0, 0];
-    const state = { t: 1, s: 1, ax: 1, ay: 2, az: 1, plane: false };
+    const base = () => BASES[flat() ? 1 : 0];
+    // Each mode keeps its own state, so switching back finds it as it was.
+    const states = [{ t: 1, s: 1, ax: 1, ay: 2, az: 1, plane: false }, { t: 1, s: 1, ax: 1, ay: 2, az: 0, plane: false }];
+    let state = states[0];
     const controls = {};
     for (const [key, label, min, max] of [["t", "הפרמטר t", -3, 3], ["s", "הפרמטר s של הכיוון c", -3, 3], ["ax", "רכיב x של הכיוון a", -2, 2], ["ay", "רכיב y של הכיוון a", -2, 2], ["az", "רכיב z של הכיוון a", -2, 2]]) {
       controls[key] = slider({ label, min, max, step: 0.5, value: state[key], onInput(v) { state[key] = v; update(); } });
@@ -2262,36 +2397,45 @@
     const mode = button("", () => { state.plane = !state.plane; syncMode(); update(); });
     function syncMode() {
       controls.s.el.style.display = state.plane ? "" : "none";
-      mode.textContent = state.plane ? "חזרה לישר" : "הוסיפו כיוון שני: מישור";
+      showIf(controls.az.el, !flat());
+      mode.textContent = state.plane ? "חזרה לישר" : flat() ? "הוסיפו כיוון שני" : "הוסיפו כיוון שני: מישור";
       mode.setAttribute("aria-pressed", String(state.plane));
     }
+    function switchMode() {
+      state = states[flat() ? 1 : 0];
+      for (const key of Object.keys(controls)) controls[key].set(state[key]);
+      syncMode();
+      update();
+    }
     function preset(ax, ay, az) {
-      Object.assign(state, { ax, ay, az });
+      Object.assign(state, { ax, ay, az: flat() ? 0 : az });
       for (const key of ["ax", "ay", "az"]) controls[key].set(state[key]);
       update();
     }
     ui.buttons.append(
       mode,
-      button("ישר אנכי", () => preset(0, 0, 1), "is-quiet"),
+      // In the flat picture "up" is the y direction, the vertical of the page.
+      button("ישר אנכי", () => (flat() ? preset(0, 1, 0) : preset(0, 0, 1)), "is-quiet"),
       button("כיוון אפס", () => preset(0, 0, 0), "is-quiet"),
       button("a על הישר של c", () => { state.plane = true; syncMode(); preset(2, 0, 0); }, "is-quiet"),
       button("איפוס", () => { state.t = 1; state.s = 1; controls.t.set(1); controls.s.set(1); preset(1, 2, 1); }, "is-quiet")
     );
-    const direction = () => [state.ax, state.ay, state.az];
+    const direction = () => [state.ax, state.ay, flat() ? 0 : state.az];
     function draw() {
       plot.begin();
       plot.room();
+      const b = base();
       const a = direction();
-      const at = V.add(base, V.scale(a, state.t));
+      const at = V.add(b, V.scale(a, state.t));
       const p = state.plane ? V.add(at, V.scale(second, state.s)) : at;
-      if (state.plane) plot.span(a, second, "pc-blue", base);
-      plot.line(base, a, { cls: "pc-gray", dash: "5 5", width: 1.8 });
-      if (state.plane) plot.line(base, second, { cls: "pc-gray", dash: "2 5", width: 1.4 });
-      plot.arrow(base, at, { cls: "pc-blue" });
+      if (state.plane) plot.span(a, second, "pc-blue", b);
+      plot.line(b, a, { cls: "pc-gray", dash: "5 5", width: 1.8 });
+      if (state.plane) plot.line(b, second, { cls: "pc-gray", dash: "2 5", width: 1.4 });
+      plot.arrow(b, at, { cls: "pc-blue" });
       if (state.plane) plot.arrow(at, p, { cls: "pc-purple" });
-      plot.drop(base, "pc-red");
-      plot.dot(base, { cls: "pc-red" });
-      plot.text(base, "b", { dx: -0.9, dy: 0.2 });
+      plot.drop(b, "pc-red");
+      plot.dot(b, { cls: "pc-red" });
+      plot.text(b, "b", { dx: -0.9, dy: 0.2 });
       endPoint(plot, p);
       plot.text(p, state.plane ? "p(t, s)" : "p(t)", { cls: "pc-green-text" });
       plot.end();
@@ -2299,17 +2443,23 @@
     plot.draw = draw;
     function update() {
       draw();
+      const b = base();
       const a = direction();
-      const at = V.add(base, V.scale(a, state.t));
-      const start = `${m(`b = (0, 1, 1), a = ${pair(a)}`)}`;
+      const at = V.add(b, V.scale(a, state.t));
+      const show = (v) => pairIn(v, flat());
+      const start = `${m(`b = ${show(b)}, a = ${show(a)}`)}`;
       if (!state.plane) {
-        ui.say(`${start}. ${m(`p(t) = b + ta = ${pair(at)}`)}. ${tiny(a) ? "אין כיוון תנועה: לכל ערך של t נשארים ב-b. זו נקודה אחת, לא ישר." : "הקו המקווקו הוא הישר, והנקודה הירוקה היא הבחירה הנוכחית של t. המחוון מציג רק חלק מהערכים, אבל הישר כולל את כל t הממשיים. סובבו את התרשים: מכל כיוון זה נשאר ישר."}`);
+        const walk = flat()
+          ? "הקו המקווקו הוא ישר במישור, והנקודה הירוקה היא הבחירה הנוכחית של t. המחוון מציג רק חלק מהערכים, אבל הישר כולל את כל t הממשיים."
+          : "הקו המקווקו הוא הישר, והנקודה הירוקה היא הבחירה הנוכחית של t. המחוון מציג רק חלק מהערכים, אבל הישר כולל את כל t הממשיים. סובבו את התרשים: מכל כיוון זה נשאר ישר.";
+        ui.say(`${start}. ${m(`p(t) = b + ta = ${show(at)}`)}. ${tiny(a) ? "אין כיוון תנועה: לכל ערך של t נשארים ב-b. זו נקודה אחת, לא ישר." : walk}`);
         return;
       }
       const p = V.add(at, V.scale(second, state.s));
-      const where = `${start}, ${m("c = (1, 0, 0)")}. ${m(`p(t, s) = b + ta + sc = ${pair(p)}`)}.`;
+      const where = `${start}, ${m(`c = ${show(second)}`)}. ${m(`p(t, s) = b + ta + sc = ${show(p)}`)}.`;
       if (tiny(a)) ui.say(`${where} ${m("a")} הוא וקטור האפס, אז נשאר רק הכיוון ${m("c")}: מתקבל ישר, לא מישור.`);
       else if (tiny(V.cross(a, second))) ui.say(`${where} ${m("a")} ו-${m("c")} על אותו ישר, ולכן כל הנקודות נשארות על ישר אחד. מישור צריך שתי הוראות תנועה שאינן על אותו ישר.`);
+      else if (flat()) ui.say(`${where} שני כיוונים שאינם על אותו ישר פורשים את <strong>כל המישור</strong> ${m("ℝ²")}, ולכן הכול מוצלל: לכל נקודה במישור יש ${m("t")} ו-${m("s")} שמגיעים אליה. במרחב אותם שני כיוונים פורשים רק מישור אחד מתוכו.`);
       else ui.say(`${where} שני כיוונים שאינם על אותו ישר פורשים מישור, המישור המוצלל. כל בחירה של ${m("t")} ושל ${m("s")} נותנת נקודה עליו. נסו "מבט מהצד" וסובבו עד שהמישור נראה כקו: כך רואים שהוא שטוח.`);
     }
     syncMode();
@@ -2317,23 +2467,42 @@
     return { render() { plot.layout(); draw(); } };
   };
 
-  // 2.5: a linear combination as a recipe that has to hit a target.
+  // 2.5: a linear combination as a recipe that has to hit a target. In 2D two
+  // arrows that are not on one line reach every target in the plane.
   DEMOS["reach-target"] = (fig) => {
     const { classify } = window.Linalg;
-    const ui = frame(fig, "להגיע ליעד במרחב: מוצאים את המתכון");
+    const TITLES = ["להגיע ליעד במרחב: מוצאים את המתכון", "להגיע ליעד במישור: מוצאים את המתכון"];
+    const ui = frame(fig, TITLES[0]);
     const plot = new Plot3D(ui.plotHost, { range: 4 });
-    ui.plotHost.append(viewControls(plot.camera));
+    const flat = () => plot.camera.flat;
+    ui.plotHost.append(viewControls(plot.camera, () => switchMode()));
     const FREE = { a: [2, 1, 0], b: [-1, 1, 1] };
     const LINE = { a: [1, 1, 1], b: [2, 2, 2] };
+    const FREE2 = { a: [2, 1, 0], b: [-1, 1, 0] };
+    const LINE2 = { a: [1, 1, 0], b: [2, 2, 0] };
     const CASES = [
-      { label: "יעד ראשון", ...FREE, target: [0, 3, 2] },
-      { label: "יעד שני", ...FREE, target: [4, -1, -2] },
-      { label: "יעד מחוץ למישור", ...FREE, target: [0, 0, 3] },
-      { label: "על ישר אחד: יעד מחוץ לישר", ...LINE, target: [1, 0, 0] },
-      { label: "על ישר אחד: יעד על הישר", ...LINE, target: [3, 3, 3] }
+      [
+        { label: "יעד ראשון", ...FREE, target: [0, 3, 2] },
+        { label: "יעד שני", ...FREE, target: [4, -1, -2] },
+        { label: "יעד מחוץ למישור", ...FREE, target: [0, 0, 3] },
+        { label: "על ישר אחד: יעד מחוץ לישר", ...LINE, target: [1, 0, 0] },
+        { label: "על ישר אחד: יעד על הישר", ...LINE, target: [3, 3, 3] }
+      ],
+      // No target is out of reach of two independent arrows in R², so the third is just far.
+      [
+        { label: "יעד ראשון", ...FREE2, target: [0, 3, 0] },
+        { label: "יעד שני", ...FREE2, target: [4, -1, 0] },
+        { label: "יעד שלישי", ...FREE2, target: [-3, 3, 0] },
+        { label: "על ישר אחד: יעד מחוץ לישר", ...LINE2, target: [1, 0, 0] },
+        { label: "על ישר אחד: יעד על הישר", ...LINE2, target: [3, 3, 0] }
+      ]
     ];
-    const state = { index: 0, s: 1, t: 0 };
-    const current = () => CASES[state.index];
+    const states = [{ index: 0, s: 1, t: 0 }, { index: 0, s: 1, t: 0 }];
+    let state = states[0];
+    const current = () => CASES[flat() ? 1 : 0][state.index];
+    // The system has one row per coordinate: two in R², three in R³.
+    const cut = (v) => (flat() ? v.slice(0, 2) : v);
+    const systemOf = ({ a, b, target }) => columnsSystem([cut(a), cut(b)], cut(target));
     const controls = {};
     for (const [key, label] of [["s", "המקדם s של a"], ["t", "המקדם t של b"]]) {
       controls[key] = slider({ label, min: -3, max: 3, step: 0.5, value: state[key], onInput(v) { state[key] = v; update(); } });
@@ -2346,11 +2515,11 @@
       controls.t.set(t);
       update();
     };
+    const caseButtons = CASES.map((list) => list.map((item, index) => button(item.label, () => { state.index = index; setCoefficients(1, 0); }, "is-quiet")));
     ui.buttons.append(
-      ...CASES.map((item, index) => button(item.label, () => { state.index = index; setCoefficients(1, 0); }, "is-quiet")),
+      ...caseButtons.flat(),
       button("הראו לי מתכון", () => {
-        const { a, b, target } = current();
-        const result = classify(columnsSystem([a, b], target));
+        const result = classify(systemOf(current()));
         if (result.kind === "one") setCoefficients(value(result.solution[0]), value(result.solution[1]));
         else if (result.kind === "infinite") setCoefficients(3, 0);
         else {
@@ -2362,13 +2531,27 @@
     const rows = h("div", { class: "demo-rows" });
     ui.panel.prepend(rows);
 
+    function syncControls() {
+      caseButtons.forEach((list, i) => list.forEach((el) => showIf(el, (i === 1) === flat())));
+      ui.title(TITLES[flat() ? 1 : 0]);
+    }
+
+    function switchMode() {
+      state = states[flat() ? 1 : 0];
+      controls.s.set(state.s);
+      controls.t.set(state.t);
+      syncControls();
+      update();
+    }
+
     function draw() {
       plot.begin();
       plot.room();
       const { a, b, target } = current();
       const n = V.cross(a, b);
       if (tiny(n)) plot.line(ORIGIN, a, { cls: "pc-gray", dash: "5 5", width: 1.8 });
-      else {
+      // In 2D the span is the whole plane, so there is nothing to shade.
+      else if (!flat()) {
         plot.span(a, b, "pc-gray");
         // How far the target is from the plane: the plumb line to its nearest point there.
         const k = V.dot(target, n) / V.dot(n, n);
@@ -2389,31 +2572,46 @@
     function update() {
       draw();
       const { a, b, target } = current();
-      const system = columnsSystem([a, b], target);
+      const system = systemOf(current());
       const result = classify(system);
       rows.replaceChildren(matrixNode(system), h("div", { class: "demo-system", dir: "ltr" }, system.map((row) => h("span", { text: equationOf(row, (column) => "st"[column]) }))));
       const end = combine([state.s, state.t], [a, b]);
-      const flat = tiny(V.cross(a, b));
-      const where = `${m(`${term(state.s, "a")} + ${term(state.t, "b")} = ${pair(end)}`)}. היעד הוא ${m(pair(target))}.`;
+      const onLine = tiny(V.cross(a, b));
+      const where = `${m(`${term(state.s, "a")} + ${term(state.t, "b")} = ${pairIn(end, flat())}`)}. היעד הוא ${m(pairIn(target, flat()))}.`;
       if (same(end, target) && result.kind === "one") ui.say(`${where} <strong>הגעתם.</strong> המקדמים ${m(`s = ${fmt(state.s)}, t = ${fmt(state.t)}`)} הם הפתרון של המערכת, וזה המתכון היחיד.`);
       else if (same(end, target)) ui.say(`${where} <strong>הגעתם, אבל זה לא המתכון היחיד.</strong> מכיוון ש-${m("b = 2a")}, גם ${m(`s = ${fmt(state.s + 2)}, t = ${fmt(state.t - 1)}`)} מגיע לאותו מקום. למערכת יש אינסוף פתרונות.`);
-      else if (result.kind === "none" && flat) ui.say(`${where} כל צירוף נשאר על הישר המקווקו, והיעד לא עליו. אי אפשר להגיע אליו, ובדירוג המערכת מתקבלת שורת סתירה.`);
+      else if (result.kind === "none" && onLine) ui.say(`${where} כל צירוף נשאר על הישר המקווקו, והיעד לא עליו. אי אפשר להגיע אליו, ובדירוג המערכת מתקבלת שורת סתירה.`);
       else if (result.kind === "none") ui.say(`${where} החצים ${m("a")} ו-${m("b")} פורשים מישור, המישור המוצלל, וכל צירוף שלהם נשאר עליו. היעד מחוץ למישור, והקו הכתום מראה כמה. לכן אין מתכון, ובדירוג המערכת מתקבלת שורת סתירה. במרחב שני וקטורים לא מספיקים כדי להגיע לכל מקום.`);
+      else if (flat() && onLine) ui.say(`${where} כל צירוף נשאר על הישר המקווקו, והפעם היעד עליו. הזיזו את המקדמים עד שהנקודה הירוקה תיכנס לעיגול.`);
+      else if (flat()) ui.say(`${where} הזיזו את המקדמים עד שהנקודה הירוקה תיכנס לעיגול. ${m("a")} ו-${m("b")} אינם על ישר אחד, ולכן הם פורשים את כל ${m("ℝ²")}: לכל יעד במישור יש מתכון, והוא יחיד. כל עמודה במטריצה היא וקטור, והעמודה האחרונה היא היעד.`);
       else ui.say(`${where} הזיזו את המקדמים עד שהנקודה הירוקה תיכנס לעיגול. סובבו את התרשים כדי לבדוק: מכיוון אחד הנקודה יכולה להיראות בתוך העיגול גם כשהיא לפניו או מאחוריו. כל עמודה במטריצה היא וקטור, והעמודה האחרונה היא היעד.`);
     }
 
+    syncControls();
     update();
     return { render() { plot.layout(); draw(); } };
   };
 
   // 2.5 and chapter 1: one system read by rows (planes) and by columns (arrows).
+  // In 2D it is a 2×2 system: rows are two lines, columns are two arrows.
   DEMOS["rows-columns"] = (fig) => {
     const { classify } = window.Linalg;
     const ui = frame(fig, "אותה מערכת: שורות או עמודות");
     const CASES = [
-      { label: "פתרון יחיד", columns: [[1, 0, 1], [1, 1, 0], [0, 1, 1]], target: [3, 3, 2], sample: [1, 2, 1] },
-      { label: "אין פתרון", columns: [[1, 0, 1], [0, 1, 1], [1, 1, 2]], target: [1, 1, 0], sample: null },
-      { label: "אינסוף פתרונות", columns: [[1, 0, 1], [0, 1, 1], [1, 1, 2]], target: [1, 2, 3], sample: [1, 2, 0] }
+      [
+        { label: "פתרון יחיד", columns: [[1, 0, 1], [1, 1, 0], [0, 1, 1]], target: [3, 3, 2], sample: [1, 2, 1] },
+        { label: "אין פתרון", columns: [[1, 0, 1], [0, 1, 1], [1, 1, 2]], target: [1, 1, 0], sample: null },
+        { label: "אינסוף פתרונות", columns: [[1, 0, 1], [0, 1, 1], [1, 1, 2]], target: [1, 2, 3], sample: [1, 2, 0] }
+      ],
+      [
+        { label: "פתרון יחיד", columns: [[1, 1, 0], [1, -1, 0]], target: [3, 1, 0], sample: [2, 1, 0] },
+        { label: "אין פתרון", columns: [[1, 2, 0], [2, 4, 0]], target: [1, 0, 0], sample: null },
+        { label: "אינסוף פתרונות", columns: [[1, 2, 0], [2, 4, 0]], target: [1, 2, 0], sample: [1, 0, 0] }
+      ]
+    ];
+    const CAPTIONS = [
+      ["שורות: כל משוואה היא מישור", "עמודות: כל נעלם הוא מקדם של חץ"],
+      ["שורות: כל משוואה היא ישר במישור", "עמודות: כל נעלם הוא מקדם של חץ במישור"]
     ];
     const CLASSES = ["pc-blue", "pc-red", "pc-purple"];
     const pairHost = h("div", { class: "demo-pair" });
@@ -2421,25 +2619,30 @@
     const columnHost = h("div");
     pairHost.append(rowHost, columnHost);
     ui.plotHost.append(pairHost);
+    // One camera drives both pictures, so one switch turns both flat.
     const camera = new Camera3D();
-    const rowPlot = new Plot3D(rowHost, { range: 3.5, rows: 16, camera, caption: "שורות: כל משוואה היא מישור" });
-    const columnPlot = new Plot3D(columnHost, { range: 3.5, rows: 16, camera, caption: "עמודות: כל נעלם הוא מקדם של חץ" });
-    ui.plotHost.append(viewControls(camera));
-    const state = { index: 0, x: 1, y: 1, z: 1 };
-    const current = () => CASES[state.index];
-    const guess = () => [state.x, state.y, state.z];
+    const flat = () => camera.flat;
+    const rowPlot = new Plot3D(rowHost, { range: 3.5, rows: 16, camera, caption: CAPTIONS[0][0] });
+    const columnPlot = new Plot3D(columnHost, { range: 3.5, rows: 16, camera, caption: CAPTIONS[0][1] });
+    ui.plotHost.append(viewControls(camera, () => switchMode()));
+    const states = [{ index: 0, x: 1, y: 1, z: 1 }, { index: 0, x: 1, y: 1, z: 0 }];
+    let state = states[0];
+    const current = () => CASES[flat() ? 1 : 0][state.index];
+    const guess = () => [state.x, state.y, flat() ? 0 : state.z];
+    const cut = (v) => (flat() ? v.slice(0, 2) : v);
     const controls = {};
     for (const key of ["x", "y", "z"]) {
       controls[key] = slider({ label: `הניחוש ל-${key}`, min: -3, max: 4, step: 0.5, value: state[key], onInput(v) { state[key] = v; update(); } });
       ui.controls.append(controls[key].el);
     }
     const setGuess = (x, y, z) => {
-      Object.assign(state, { x, y, z });
+      Object.assign(state, { x, y, z: flat() ? 0 : z });
       for (const key of ["x", "y", "z"]) controls[key].set(state[key]);
       update();
     };
+    const caseButtons = CASES.map((list) => list.map((item, index) => button(item.label, () => { state.index = index; setGuess(1, 1, 1); }, "is-quiet")));
     ui.buttons.append(
-      ...CASES.map((item, index) => button(item.label, () => { state.index = index; setGuess(1, 1, 1); }, "is-quiet")),
+      ...caseButtons.flat(),
       button("הראו פתרון", () => {
         const { sample } = current();
         if (sample) setGuess(...sample);
@@ -2448,11 +2651,27 @@
     const rows = h("div", { class: "demo-rows" });
     ui.panel.prepend(rows);
 
+    function syncControls() {
+      caseButtons.forEach((list, i) => list.forEach((el) => showIf(el, (i === 1) === flat())));
+      showIf(controls.z.el, !flat());
+      rowPlot.setCaption(CAPTIONS[flat() ? 1 : 0][0]);
+      columnPlot.setCaption(CAPTIONS[flat() ? 1 : 0][1]);
+    }
+
+    function switchMode() {
+      state = states[flat() ? 1 : 0];
+      for (const key of ["x", "y", "z"]) controls[key].set(state[key]);
+      syncControls();
+      update();
+    }
+
     function drawRows() {
       const { columns, target } = current();
       rowPlot.begin();
       rowPlot.room();
-      CLASSES.forEach((cls, i) => rowPlot.plane(columns.map((c) => c[i]), target[i], cls));
+      // Row i is the equation columns[0][i]·x + columns[1][i]·y (+ columns[2][i]·z) = target[i].
+      if (flat()) [0, 1].forEach((i) => line2(rowPlot, [columns[0][i], columns[1][i]], target[i], { cls: CLASSES[i], width: 2.2, dash: i ? "7 5" : null }));
+      else CLASSES.forEach((cls, i) => rowPlot.plane(columns.map((c) => c[i]), target[i], cls));
       endPoint(rowPlot, guess());
       rowPlot.end();
     }
@@ -2461,7 +2680,10 @@
       const { columns, target } = current();
       columnPlot.begin();
       columnPlot.room();
-      if (Math.abs(V.dot(columns[0], V.cross(columns[1], columns[2]))) < 1e-9) columnPlot.span(columns[0], columns[1], "pc-gray");
+      if (flat()) {
+        // Two arrows on one line reach only that line; it is drawn dashed.
+        if (tiny(V.cross(columns[0], columns[1]))) columnPlot.line(ORIGIN, columns[tiny(columns[0]) ? 1 : 0], { cls: "pc-gray", dash: "5 5", width: 1.6 });
+      } else if (Math.abs(V.dot(columns[0], V.cross(columns[1], columns[2]))) < 1e-9) columnPlot.span(columns[0], columns[1], "pc-gray");
       columns.forEach((c, i) => columnPlot.arrow(ORIGIN, c, { cls: CLASSES[i], label: `c${sub(i + 1)}` }));
       target3(columnPlot, target, "b");
       endPoint(columnPlot, walk3(columnPlot, guess(), columns, CLASSES));
@@ -2474,10 +2696,18 @@
       drawRows();
       drawColumns();
       const { columns, target } = current();
-      const system = columnsSystem(columns, target);
+      const system = columnsSystem(columns.map(cut), cut(target));
       const result = classify(system);
       rows.replaceChildren(matrixNode(system), h("div", { class: "demo-system", dir: "ltr" }, system.map((row) => h("span", { text: equationOf(row, (column) => "xyz"[column]) }))));
       const end = combine(guess(), columns);
+      if (flat()) {
+        const shown = m(`(x, y) = ${pairIn(guess(), true)}`);
+        const reach = m(`${term(state.x, "c₁")} + ${term(state.y, "c₂")} = ${pairIn(end, true)}`);
+        if (same(end, target)) ui.say(`${shown} <strong>פותר את המערכת.</strong> בתמונת השורות הנקודה נמצאת על שני הישרים, ובתמונת העמודות שני החיצים מגיעים בדיוק ל-${m("b")}. ${result.kind === "infinite" ? "כאן שני הישרים מתלכדים, ולכן יש עוד הרבה פתרונות." : "זו אותה עובדה בשתי תמונות."}`);
+        else if (result.kind === "none") ui.say(`${shown}. ${reach}. בתמונת השורות שני הישרים מקבילים ואינם נפגשים. בתמונת העמודות שני החיצים על ישר אחד, ו-${m("b")} מחוץ לו. בשתי התמונות <strong>אין פתרון</strong>.`);
+        else ui.say(`${shown}. ${reach}, ועדיין לא ${m(pairIn(target, true))}. שנו את הניחוש: בתמונת השורות הנקודה צריכה להיות על שני הישרים, ובתמונת העמודות החיצים צריכים להגיע ל-${m("b")}. שני התנאים מתקיימים יחד.`);
+        return;
+      }
       const shown = m(`(x, y, z) = ${pair(guess())}`);
       const reach = m(`${term(state.x, "c₁")} + ${term(state.y, "c₂")} + ${term(state.z, "c₃")} = ${pair(end)}`);
       if (same(end, target)) ui.say(`${shown} <strong>פותר את המערכת.</strong> בתמונת השורות הנקודה נמצאת על שלושת המישורים, ובתמונת העמודות החיצים מגיעים בדיוק ל-${m("b")}. ${result.kind === "infinite" ? "כאן שלושת המישורים נפגשים בישר שלם, ולכן יש עוד הרבה פתרונות." : "זו אותה עובדה בשתי תמונות."}`);
@@ -2485,6 +2715,7 @@
       else ui.say(`${shown}. ${reach}, ועדיין לא ${m(pair(target))}. שנו את הניחוש: בתמונת השורות הנקודה צריכה להיות על שלושת המישורים, ובתמונת העמודות החיצים צריכים להגיע ל-${m("b")}. שני התנאים מתקיימים יחד.`);
     }
 
+    syncControls();
     update();
     return {
       render() {
@@ -2497,22 +2728,33 @@
   };
 
   // 2.6: dependence as a walk that returns home with coefficients that are not all zero.
+  // In 2D: two arrows on one line, or any three arrows in R², find a way home.
   DEMOS["dependence"] = (fig) => {
     const { fraction } = window.Linalg;
     const ui = frame(fig, "לחזור הביתה: האם יש וקטור מיותר?");
     const plot = new Plot3D(ui.plotHost, { range: 4 });
-    ui.plotHost.append(viewControls(plot.camera));
+    const flat = () => plot.camera.flat;
+    ui.plotHost.append(viewControls(plot.camera, () => switchMode()));
     const CASES = [
-      { label: "שלושה שאינם במישור אחד", vectors: [[2, 1, 0], [-1, 1, 0], [0, 1, 2]], relation: null },
-      { label: "שלושה במישור אחד", vectors: [[2, 0, 1], [0, 2, 1], [1, 1, 1]], relation: [1, 1, -2] },
-      { label: "שניים על ישר אחד", vectors: [[1, 2, 1], [2, 4, 2]], relation: [2, -1] },
-      { label: "ארבעה ב-ℝ³", vectors: [[2, 0, 0], [0, 2, 0], [0, 0, 2], [1, 1, 1]], relation: [1, 1, 1, -2] },
-      { label: "עם וקטור האפס", vectors: [[0, 0, 0], [1, 1, 1]], relation: [1, 0] }
+      [
+        { label: "שלושה שאינם במישור אחד", vectors: [[2, 1, 0], [-1, 1, 0], [0, 1, 2]], relation: null },
+        { label: "שלושה במישור אחד", vectors: [[2, 0, 1], [0, 2, 1], [1, 1, 1]], relation: [1, 1, -2] },
+        { label: "שניים על ישר אחד", vectors: [[1, 2, 1], [2, 4, 2]], relation: [2, -1] },
+        { label: "ארבעה ב-ℝ³", vectors: [[2, 0, 0], [0, 2, 0], [0, 0, 2], [1, 1, 1]], relation: [1, 1, 1, -2] },
+        { label: "עם וקטור האפס", vectors: [[0, 0, 0], [1, 1, 1]], relation: [1, 0] }
+      ],
+      [
+        { label: "שניים שאינם על ישר אחד", vectors: [[2, 1, 0], [-1, 1, 0]], relation: null },
+        { label: "שניים על ישר אחד", vectors: [[1, 2, 0], [2, 4, 0]], relation: [2, -1] },
+        { label: "שלושה ב-ℝ²", vectors: [[2, 0, 0], [0, 2, 0], [1, 1, 0]], relation: [1, 1, -2] },
+        { label: "עם וקטור האפס", vectors: [[0, 0, 0], [1, 1, 0]], relation: [1, 0] }
+      ]
     ];
     const CLASSES = ["pc-blue", "pc-red", "pc-purple", "pc-gray"];
     const nameOf = (i) => `a${sub(i + 1)}`;
-    const state = { index: 0, coefficients: [1, 1, 1, 1] };
-    const current = () => CASES[state.index];
+    const states = [{ index: 0, coefficients: [1, 1, 1, 1] }, { index: 0, coefficients: [1, 1, 1, 1] }];
+    let state = states[0];
+    const current = () => CASES[flat() ? 1 : 0][state.index];
     const controls = [0, 1, 2, 3].map((i) => {
       const control = slider({ label: `המקדם של ${nameOf(i)}`, min: -3, max: 3, step: 0.5, value: 1, onInput(v) { state.coefficients[i] = v; update(); } });
       ui.controls.append(control.el);
@@ -2526,13 +2768,20 @@
       });
       update();
     };
+    const caseButtons = CASES.map((list) => list.map((item, index) => button(item.label, () => { state.index = index; setCoefficients([1, 1, 1, 1]); }, "is-quiet")));
     ui.buttons.append(
-      ...CASES.map((item, index) => button(item.label, () => { state.index = index; setCoefficients([1, 1, 1, 1]); }, "is-quiet")),
+      ...caseButtons.flat(),
       button("הראו קשר", () => {
         const { relation, vectors } = current();
         setCoefficients(relation || vectors.map(() => 0));
       })
     );
+
+    function switchMode() {
+      state = states[flat() ? 1 : 0];
+      caseButtons.forEach((list, i) => list.forEach((el) => showIf(el, (i === 1) === flat())));
+      setCoefficients(state.coefficients);
+    }
 
     // Isolates one vector from a relation, as in the proof of theorem 2.6.3.
     function isolate(coefficients, count) {
@@ -2545,7 +2794,7 @@
       return `${nameOf(pivot)} = ${terms.join(" + ") || "0"}`;
     }
 
-    const coplanar = () => current().vectors.length === 3 && current().relation;
+    const coplanar = () => !flat() && current().vectors.length === 3 && current().relation;
 
     function draw() {
       plot.begin();
@@ -2566,53 +2815,88 @@
       const used = state.coefficients.slice(0, vectors.length);
       const end = combine(used, vectors);
       const allZero = used.every((c) => c === 0);
-      const shown = m(`${used.map((c, i) => term(c, nameOf(i))).join(" + ")} = ${pair(end)}`);
+      const shown = m(`${used.map((c, i) => term(c, nameOf(i))).join(" + ")} = ${pairIn(end, flat())}`);
       if (same(end, ORIGIN) && allZero) ui.say(`${shown}. חזרתם הביתה כי לא זזתם: זה <strong>הצירוף הטריוויאלי</strong>, והוא עובד לכל וקטורים. ${relation ? "בדקו אם יש דרך אחרת לחזור." : "כאן אין דרך אחרת, ולכן הווקטורים <strong>בלתי תלויים</strong>."}`);
       else if (same(end, ORIGIN)) ui.say(`${shown}. חזרתם הביתה עם מקדמים שלא כולם אפס, ולכן הווקטורים <strong>תלויים</strong>. מעבירים אגף ומבודדים וקטור אחד: ${m(isolate(used, vectors.length))}.`);
+      else if (flat() && vectors.length > 2) ui.say(`${shown}. שלושה וקטורים ב-${m("ℝ²")} <strong>תמיד תלויים</strong>, לפי משפט 2.6.6: במישור יש מקום לשני כיוונים בלבד. לכן יש דרך לחזור הביתה בלי לאפס הכול. נסו למצוא אותה.`);
       else if (vectors.length > 3) ui.say(`${shown}. ארבעה וקטורים ב-${m("ℝ³")} תמיד תלויים, לפי משפט 2.6.6, ולכן יש דרך לחזור הביתה. נסו למצוא אותה.`);
       else if (coplanar()) ui.say(`${shown}. שלושת הווקטורים שוכבים באותו מישור, המישור המוצלל. סובבו את התרשים עד שהמישור נראה כקו, ותראו את שלושתם עליו. בתוך מישור אחד יש דרך לחזור הביתה בלי לאפס הכול. נסו למצוא אותה.`);
       else if (relation) ui.say(`${shown}. בזוג הזה יש דרך לחזור הביתה בלי לאפס את כל המקדמים. נסו למצוא אותה.`);
+      else if (flat()) ui.say(`${shown}. שני החיצים במישור אינם על ישר אחד, ולכן כל עוד מקדם אחד אינו אפס לא תחזרו הביתה. אפסו את שני המקדמים כדי לראות את המקרה היחיד שעובד.`);
       else ui.say(`${shown}. אף אחד מהשלושה אינו במישור של שני האחרים, ולכן כל עוד מקדם אחד אינו אפס לא תחזרו הביתה. אפסו את כל המקדמים כדי לראות את המקרה היחיד שעובד.`);
     }
 
+    caseButtons[1].forEach((el) => showIf(el, false));
     setCoefficients([1, 1, 1, 1]);
     return { render() { plot.layout(); draw(); } };
   };
 
-  // 2.7: the unique coordinates of a target in an ordered basis of R³.
+  // 2.7: the unique coordinates of a target in an ordered basis of R³, or of R² in 2D.
   DEMOS["basis-coordinates"] = (fig) => {
     const { classify } = window.Linalg;
     const ui = frame(fig, "אותו יעד, מתכון לפי בסיס");
     const plot = new Plot3D(ui.plotHost, { range: 4 });
-    ui.plotHost.append(viewControls(plot.camera));
+    const flat = () => plot.camera.flat;
+    ui.plotHost.append(viewControls(plot.camera, () => switchMode()));
     const BASES = [
-      { label: "הבסיס הסטנדרטי", vectors: [[1, 0, 0], [0, 1, 0], [0, 0, 1]] },
-      { label: "בסיס (1,1,0), (0,1,1), (1,0,1)", vectors: [[1, 1, 0], [0, 1, 1], [1, 0, 1]] },
-      { label: "בסיס (1,0,0), (1,1,0), (1,1,1)", vectors: [[1, 0, 0], [1, 1, 0], [1, 1, 1]] },
-      { label: "לא בסיס: (1,0,1), (0,1,1), (1,1,2)", vectors: [[1, 0, 1], [0, 1, 1], [1, 1, 2]] }
+      [
+        { label: "הבסיס הסטנדרטי", vectors: [[1, 0, 0], [0, 1, 0], [0, 0, 1]] },
+        { label: "בסיס (1,1,0), (0,1,1), (1,0,1)", vectors: [[1, 1, 0], [0, 1, 1], [1, 0, 1]] },
+        { label: "בסיס (1,0,0), (1,1,0), (1,1,1)", vectors: [[1, 0, 0], [1, 1, 0], [1, 1, 1]] },
+        { label: "לא בסיס: (1,0,1), (0,1,1), (1,1,2)", vectors: [[1, 0, 1], [0, 1, 1], [1, 1, 2]] }
+      ],
+      [
+        { label: "הבסיס הסטנדרטי", vectors: [[1, 0, 0], [0, 1, 0]] },
+        { label: "בסיס (1,1), (−1,1)", vectors: [[1, 1, 0], [-1, 1, 0]] },
+        { label: "בסיס (1,0), (1,1)", vectors: [[1, 0, 0], [1, 1, 0]] },
+        { label: "לא בסיס: (1,2), (2,4)", vectors: [[1, 2, 0], [2, 4, 0]] }
+      ]
     ];
     const CLASSES = ["pc-blue", "pc-red", "pc-purple"];
-    const state = { index: 1, swapped: false, x: 2, y: 3, z: 3 };
+    const states = [{ index: 1, swapped: false, x: 2, y: 3, z: 3 }, { index: 1, swapped: false, x: 2, y: 3, z: 0 }];
+    let state = states[0];
     const ordered = () => {
-      const [first, second, third] = BASES[state.index].vectors;
-      return state.swapped ? [second, first, third] : [first, second, third];
+      const [first, second, ...rest] = BASES[flat() ? 1 : 0][state.index].vectors;
+      return state.swapped ? [second, first, ...rest] : [first, second, ...rest];
     };
-    const target = () => [state.x, state.y, state.z];
+    const target = () => [state.x, state.y, flat() ? 0 : state.z];
+    const cut = (v) => (flat() ? v.slice(0, 2) : v);
+    const systemOf = (basis) => columnsSystem(basis.map(cut), cut(target()));
+    const controls = {};
     for (const key of ["x", "y", "z"]) {
-      const control = slider({ label: `רכיב ${key} של היעד`, min: -4, max: 4, step: 0.5, value: state[key], onInput(v) { state[key] = v; update(); } });
-      ui.controls.append(control.el);
+      controls[key] = slider({ label: `רכיב ${key} של היעד`, min: -4, max: 4, step: 0.5, value: state[key], onInput(v) { state[key] = v; update(); } });
+      ui.controls.append(controls[key].el);
     }
+    const baseButtons = BASES.map((list) => list.map((item, index) => button(item.label, () => { state.index = index; state.swapped = false; update(); }, "is-quiet")));
     ui.buttons.append(
-      ...BASES.map((item, index) => button(item.label, () => { state.index = index; state.swapped = false; update(); }, "is-quiet")),
+      ...baseButtons.flat(),
       button("החלפת הסדר של a₁ ו-a₂", () => { state.swapped = !state.swapped; update(); })
     );
+
+    function syncControls() {
+      baseButtons.forEach((list, i) => list.forEach((el) => showIf(el, (i === 1) === flat())));
+      showIf(controls.z.el, !flat());
+    }
+
+    function switchMode() {
+      state = states[flat() ? 1 : 0];
+      for (const key of ["x", "y", "z"]) controls[key].set(state[key]);
+      syncControls();
+      update();
+    }
+
+    // The vectors are not a basis when they lie on one line (R²) or in one plane (R³).
+    const degenerate = (basis) => (flat() ? tiny(V.cross(basis[0], basis[1])) : Math.abs(V.dot(basis[0], V.cross(basis[1], basis[2]))) < 1e-9);
 
     function draw() {
       plot.begin();
       plot.room();
       const basis = ordered();
-      const result = classify(columnsSystem(basis, target()));
-      if (Math.abs(V.dot(basis[0], V.cross(basis[1], basis[2]))) < 1e-9) plot.span(basis[0], basis[1], "pc-gray");
+      const result = classify(systemOf(basis));
+      if (degenerate(basis)) {
+        if (flat()) plot.line(ORIGIN, basis[tiny(basis[0]) ? 1 : 0], { cls: "pc-gray", dash: "5 5", width: 1.6 });
+        else plot.span(basis[0], basis[1], "pc-gray");
+      }
       basis.forEach((vector, i) => plot.arrow(ORIGIN, vector, { cls: CLASSES[i], label: `a${sub(i + 1)}` }));
       if (result.kind === "one") walk3(plot, result.solution.map(value), basis, CLASSES);
       endPoint(plot, target());
@@ -2623,16 +2907,19 @@
     function update() {
       draw();
       const basis = ordered();
-      const result = classify(columnsSystem(basis, target()));
-      const order = m(basis.map((vector, i) => `a${sub(i + 1)} = ${pair(vector)}`).join(", "));
+      const result = classify(systemOf(basis));
+      const order = m(basis.map((vector, i) => `a${sub(i + 1)} = ${pairIn(vector, flat())}`).join(", "));
       if (result.kind === "one") {
         const coefficients = result.solution.map((c) => minusSign(c));
         const wrap = (text) => (/[−/]/.test(text) ? `(${text})` : text);
-        ui.say(`${order}. ${m(`${pair(target())} = ${coefficients.map((c, i) => `${wrap(c)}a${sub(i + 1)}`).join(" + ")}`)}. סדרת המקדמים היא ${m(`(${coefficients.join(", ")})`)}, וזה <strong>המתכון היחיד</strong> בסדר הזה (משפט 2.7.9). החליפו את הסדר: הווקטור לא זז, רק המקדמים מתחלפים.`);
-      } else if (result.kind === "none") ui.say(`${order}. שלושת הווקטורים שוכבים באותו מישור, המישור המוצלל, ולכן כל צירוף שלהם נשאר עליו. היעד מחוץ למישור, ו<strong>אין לו מתכון</strong>. זה לא בסיס: אין פרישה.`);
+        ui.say(`${order}. ${m(`${pairIn(target(), flat())} = ${coefficients.map((c, i) => `${wrap(c)}a${sub(i + 1)}`).join(" + ")}`)}. סדרת המקדמים היא ${m(`(${coefficients.join(", ")})`)}, וזה <strong>המתכון היחיד</strong> בסדר הזה (משפט 2.7.9). החליפו את הסדר: הווקטור לא זז, רק המקדמים מתחלפים.`);
+      } else if (flat() && result.kind === "none") ui.say(`${order}. שני הווקטורים על ישר אחד, הישר המקווקו, ולכן כל צירוף שלהם נשאר עליו. היעד מחוץ לישר, ו<strong>אין לו מתכון</strong>. זה לא בסיס של ${m("ℝ²")}: אין פרישה.`);
+      else if (flat()) ui.say(`${order}. שני הווקטורים על ישר אחד. היעד על הישר, ולכן יש לו <strong>הרבה מתכונים</strong>, ואין יחידות. גם כאן זה לא בסיס של ${m("ℝ²")}.`);
+      else if (result.kind === "none") ui.say(`${order}. שלושת הווקטורים שוכבים באותו מישור, המישור המוצלל, ולכן כל צירוף שלהם נשאר עליו. היעד מחוץ למישור, ו<strong>אין לו מתכון</strong>. זה לא בסיס: אין פרישה.`);
       else ui.say(`${order}. שלושת הווקטורים שוכבים באותו מישור. היעד במישור, ולכן יש לו <strong>הרבה מתכונים</strong>, ואין יחידות. גם כאן זה לא בסיס.`);
     }
 
+    syncControls();
     update();
     return { render() { plot.layout(); draw(); } };
   };
