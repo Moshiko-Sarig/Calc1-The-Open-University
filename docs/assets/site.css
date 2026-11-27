@@ -2874,6 +2874,12 @@ bdi {
   cursor: grabbing;
 }
 
+/* The 2D mode does not turn, so it does not offer to be grabbed. */
+.demo-canvas-3d.is-flat .demo-svg-3d,
+.demo-canvas-3d.is-flat .demo-svg-3d:active {
+  cursor: default;
+}
+
 .demo-canvas-3d:focus-visible {
   outline: 2px solid var(--pencil-blue);
   outline-offset: 2px;
