@@ -2918,6 +2918,91 @@
     plot.shape("circle", { cx, cy, r, class: "demo-curve pc-gray", "stroke-width": 2 });
   }
 
+  // Chapter 5: the addition or multiplication table of Z_n. One row is picked;
+  // the status says whether that element has an inverse, and whether Z_n is a field.
+  DEMOS["zn-table"] = (fig) => {
+    const SIZES = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+    const ui = frame(fig, "לוח הכפל והחיבור של \\(\\mathbb Z_n\\)");
+    const board = h("div", { class: "demo-rows demo-ztable-host" });
+    ui.plotHost.append(board);
+    const state = { n: 7, op: 0, a: 3 };
+    const mod = (x, n) => ((x % n) + n) % n;
+    const gcd = (x, y) => (y === 0 ? x : gcd(y, x % y));
+    const isPrime = (n) => n >= 2 && Array.from({ length: n - 2 }, (_, i) => i + 2).every((d) => n % d !== 0);
+
+    const size = choice("\\(n\\)", SIZES.map(String), (v) => { state.n = SIZES[v]; state.a = Math.min(state.a, state.n - 1); refill(); update(); });
+    const op = choice("פעולה", ["כפל", "חיבור"], (v) => { state.op = v; update(); });
+    const row = choice("שורה \\(a\\)", [], (v) => { state.a = v; update(); });
+    ui.controls.append(size.el, op.el, row.el);
+    size.select.value = String(SIZES.indexOf(state.n));
+    ui.buttons.append(
+      button("השורה הבאה", () => {
+        state.a = (state.a + 1) % state.n;
+        row.select.value = String(state.a);
+        update();
+      })
+    );
+
+    function refill() {
+      row.select.replaceChildren(...Array.from({ length: state.n }, (_, i) => h("option", { value: String(i), text: String(i) })));
+      row.select.value = String(state.a);
+    }
+
+    function update() {
+      const { n, a } = state;
+      const times = state.op === 0;
+      const f = (x, y) => (times ? mod(x * y, n) : mod(x + y, n));
+      const target = times ? 1 : 0;
+      const sign = times ? "·" : "+";
+      const table = h("div", { class: "demo-ztable", dir: "ltr", role: "img", style: `--cols:${n + 1}` });
+      table.setAttribute("aria-label", `לוח ה${times ? "כפל" : "חיבור"} של Z${sub(n)}. שורה ${a}: ${Array.from({ length: n }, (_, k) => f(a, k)).join(", ")}`);
+      table.append(h("span", { class: "is-corner", text: sign }));
+      for (let k = 0; k < n; k++) table.append(h("span", { class: "is-head is-top", text: String(k) }));
+      for (let i = 0; i < n; i++) {
+        table.append(h("span", { class: `is-head is-side${i === a ? " is-row" : ""}`, text: String(i) }));
+        for (let k = 0; k < n; k++) {
+          const value = f(i, k);
+          const cls = i === a ? (value === target ? "is-hit" : "is-row") : "";
+          table.append(h("span", { class: cls || null, text: String(value) }));
+        }
+      }
+      board.replaceChildren(named(`Z${sub(n)}`, table));
+
+      const values = Array.from({ length: n }, (_, k) => f(a, k));
+      const allDifferent = new Set(values).size === n;
+      const prime = isPrime(n);
+      const field = prime
+        ? `${m(`n = ${n}`)} ראשוני, ולכן ${m(`Z${sub(n)}`)} <strong>שדה</strong>: לכל איבר שאינו 0 יש הופכי (משפט 5.4.1).`
+        : `${m(`n = ${n}`)} פריק, ולכן ${m(`Z${sub(n)}`)} <strong>אינו שדה</strong> (משפט 5.4.1). חסרי ההופכי: ${m(Array.from({ length: n }, (_, k) => k).filter((k) => gcd(k, n) !== 1).join(", "))}.`;
+
+      if (!times) {
+        const negative = mod(-a, n);
+        ui.say(`בשורה של ${m(String(a))} כל מספר מופיע פעם אחת: חיבור של ${m(String(a))} רק מסובב את השעון. ה-0 נמצא בעמודה ${m(String(negative))}, ולכן הנגדי של ${m(String(a))} הוא ${m(a === 0 ? "0" : `${n} − ${a} = ${negative}`)} (למה 5.2.12). בחיבור לכל איבר יש נגדי, גם כש-${m("n")} פריק.`);
+        return;
+      }
+      if (a === 0) {
+        ui.say(`השורה של 0 כולה אפסים, ולכן ל-0 אין הופכי. כך בכל שדה (מסקנה 1.2.7). ${field}`);
+        return;
+      }
+      if (allDifferent) {
+        const k = values.indexOf(1);
+        ui.say(`בשורה של ${m(String(a))} כל מספר מופיע פעם אחת בדיוק, ובפרט גם 1. הוא בעמודה ${m(String(k))}: ${m(`${a} · ${k} = ${a * k} = ${Math.floor((a * k) / n)}·${n} + 1`)}, ולכן ${m(`${a}⁻¹ = ${k}`)}. ${field}`);
+        return;
+      }
+      const zero = values.findIndex((v, k) => k > 0 && v === 0);
+      // Prefer a repeat away from 0, so it says something the zero product does not.
+      const nonzeroRepeat = values.findIndex((v, k) => v !== 0 && values.indexOf(v) !== k);
+      const repeat = nonzeroRepeat > 0 ? nonzeroRepeat : values.findIndex((v, k) => values.indexOf(v) !== k);
+      const first = values.indexOf(values[repeat]);
+      const zeroText = zero > 0 ? ` ויותר מזה: ${m(`${a} · ${zero} = 0`)} אף ששני הגורמים אינם 0. בשדה זה לא ייתכן (משפט 1.2.6).` : "";
+      ui.say(`בשורה של ${m(String(a))} אין 1, ולכן ל-${m(String(a))} <strong>אין הופכי</strong>. המספרים בשורה חוזרים, למשל ${m(`${a}·${first} = ${a}·${repeat} = ${values[repeat]}`)}: ${m(String(a))} ו-${m(String(n))} מתחלקים שניהם ב-${m(String(gcd(a, n)))}.${zeroText} ${field}`);
+    }
+
+    refill();
+    update();
+    return { render: update };
+  };
+
   // The point on the unit circle, and its height and width unrolled into the
   // graphs of sine and cosine.
   DEMOS["unit-circle"] = (fig) => {

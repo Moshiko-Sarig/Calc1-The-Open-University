@@ -146,7 +146,7 @@ export const COURSES = [
     fullName: "אלגברה לינארית 1",
     courseCode: "20109",
     tagline: "קורס 20109",
-    summary: "מערכות משוואות, וקטורים, מטריצות ודטרמיננטות. פרקים 1–4 זמינים ללימוד.",
+    summary: "מערכות משוואות, וקטורים, מטריצות, דטרמיננטות ושדות סופיים. פרקים 1–5 זמינים ללימוד.",
     brandMark: "λ",
     coverColor: "#2f5a4b",
     description:
@@ -182,9 +182,10 @@ export const COURSES = [
       1: "מערכות משוואות לינאריות",
       2: "המרחב Fⁿ",
       3: "מטריצות",
-      4: "דטרמיננטות"
+      4: "דטרמיננטות",
+      5: "שדות סופיים"
     },
-    unitVolumes: { 1: "כרך א", 2: "כרך א", 3: "כרך א", 4: "כרך א" },
+    unitVolumes: { 1: "כרך א", 2: "כרך א", 3: "כרך א", 4: "כרך א", 5: "כרך ב" },
     titleSuffix: /\s+-\s+לינארית 1$/,
     searchExample: "1.10.5",
     // Notes sort by name, so without this definition cards would not follow the book.
