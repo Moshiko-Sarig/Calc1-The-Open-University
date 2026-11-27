@@ -6052,6 +6052,53 @@ details.callout > summary.callout-title { min-height: 32px; }
   border-radius: var(--radius-s);
 }
 
+/* Chapter 5: the table of Z_n, with its headers, one picked row and the cell that answers. */
+.demo-ztable-host {
+  direction: ltr;
+  justify-content: center;
+  overflow-x: auto;
+}
+.demo-ztable {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(calc(var(--cell) * 1.7), auto));
+  grid-auto-rows: calc(var(--cell) * 1.7);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.92em;
+}
+.demo-ztable span {
+  display: grid;
+  place-items: center;
+  border-bottom: 1px solid var(--line);
+}
+.demo-ztable .is-head,
+.demo-ztable .is-corner {
+  color: var(--ink-2);
+  font-weight: 700;
+}
+.demo-ztable .is-corner {
+  border-inline-end: 1.5px solid var(--ink-2);
+  border-bottom: 1.5px solid var(--ink-2);
+}
+.demo-ztable .is-top {
+  border-bottom: 1.5px solid var(--ink-2);
+}
+.demo-ztable .is-side {
+  border-inline-end: 1.5px solid var(--ink-2);
+}
+.demo-ztable .is-row {
+  background: var(--band-blue);
+  color: var(--pencil-blue);
+  font-weight: 700;
+}
+.demo-ztable .is-hit {
+  background: var(--band-red);
+  color: var(--pencil-red);
+  font-weight: 700;
+  outline: 1.5px solid currentColor;
+  outline-offset: -3px;
+  border-radius: var(--radius-s);
+}
+
 /* The link to the other course: set apart from this course's own views. */
 .primary-nav .course-switch {
   margin-inline-start: 6px;
